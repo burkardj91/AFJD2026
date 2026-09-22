@@ -109,9 +109,13 @@ class Quest:
         return "participant", self.activate_badge(code, private_code or "")
 
     def activate_badge(self, badge, private_code):
+        if not badge.strip():
+            raise ValueError("Enter your personal login ID.")
+        if not private_code.strip():
+            raise ValueError("Enter the private activation code supplied with your login ID.")
         person = next((p for p,r in ROSTER.items() if badge.strip().upper() in {r["id"], r["code"], p.upper()}), None)
         if person is None or not secrets.compare_digest(ACTIVATION_CODES[person], private_code.strip().upper()):
-            raise ValueError("Badge and private activation code do not match.")
+            raise ValueError("The login ID and private activation code do not match. Use both values from the same test-person row.")
         self.active.add(person)
         return person
 

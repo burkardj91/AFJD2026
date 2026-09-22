@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory() as directory:
         return next(b for b in app.button if b.label == label)
     def start(code):
         app=AppTest.from_file(source, default_timeout=20).run()
-        next(t for t in app.text_input if t.label=='Demo login ID').input(code)
+        next(t for t in app.text_input if t.label=='Personal login ID').input(code)
         if code.startswith("DEMO"):
             private={"DEMO-264":"LEA-7K4M-26","DEMO-137":"ALEX-9P2R-26"}[code]
             next(t for t in app.text_input if t.label=="Private activation code").input(private)

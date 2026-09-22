@@ -45,11 +45,11 @@ if not role:
         st.info("This is a public badge link. Enter your own private activation code to sign in; scanning a badge does not claim it.")
     st.markdown(masthead(), unsafe_allow_html=True)
     st.title("Welcome to Network Quest")
-    st.write("Enter your badge ID and the private activation code supplied separately at check-in.")
+    st.write("Scan the general event QR to open this page. Then enter your personal login ID and private activation code.")
     with st.form("demo_login"):
         badge_token = st.query_params.get("badge", "")
         badge_default = ROSTER.get(badge_token, {}).get("id", "")
-        code = st.text_input("Demo login ID", value=badge_default, placeholder="AFJD-0264 / STAFF-01 / SCREEN-01", help="Badge ID for participants; demo role ID for staff and screen.")
+        code = st.text_input("Personal login ID", value=badge_default, placeholder="AFJD-0264 / STAFF-01 / SCREEN-01", help="Badge ID for participants; demo role ID for staff and screen.")
         private_code = st.text_input("Private activation code", type="password", help="Participants need their matching code. Leave blank for demo staff/screen roles.")
         if st.form_submit_button("Enter demo", type="primary", use_container_width=True):
             try:
@@ -57,8 +57,8 @@ if not role:
                 s.demo_role_v3, s.person_v2 = role, person
                 s.staff_login = code.strip().upper() if role == "staff" else None
                 st.rerun()
-            except ValueError:
-                st.error("Check your badge ID and matching private activation code. Staff/screen demo IDs do not need an activation code.")
+            except ValueError as error:
+                st.error(str(error))
     st.caption("Fictional rehearsal accounts, not production authentication. Open separate tabs for different demo users. Progress is shared locally and updates automatically.")
     with st.expander("Fictional test credentials · not for production"):
         st.table([{"Name":r["name"], "Badge ID":r["id"], "Private test code":ACTIVATION_CODES[p]} for p,r in ROSTER.items()])
@@ -518,6 +518,9 @@ elif view == "Live network":
 else:
     st.title("The rehearsal kit")
     st.write("Print or display these codes to test scanning with fictional badges, stations and cards.")
+    with st.expander("General event QR · opens the login page", expanded=True):
+        st.image(qr_png(public_base_url()+"/"), width=230, caption="One shared event entry QR. No personal credentials included.")
+        st.download_button("Download general event QR",qr_png(public_base_url()+"/"),file_name="AFJD-event-login.png",mime="image/png")
     kind = st.selectbox("QR type",["person","station","reward"])
     catalog = {"person":ROSTER,"station":STATIONS,"reward":CARDS}[kind]
     token = st.selectbox("Choose a code",list(catalog),format_func=lambda t:ROSTER[t]["name"] if kind == "person" else catalog[t][0])
