@@ -19,3 +19,24 @@ Test in separate tabs or on devices using the same hosted URL: DEMO-264, DEMO-13
 References:
 https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy
 https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management
+
+## Badge activation rehearsal
+
+A public badge QR opens `/?badge=<public-token>` and prefills the badge ID. It contains no activation code. Enter the matching private test code to open the participant profile. A code belonging to another badge is rejected without activating either account. When already signed in, scanning someone else's badge requests a connection instead of switching identity.
+
+| Person | Public badge ID | Separate private TEST code |
+|---|---|---|
+| Lea Meier | AFJD-0264 | LEA-7K4M-26 |
+| Alex Keller | AFJD-0137 | ALEX-9P2R-26 |
+| Noah Frei | AFJD-0189 | NOAH-6T8V-26 |
+| Mia Baumann | AFJD-0310 | MIA-3W5X-26 |
+| Jonas Weber | AFJD-0421 | JONAS-4C7D-26 |
+| Sara Rossi | AFJD-0532 | SARA-8F2H-26 |
+
+These published codes are intentionally reusable for fictional rehearsals. Production needs randomly generated single-use activation secrets, hashed storage, expiry, rate limiting, secure returning-user sign-in and authenticated staff. This demo does not implement those protections. Do not print the private code on the public badge.
+
+A QR can be displayed on a phone or printed on a badge/poster. The participant uses the Scan tab's camera/image/manual option to read it; a booth device can scan too if a participant is signed in. A public unattended booth must not stay signed in as a participant. Device cameras and native camera badge links need the deployed HTTPS address; localhost is only usable on the server computer.
+
+STAFF-01, STAFF-02 and SCREEN-01 remain explicit demo-role logins and do not need a private participant code. Test credentials are in a labelled expander for rehearsal convenience.
+
+Tests: `python -m unittest discover -s tests -p "test_quest*.py" -v`, `python scripts/check_quest_shared_ui.py` and `python scripts/check_quest_ui.py`.
