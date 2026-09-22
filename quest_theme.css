@@ -1,0 +1,88 @@
+:root{--green:#009641;--coral:#ef8281;--ink:#202b27;--line:#e0e5e2;--muted:#66736c}
+.stApp{background:#f4f5f6;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+.block-container{max-width:880px;padding:22px 28px 90px;background:#fff;min-height:100vh}
+h1,h2,h3{font-family:inherit!important;letter-spacing:normal!important;color:var(--ink);font-weight:650!important}
+h1{font-size:28px!important;line-height:1.25!important}h2{font-size:22px!important}h3{font-size:18px!important}
+p{line-height:1.5}header[data-testid=stHeader]{background:transparent}[data-testid=stToolbar],#MainMenu,footer{display:none}
+[data-testid=stSidebar]{background:#f4f5f6}
+.masthead{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:16px;gap:16px}
+.brand-logo{width:65px;height:52px;object-fit:contain;display:block}.event-label{display:flex;flex-direction:column;text-align:right;gap:3px;font-size:14px}.event-label strong{font-weight:650}.event-label span{font-size:12px;color:var(--muted)}
+.pass{background:#fff;border:1px solid var(--line);border-radius:5px;padding:18px 20px;margin:12px 0 20px;box-shadow:none;position:relative;border-left:4px solid var(--green)}
+.pass .eyebrow{font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}.pass .name{font-size:25px;font-weight:650;line-height:1.3;margin:5px 0;color:var(--ink)}.pass .meta{font-size:13px;color:var(--muted)}.pass .rule{display:none}.pass .bottom{display:flex;gap:24px;margin-top:14px;color:#006b2d;font-size:14px;font-weight:600}
+[role=tablist]{border-bottom:1px solid var(--line);gap:0;padding:0;background:#fff;border-radius:0;justify-content:space-between;margin-bottom:18px}
+[role=tab]{font-size:14px;min-height:48px;padding:10px 14px;color:#5b6861;font-weight:500}
+[role=tab][aria-selected=true]{color:#006b2d;font-weight:700;background:transparent}
+[data-baseweb=tab-highlight]{background:var(--green);height:3px}
+.challenge{display:flex;align-items:center;gap:14px;padding:18px 8px;margin:0;border:0;border-bottom:1px solid var(--line);background:white;border-radius:0}
+.challenge .num{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;border:1px solid #cdd7d0;flex-shrink:0;color:#738077;font-size:13px}
+.challenge strong{display:block;font-size:15px;font-weight:600}.challenge small{font-size:13px;color:var(--muted);line-height:1.5}
+.challenge.done{background:#f0f8f3}.challenge.done .num{background:var(--green);border-color:var(--green);color:#082b18;font-weight:700}.challenge.done strong{color:#006c2e}
+[data-testid=stForm]{border:1px solid var(--line);border-radius:5px;padding:20px;background:white;box-shadow:none}
+[data-testid=stExpander]{border-color:var(--line)!important;border-radius:5px!important;background:white}
+div.stButton>button,div.stDownloadButton>button,div.stFormSubmitButton>button{min-height:44px;border-radius:5px;font-size:14px;font-weight:600;box-shadow:none}
+div.stButton>button[kind=primary],div.stFormSubmitButton>button[kind=primary]{background:var(--green);border-color:var(--green);color:#072c18}
+[role=progressbar]>div>div{background:var(--green)!important}
+.reward{border:1px solid var(--line);border-top:4px solid var(--coral);border-radius:5px;background:white;padding:22px;margin:12px 0}.reward strong{display:block;font-size:24px;line-height:1.25;margin:10px 0}.reward span{font-size:14px;line-height:1.5}
+.reward-overline{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.reward-preview{border:1px solid var(--line);border-radius:5px;padding:22px;background:white;margin:12px 0}.reward-preview h2{font-size:23px!important;line-height:1.3!important}.reward-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}.reward-step{border-top:2px solid var(--coral);padding-top:12px;font-size:13px;line-height:1.5}.reward-step b{display:block;color:#006d30}
+.privacy-note{font-size:13px;color:var(--muted);line-height:1.5}
+[data-testid=stDialog] [role=dialog]{max-width:520px;border-radius:10px;border:1px solid var(--line);box-shadow:0 12px 70px #10291c35}
+.unlock-visual{text-align:center;position:relative;overflow:hidden;background:#eef8f2;border-radius:6px;padding:24px 18px;margin-bottom:16px}.unlock-check{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 16px;background:var(--green);color:#072c18;border-radius:50%;font-size:28px;font-weight:700;animation:pop .5s ease-out}.unlock-tag{display:inline-block;background:var(--coral);color:#382321;padding:5px 8px;font-size:10px;font-weight:700;letter-spacing:.04em;border-radius:3px}.unlock-visual h2{font-size:27px!important;line-height:1.2!important;margin:14px 0}.unlock-visual p{font-size:15px;line-height:1.5}
+.confetti{position:absolute;width:6px;height:10px;background:var(--coral);top:-15px;animation:fall 1.8s ease-out both;pointer-events:none}
+.draw-deck{display:flex;justify-content:center;gap:14px;padding:25px 0}.draw-deck span{display:grid;place-items:center;width:90px;height:126px;border-radius:6px;background:#009641;color:#072c18;font-size:14px;font-weight:750;border:4px double #80c9a0;box-shadow:0 4px 12px #11342115}.draw-deck span:first-child{transform:rotate(-7deg)}.draw-deck span:last-child{transform:rotate(7deg)}
+.draw-result{border:1px solid var(--green);border-radius:6px;padding:24px;text-align:center;background:#eff9f3;animation:pop .5s ease-out}.draw-result span{font-size:11px;color:#3c6750;letter-spacing:.08em}.draw-result h2{font-size:25px!important}.draw-result p{color:#486453}
+@keyframes pop{from{transform:scale(.9)}to{transform:scale(1)}}@keyframes fall{from{transform:translateY(0) rotate(0);opacity:1}to{transform:translateY(300px) rotate(270deg);opacity:0}}
+@media(prefers-reduced-motion:reduce){.confetti{display:none}.unlock-check,.draw-result{animation:none}}
+@media(max-width:600px){.block-container{padding:14px 16px 110px}.brand-logo{width:54px;height:44px}.event-label{font-size:12px}.event-label span{font-size:11px}.pass{padding:15px 16px}.pass .name{font-size:23px}.pass .bottom{font-size:13px}.reward-steps{grid-template-columns:1fr;gap:12px}[role=tablist]{position:fixed;bottom:0;left:0;right:0;z-index:90;margin:0;padding:4px 6px max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--line);border-bottom:0;box-shadow:0 -2px 8px #18342408}[role=tab]{font-size:12px;padding:10px 5px;flex:1}[data-baseweb=tab-highlight]{height:2px}.unlock-visual{padding:18px 14px}.unlock-visual h2{font-size:24px!important}.reward-preview{padding:18px}}
+
+[role=tab][aria-selected=true]{border-bottom:3px solid var(--green)}
+/* Quiet, editorial invitation and physical-card draw. */
+.stApp{background:var(--canvas);color:var(--ink)}
+.block-container,[data-testid=stForm],[data-testid=stExpander],[role=tablist],.pass,.challenge,.reward,.reward-preview{background:var(--surface)!important;color:var(--ink)!important}
+h1,h2,h3,.pass .name{color:var(--ink)!important}
+[data-testid=stSidebar],[data-testid=stPopoverBody],[role=dialog]{background:var(--surface)!important;color:var(--ink)!important}
+[data-testid=stMarkdownContainer] p,[data-testid=stWidgetLabel] p,[data-testid=stCaptionContainer] p{font-size:calc(1rem * var(--text-scale))!important}
+.challenge strong,[role=tab],button p{font-size:calc(.92rem * var(--text-scale))!important}
+.challenge small,.pass .meta,.event-label span{color:var(--muted);font-size:calc(.82rem * var(--text-scale))}
+.challenge.done,.unlock-visual{background:var(--soft)!important}.challenge.done strong,.pass .bottom,[role=tab][aria-selected=true]{color:var(--accent)!important}
+input,textarea,[data-baseweb=select]>div,[data-baseweb=input],[data-baseweb=textarea]{background:var(--surface)!important;color:var(--ink)!important}
+[data-testid=stSelectbox] span,[data-testid=stRadio] label,[data-testid=stCheckbox] label{color:var(--ink)!important}
+button[kind=secondary],button[kind=tertiary]{background:var(--surface)!important;color:var(--ink)!important;border-color:var(--line)!important}
+[data-testid=stDialog] [role=dialog]{border-radius:8px;max-width:570px}
+.invitation{padding:24px 10px 12px;background:var(--surface);border-top:3px solid #009641}
+.invitation>img{width:64px;height:51px;object-fit:contain;margin-bottom:24px}
+.card-kicker{display:block;font-size:11px;letter-spacing:.12em;color:var(--muted);margin:12px 0}
+.invitation h2{font-family:Georgia,serif!important;font-weight:400!important;font-size:34px!important;line-height:1.16!important;letter-spacing:-.025em!important;margin:12px 0 20px}
+.invitation p{color:var(--muted)}.invitation-footer{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:18px;margin-top:28px;font-size:13px}.invitation-footer b{color:var(--accent);font-weight:500}
+.deck-card{min-height:200px;border:1px solid #c6d8ca;border-radius:8px;background:#f7f5ee;padding:20px 12px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;text-align:center;box-shadow:0 6px 12px #00000010;animation:deal .7s ease both;animation-delay:var(--delay)}
+.deck-card img{width:56px}.deck-card span{font-family:Georgia,serif;font-size:23px;line-height:1.15;color:#123f29}.deck-card small{font-size:9px;letter-spacing:.14em;color:#51675a}
+.reveal-stage{perspective:1300px;padding:12px 5px 20px;max-width:380px;margin:auto}
+.turning-card{position:relative;min-height:470px;transform-style:preserve-3d;animation:reveal 1.7s cubic-bezier(.2,.65,.2,1) both}
+.card-back,.card-front{position:absolute;inset:0;backface-visibility:hidden;border-radius:10px;border:1px solid #c9d5cb;background:#f7f5ee;box-shadow:0 12px 25px #00000020;padding:24px;display:flex;align-items:center;flex-direction:column;text-align:center;color:#173c29}
+.card-back{transform:rotateY(180deg);justify-content:center;gap:35px;background:#e5eddf}.card-back img{width:95px}.card-back span{font:28px Georgia,serif}.card-front>img{width:62px}.card-front .card-kicker{color:#58675e;font-size:10px;margin:18px 0 5px}.card-front h2{font:30px/1.12 Georgia,serif!important;color:#173c29!important;margin:10px 0}.card-front p{font-size:14px!important;line-height:1.4;color:#51675a;margin:8px 0 14px}.card-front img.claim-qr{width:140px;height:140px;background:white}.card-front small{font-size:12px;margin-top:8px}.card-owner{border-top:1px solid #c9d5cb;width:100%;padding-top:12px;margin-top:14px;font-size:12px}
+@keyframes reveal{0%{transform:rotateY(180deg) scale(.88)}35%{transform:rotateY(195deg) scale(.92)}100%{transform:rotateY(0) scale(1)}}
+@keyframes deal{from{transform:translateY(14px) rotate(-4deg);opacity:0}to{transform:none;opacity:1}}
+@media(max-width:600px){.deck-card{min-height:175px;padding:16px 6px}.deck-card span{font-size:19px}.deck-card img{width:45px}.invitation h2{font-size:30px!important}[role=tab]{font-size:calc(.72rem * var(--text-scale))!important}}
+@media(prefers-reduced-motion:reduce){.turning-card,.deck-card{animation:none}}
+
+.st-key-display-controls{align-items:flex-end!important}.st-key-display-controls [data-testid=stPopover]{width:fit-content;margin-left:auto}.st-key-display-controls button{min-height:34px;font-size:12px}
+[role=listbox],[role=option]{background:var(--surface)!important;color:var(--ink)!important}
+/* Let translated text and large-font preferences determine the card height. */
+.turning-card{min-height:0}.card-front{position:relative;min-height:490px;height:auto}.card-front .card-owner{flex-shrink:0}.card-front img.claim-qr{flex-shrink:0}.card-front>img{flex-shrink:0}
+[data-testid=stCaptionContainer],[data-testid=stCaptionContainer] p{color:var(--muted)!important}
+[data-testid=stMarkdownContainer]>p,[data-testid=stWidgetLabel]>div>p{color:var(--ink)!important}
+/* Booth interaction: each card is one native, keyboard-accessible button. */
+.section-label{font-size:10px;letter-spacing:.16em;color:var(--muted);margin:16px 0 6px;text-transform:uppercase}
+.st-key-card-selection{padding:20px 0 12px}
+.st-key-card-selection [data-testid=stHorizontalBlock]{flex-wrap:nowrap!important;gap:16px!important}
+.st-key-card-selection [data-testid=stColumn]{min-width:0!important;flex:1 1 0!important;width:0!important}
+[class*="st-key-draw-choice-"] button{position:relative;display:flex;align-items:flex-end;justify-content:center;height:260px;min-height:260px;border:1px solid #b7c9bd!important;border-radius:8px!important;background-color:#f8f7f1!important;background-repeat:no-repeat!important;background-size:68px auto!important;background-position:center 28px!important;color:#173e2a!important;padding:0 8px 22px!important;box-shadow:0 5px 10px #001e1110!important;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s}
+[class*="st-key-draw-choice-"] button:before{content:"NETWORK\A CARD";white-space:pre;position:absolute;top:125px;left:0;right:0;font:22px/1.2 Georgia,serif;letter-spacing:.08em;color:#234732;pointer-events:none}
+[class*="st-key-draw-choice-"] button:hover{transform:translateY(-7px);border-color:#009641!important;box-shadow:0 12px 20px #001e1120!important}
+[class*="st-key-draw-choice-"] button:focus-visible{outline:3px solid #ef8281;outline-offset:4px}
+[class*="st-key-draw-choice-"] button p{font-size:12px!important;font-weight:500!important;color:#315941!important;letter-spacing:.03em}
+.masthead{padding-bottom:22px;margin-bottom:22px}.event-label strong{font-size:12px}.brand-logo{width:62px}
+.pass{border:0;border-bottom:1px solid var(--line);border-radius:0;border-left:0;padding:18px 0 24px;margin:4px 0 16px}.pass .name{font-size:30px;letter-spacing:-.025em}.pass .eyebrow{font-size:10px;letter-spacing:.12em}
+.invitation{border:0;padding:8px 0}.invitation h2{font-size:31px!important}.invitation-footer{border-bottom:1px solid var(--line);padding-bottom:18px}
+.reward-preview,.reward{border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;padding:22px 0;box-shadow:none}
+@media(max-width:600px){.st-key-card-selection [data-testid=stHorizontalBlock]{gap:8px!important}[class*="st-key-draw-choice-"] button{height:220px;min-height:220px;background-size:48px auto!important;background-position:center 24px!important;padding-bottom:18px!important}[class*="st-key-draw-choice-"] button:before{font-size:16px;top:104px}[class*="st-key-draw-choice-"] button p{font-size:10px!important}.pass .name{font-size:27px}}
+@media(prefers-reduced-motion:reduce){[class*="st-key-draw-choice-"] button{transition:none}[class*="st-key-draw-choice-"] button:hover{transform:none}}
