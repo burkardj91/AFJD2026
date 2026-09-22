@@ -106,7 +106,13 @@ class Quest:
             return "staff", None
         if code == "SCREEN-01":
             return "screen", None
-        return "participant", self.activate_badge(code, private_code or "")
+        if private_code is not None:
+            return "participant", self.activate_badge(code, private_code)
+        person = next((p for p,secret in ACTIVATION_CODES.items() if secrets.compare_digest(secret,code)), None)
+        if person is None:
+            raise ValueError("Enter a valid private activation code. For Lea, use LEA-7K4M-26.")
+        self.active.add(person)
+        return "participant", person
 
     def activate_badge(self, badge, private_code):
         if not badge.strip():

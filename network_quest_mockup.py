@@ -45,15 +45,12 @@ if not role:
         st.info("This is a public badge link. Enter your own private activation code to sign in; scanning a badge does not claim it.")
     st.markdown(masthead(), unsafe_allow_html=True)
     st.title("Welcome to Network Quest")
-    st.write("Scan the general event QR to open this page. Then enter your personal login ID and private activation code.")
+    st.write("Enter your private activation code to open your profile and digital badge. No login ID is needed.")
     with st.form("demo_login"):
-        badge_token = st.query_params.get("badge", "")
-        badge_default = ROSTER.get(badge_token, {}).get("id", "")
-        code = st.text_input("Personal login ID", value=badge_default, placeholder="AFJD-0264 / STAFF-01 / SCREEN-01", help="Badge ID for participants; demo role ID for staff and screen.")
-        private_code = st.text_input("Private activation code", type="password", help="Participants need their matching code. Leave blank for demo staff/screen roles.")
+        code = st.text_input("Private activation code", type="password", placeholder="LEA-7K4M-26", help="Your code identifies your profile. Demo staff can enter STAFF-01, STAFF-02 or SCREEN-01 here.")
         if st.form_submit_button("Enter demo", type="primary", use_container_width=True):
             try:
-                role, person = q.demo_login(code, private_code)
+                role, person = q.demo_login(code)
                 s.demo_role_v3, s.person_v2 = role, person
                 s.staff_login = code.strip().upper() if role == "staff" else None
                 st.rerun()
@@ -303,6 +300,9 @@ if view == "My pass":
         st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="name">{escape(profile["name"])}</div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{count} of 6 perspectives</span><span>{q.entries(person)} draw entries</span></div></div>', unsafe_allow_html=True)
         tabs = st.tabs(["My pass", "Scan", "Connections", "Reward", "Profile"], default="Reward" if s.pop("claim_from_link", False) else ("Profile" if person not in q.profiles else "My pass"))
         with tabs[0]:
+            st.subheader("My personal QR")
+            st.caption("Let another participant scan this digital badge to connect. Staff can use it to identify your pass. Your private activation code is never included.")
+            show_qr("person", person, profile["name"]+" · "+profile["id"])
             with st.expander("Demo tools · try the card unlock", expanded=False):
                 st.caption("Demo controls: complete four challenges, or simulate all six including two confirmed conversations. Your other progress is kept.")
                 four, six = st.columns(2)
@@ -323,8 +323,6 @@ if view == "My pass":
             for i,c in enumerate(CHALLENGES,1):
                 done = c in q.completed(person)
                 st.markdown(f'<div class="challenge {"done" if done else ""}"><div class="num">{"✓" if done else str(i).zfill(2)}</div><div><strong>{c}{" · Completed" if done else ""}</strong><small>{subtitles[c]}</small></div></div>', unsafe_allow_html=True)
-            with st.expander("Show my badge QR"):
-                show_qr("person",person,profile["name"]+" · "+profile["id"])
             with st.expander("My privacy preferences"):
                 shared = st.checkbox("Share my name and email with my confirmed connections", value=person in q.sharing, key="share-"+person)
                 recap = st.checkbox("Email me an evening recap", value=person in q.recap, key="recap-"+person)

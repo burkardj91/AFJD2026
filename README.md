@@ -40,3 +40,5 @@ A QR can be displayed on a phone or printed on a badge/poster. The participant u
 STAFF-01, STAFF-02 and SCREEN-01 remain explicit demo-role logins and do not need a private participant code. Test credentials are in a labelled expander for rehearsal convenience.
 
 Tests: `python -m unittest discover -s tests -p "test_quest*.py" -v`, `python scripts/check_quest_shared_ui.py` and `python scripts/check_quest_ui.py`.
+
+Current entry flow: enter only the private test code (for example LEA-7K4M-26). No badge ID or login ID is required. The public personal QR is prominently displayed in My pass after activation. Staff demo IDs use the same single field. Public badge IDs and QR tokens cannot authenticate a participant.
