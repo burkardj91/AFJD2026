@@ -19,6 +19,13 @@ ROSTER = {
     "p-4jf9n3": {"name": "Jonas Weber", "email": "jonas@example.test", "id": "AFJD-0421", "code": "DEMO-421"},
     "p-9ls6d2": {"name": "Sara Rossi", "email": "sara@example.test", "id": "AFJD-0532", "code": "DEMO-532"},
 }
+# Published fictional rehearsal credentials, never production secrets.
+ACTIVATION_CODES = {
+    "p-8hd2v7":"LEA-7K4M-26", "p-3nm9q4":"ALEX-9P2R-26",
+    "p-6wx5t1":"NOAH-6T8V-26", "p-2bc7r8":"MIA-3W5X-26",
+    "p-4jf9n3":"JONAS-4C7D-26", "p-9ls6d2":"SARA-8F2H-26",
+}
+
 CARDS = {
     "r-7mn4b2": ("NC-001", "Your first year at SVIAL", "membership"),
     "r-9qs3z6": ("NC-002", "Your first year at SVIAL", "membership"),
@@ -92,14 +99,21 @@ class Quest:
             raise ValueError("Use a LinkedIn profile link starting with https://www.linkedin.com/.")
         self.profiles[person] = clean
 
-    def demo_login(self, code):
+    def demo_login(self, code, private_code=None):
         """Public rehearsal credentials only, not production authentication."""
         code = code.strip().upper()
         if code in {"STAFF-01", "STAFF-02"}:
             return "staff", None
         if code == "SCREEN-01":
             return "screen", None
-        return "participant", self.activate(code)
+        return "participant", self.activate_badge(code, private_code or "")
+
+    def activate_badge(self, badge, private_code):
+        person = next((p for p,r in ROSTER.items() if badge.strip().upper() in {r["id"], r["code"], p.upper()}), None)
+        if person is None or not secrets.compare_digest(ACTIVATION_CODES[person], private_code.strip().upper()):
+            raise ValueError("Badge and private activation code do not match.")
+        self.active.add(person)
+        return person
 
     def simulate_completion(self, person, all_six=False):
         """Rehearsal shortcut: use normal scan rules and fictional confirmations."""

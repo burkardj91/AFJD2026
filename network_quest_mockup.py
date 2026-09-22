@@ -14,7 +14,7 @@ import numpy as np
 import qrcode
 import streamlit as st
 import streamlit.components.v1 as components
-from quest_core import Quest, ROSTER, STATIONS, CARDS, CHALLENGES, CLUSTERS, ORGANISATIONS, payload, parse_payload, email_draft, recap_draft
+from quest_core import Quest, ROSTER, ACTIVATION_CODES, STATIONS, CARDS, CHALLENGES, CLUSTERS, ORGANISATIONS, payload, parse_payload, email_draft, recap_draft
 
 st.set_page_config(page_title="SVIAL · Network Quest", page_icon=Image.open(LOGO_PATH), layout="centered", initial_sidebar_state="collapsed")
 
@@ -45,20 +45,23 @@ if not role:
         st.info("This is a public badge link. Enter your own private activation code to sign in; scanning a badge does not claim it.")
     st.markdown(masthead(), unsafe_allow_html=True)
     st.title("Welcome to Network Quest")
-    st.write("Enter your demo ID to open your pass.")
+    st.write("Enter your badge ID and the private activation code supplied separately at check-in.")
     with st.form("demo_login"):
-        code = st.text_input("Demo login ID", placeholder="DEMO-264 / STAFF-01 / SCREEN-01")
+        badge_token = st.query_params.get("badge", "")
+        badge_default = ROSTER.get(badge_token, {}).get("id", "")
+        code = st.text_input("Demo login ID", value=badge_default, placeholder="AFJD-0264 / STAFF-01 / SCREEN-01", help="Badge ID for participants; demo role ID for staff and screen.")
+        private_code = st.text_input("Private activation code", type="password", help="Participants need their matching code. Leave blank for demo staff/screen roles.")
         if st.form_submit_button("Enter demo", type="primary", use_container_width=True):
             try:
-                role, person = q.demo_login(code)
+                role, person = q.demo_login(code, private_code)
                 s.demo_role_v3, s.person_v2 = role, person
                 s.staff_login = code.strip().upper() if role == "staff" else None
                 st.rerun()
             except ValueError:
-                st.error("Unknown demo login. Choose one from the list below.")
+                st.error("Check your badge ID and matching private activation code. Staff/screen demo IDs do not need an activation code.")
     st.caption("Fictional rehearsal accounts, not production authentication. Open separate tabs for different demo users. Progress is shared locally and updates automatically.")
-    st.subheader("Demo participants")
-    st.table([{"Name":p["name"], "Badge ID":p["id"], "Login ID":p["code"]} for p in ROSTER.values()])
+    with st.expander("Fictional test credentials · not for production"):
+        st.table([{"Name":r["name"], "Badge ID":r["id"], "Private test code":ACTIVATION_CODES[p]} for p,r in ROSTER.items()])
     st.subheader("Event team")
     st.table([{"Workspace":"SVIAL staff · tablet 1", "Login ID":"STAFF-01"}, {"Workspace":"SVIAL staff · tablet 2", "Login ID":"STAFF-02"}, {"Workspace":"Big screen", "Login ID":"SCREEN-01"}])
     st.stop()
