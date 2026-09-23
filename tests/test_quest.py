@@ -103,7 +103,7 @@ class QuestTests(unittest.TestCase):
             self.q.submit(self.lea, self.card, {"address":"Demo"}, False)
         with self.assertRaises(ValueError):
             self.q.submit(self.lea, self.card, {}, True)
-        self.q.submit(self.lea, self.card, {"address":"Demo street 1"}, True)
+        self.q.submit(self.lea, self.card, {"address":"Demo street 1","organisation":"Demo School","study_programme":"Food","date_of_birth":"2000-01-01"}, True)
         with self.assertRaises(ValueError):
             self.q.submit(self.lea, self.card, {"address":"Demo"}, True)
         draft = email_draft(self.q, self.card, "svial@svial.ch")

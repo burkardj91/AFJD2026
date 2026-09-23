@@ -21,6 +21,7 @@ with tempfile.TemporaryDirectory() as directory:
     lea=start('DEMO-264')
     alex=start('DEMO-137')
     button(lea,'Simulate badge scan').click().run()
+    button(lea,'Continue exploring').click().run()
     alex.run()
     button(alex,'Accept connection').click().run()
     lea.run()
@@ -32,7 +33,9 @@ with tempfile.TemporaryDirectory() as directory:
     next(v for v in staff.selectbox if v.label=='Participant name or badge ID').select('p-8hd2v7').run()
     button(staff,'Validate pass').click().run()
     button(staff,'Unlock their draw').click().run()
-    staff.button(key='draw-choice-1').click().run()
+    from unittest.mock import patch
+    with patch('quest_core.secrets.choice',return_value='r-7mn4b2'):
+        staff.button(key='draw-choice-1').click().run()
     button(staff,'Finish · next participant').click().run()
     assert not staff.exception
     lea.run()
@@ -44,6 +47,11 @@ with tempfile.TemporaryDirectory() as directory:
     assert not any(t.key=='claimtext' for t in lea.text_input)
     for t in lea.text_area:
         if t.label=='Postal address': t.input('Fictional street 1, 8000 Zurich')
+    for field in lea.text_input:
+        if field.label=='Ausbildungsstätte (required for membership)': field.input('Demo School')
+        if field.label=='Study programme (required for membership)': field.input('Food Science')
+    from datetime import date
+    next(d for d in lea.date_input if d.label=='Date of birth (required for membership)').set_value(date(2000,1,1))
     next(c for c in lea.checkbox if c.label.startswith('I confirm this claim')).check()
     button(lea,'Prepare my application').click().run()
     staff.run()

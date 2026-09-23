@@ -9,8 +9,8 @@ class ResetTests(unittest.TestCase):
             a=SharedQuest(Path(folder)/'event.db'); b=SharedQuest(a.path)
             p=a.activate('DEMO-264'); a.simulate_completion(p,all_six=True)
             a.update_profile(p,{'name':'Test Lea','email':'svial@svial.ch'})
-            a.approve_draw(p,'STAFF-01'); card=a.draw(p,'STAFF-01')
-            a.submit(p,card,{'address':'Test address'},True)
+            a.approve_draw(p,'STAFF-01'); card='r-7mn4b2'; a.assign(p,card,staff=True)
+            a.submit(p,card,{'address':'Test address','organisation':'Demo School','study_programme':'Food','date_of_birth':'2000-01-01'},True)
             for staff,confirm in [('participant','RESET'),('STAFF-01','')]:
                 with self.assertRaises(ValueError): a.reset_demo(staff,confirm)
             self.assertTrue(b.visits)

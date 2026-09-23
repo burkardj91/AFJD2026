@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
-from quest_core import Quest
+from importlib import import_module
 
 def encode(value):
     if isinstance(value, set):
@@ -33,15 +33,18 @@ def decode(value):
     return value
 
 class SharedQuest:
-    MUTATIONS = {"configure_raffle","resolve_raffle","reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
+    MUTATIONS = {"collect_gift","annotate_company","schedule_recaps","queue_due_recaps","configure_raffle","resolve_raffle","reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
 
     def __init__(self, path=None, seed=None):
+        # Resolve the current model on construction: Streamlit may reload quest_core
+        # while keeping this storage module imported. Never retain its old class.
+        self.model = import_module("quest_core").Quest
         self.path = str(path or os.environ.get("QUEST_DB_PATH") or Path(__file__).with_name(".localdata") / "quest_demo.sqlite3")
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as db:
             db.execute("CREATE TABLE IF NOT EXISTS event (id INTEGER PRIMARY KEY CHECK(id=1), body TEXT NOT NULL, revision INTEGER NOT NULL)")
-            initial = seed if seed is not None and not isinstance(seed, SharedQuest) else Quest()
-            body = json.dumps(encode({f.name:getattr(initial,f.name,f.default_factory()) for f in fields(Quest)}))
+            initial = seed if seed is not None and not isinstance(seed, SharedQuest) else self.model()
+            body = json.dumps(encode({f.name:getattr(initial,f.name,f.default_factory()) for f in fields(self.model)}))
             db.execute("INSERT OR IGNORE INTO event VALUES(1,?,0)", (body,))
 
     @contextmanager
@@ -59,25 +62,26 @@ class SharedQuest:
 
     def _load(self, db):
         value = decode(json.loads(db.execute("SELECT body FROM event WHERE id=1").fetchone()[0]))
-        return Quest(**value)
+        return self.model(**value)
 
     def __getattr__(self, name):
-        if name in {f.name for f in fields(Quest)}:
+        if name in {f.name for f in fields(self.model)}:
             with self.connect() as db:
                 return getattr(self._load(db), name)
-        if not hasattr(Quest, name):
+        if not hasattr(self.model, name):
             raise AttributeError(name)
         def call(*args, **kwargs):
             with self.connect() as db:
                 if name in self.MUTATIONS:
                     db.execute("BEGIN IMMEDIATE")
                 state = self._load(db)
-                before = json.dumps(encode({f.name:getattr(state,f.name) for f in fields(Quest)}),sort_keys=True)
+                before = json.dumps(encode({f.name:getattr(state,f.name) for f in fields(self.model)}),sort_keys=True)
                 if name in self.MUTATIONS and name != "resolve_raffle":
                     state.resolve_raffle()
+                    state.queue_due_recaps()
                 result = getattr(state,name)(*args,**kwargs)
                 if name in self.MUTATIONS:
-                    after = json.dumps(encode({f.name:getattr(state,f.name) for f in fields(Quest)}),sort_keys=True)
+                    after = json.dumps(encode({f.name:getattr(state,f.name) for f in fields(self.model)}),sort_keys=True)
                     if after != before:
                         db.execute("UPDATE event SET body=?, revision=revision+1 WHERE id=1", (after,))
                 return result
