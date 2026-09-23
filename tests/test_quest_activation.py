@@ -10,3 +10,10 @@ class ActivationTests(unittest.TestCase):
         self.assertFalse(q.active)
         self.assertEqual(q.demo_login('AFJD-0264',ACTIVATION_CODES['p-8hd2v7']),('participant','p-8hd2v7'))
         self.assertEqual(q.active,{'p-8hd2v7'})
+
+    def test_private_code_alone_opens_only_its_owner(self):
+        q=Quest()
+        self.assertEqual(q.demo_login('LEA-7K4M-26'),('participant','p-8hd2v7'))
+        for public in ['AFJD-0264','p-8hd2v7','DEMO-264','']:
+            with self.assertRaises(ValueError): q.demo_login(public)
+        self.assertEqual(q.active,{'p-8hd2v7'})

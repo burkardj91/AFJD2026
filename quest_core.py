@@ -75,6 +75,49 @@ class Quest:
     draw_log: list = field(default_factory=list)
     draw_approvals: dict = field(default_factory=dict)
 
+    reset_epoch: int = field(default_factory=int)
+
+    raffle: dict = field(default_factory=dict)
+
+    def configure_raffle(self, staff_id, deadline, winners=3, minimum=1):
+        if staff_id not in {"STAFF-01", "STAFF-02"}:
+            raise ValueError("A staff demo login is required.")
+        target = datetime.fromisoformat(deadline)
+        if target.tzinfo is None or target <= datetime.now(timezone.utc):
+            raise ValueError("Choose a future date and time with a timezone.")
+        if winners not in {3,5} or minimum not in range(1,7):
+            raise ValueError("Choose 3 or 5 winners and 1–6 completed quests.")
+        if self.raffle.get("status") == "completed":
+            raise ValueError("This draw is finished. Reset the rehearsal to start a new draw.")
+        self.raffle = {"deadline":target.isoformat(), "count":winners, "minimum":minimum, "status":"scheduled", "staff":staff_id}
+
+    def resolve_raffle(self, now=None):
+        draw=self.raffle
+        if draw.get("status") != "scheduled":
+            return
+        instant = now or datetime.now(timezone.utc)
+        if instant < datetime.fromisoformat(draw["deadline"]):
+            return
+        eligible=sorted(p for p in self.active if len(self.completed(p)) >= draw["minimum"])
+        winners=secrets.SystemRandom().sample(eligible,min(draw["count"],len(eligible)))
+        draw.update(status="completed", eligible=eligible, winners=winners, resolved_at=instant.isoformat())
+
+    def public_raffle(self):
+        return {k:self.raffle[k] for k in ["deadline","count","minimum","status"] if k in self.raffle} | {
+            "winner_badges":[ROSTER[p]["id"] for p in self.raffle.get("winners",[])],
+            "eligible_count":len(self.raffle.get("eligible",[])) if self.raffle.get("status")=="completed" else sum(len(self.completed(p)) >= self.raffle.get("minimum",1) for p in self.active)}
+
+    def reset_demo(self, staff_id, confirmation, keep_profiles=True):
+        if staff_id not in {"STAFF-01", "STAFF-02"}:
+            raise ValueError("A staff demo login is required to reset the event.")
+        if confirmation != "RESET":
+            raise ValueError("Type RESET to confirm.")
+        fresh = Quest()
+        if keep_profiles:
+            fresh.profiles = dict(self.profiles)
+        fresh.reset_epoch = self.reset_epoch + 1
+        self.__dict__.update(fresh.__dict__)
+
     def set_preferences(self, person, shared, recap):
         self.require_active(person)
         self.sharing.add(person) if shared else self.sharing.discard(person)
@@ -106,12 +149,22 @@ class Quest:
             return "staff", None
         if code == "SCREEN-01":
             return "screen", None
-        return "participant", self.activate_badge(code, private_code or "")
+        if private_code is not None:
+            return "participant", self.activate_badge(code, private_code)
+        person = next((p for p,secret in ACTIVATION_CODES.items() if secrets.compare_digest(secret,code)), None)
+        if person is None:
+            raise ValueError("Enter a valid private activation code. For Lea, use LEA-7K4M-26.")
+        self.active.add(person)
+        return "participant", person
 
     def activate_badge(self, badge, private_code):
+        if not badge.strip():
+            raise ValueError("Enter your personal login ID.")
+        if not private_code.strip():
+            raise ValueError("Enter the private activation code supplied with your login ID.")
         person = next((p for p,r in ROSTER.items() if badge.strip().upper() in {r["id"], r["code"], p.upper()}), None)
         if person is None or not secrets.compare_digest(ACTIVATION_CODES[person], private_code.strip().upper()):
-            raise ValueError("Badge and private activation code do not match.")
+            raise ValueError("The login ID and private activation code do not match. Use both values from the same test-person row.")
         self.active.add(person)
         return person
 

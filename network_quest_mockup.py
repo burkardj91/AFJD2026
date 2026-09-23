@@ -1,5 +1,6 @@
 """Phone-focused local rehearsal; fictional data, no production auth or mail transport."""
-from datetime import date
+from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
 from html import escape
 from io import BytesIO
 import os
@@ -21,7 +22,14 @@ st.set_page_config(page_title="SVIAL · Network Quest", page_icon=Image.open(LOG
 st.markdown("<style>"+Path(__file__).with_name("quest_theme.css").read_text(encoding="utf-8")+"</style>", unsafe_allow_html=True)
 s = st.session_state
 q = SharedQuest()
+if s.get("reset_epoch", q.reset_epoch) != q.reset_epoch:
+    s.clear()
+    st.query_params.clear()
+    s.reset_notice = True
+s.reset_epoch = q.reset_epoch
 s.quest_v2 = q
+if s.pop("reset_notice", False):
+    st.success("The rehearsal has been reset. Sign in to start again.")
 # Display preferences stay with this browser session.
 with st.container(key="display-controls"):
     with st.popover("Aa · Display"):
@@ -45,20 +53,17 @@ if not role:
         st.info("This is a public badge link. Enter your own private activation code to sign in; scanning a badge does not claim it.")
     st.markdown(masthead(), unsafe_allow_html=True)
     st.title("Welcome to Network Quest")
-    st.write("Enter your badge ID and the private activation code supplied separately at check-in.")
+    st.write("Enter your private activation code to open your profile and digital badge. No login ID is needed.")
     with st.form("demo_login"):
-        badge_token = st.query_params.get("badge", "")
-        badge_default = ROSTER.get(badge_token, {}).get("id", "")
-        code = st.text_input("Demo login ID", value=badge_default, placeholder="AFJD-0264 / STAFF-01 / SCREEN-01", help="Badge ID for participants; demo role ID for staff and screen.")
-        private_code = st.text_input("Private activation code", type="password", help="Participants need their matching code. Leave blank for demo staff/screen roles.")
+        code = st.text_input("Private activation code", type="password", placeholder="LEA-7K4M-26", help="Your code identifies your profile. Demo staff can enter STAFF-01, STAFF-02 or SCREEN-01 here.")
         if st.form_submit_button("Enter demo", type="primary", use_container_width=True):
             try:
-                role, person = q.demo_login(code, private_code)
+                role, person = q.demo_login(code)
                 s.demo_role_v3, s.person_v2 = role, person
                 s.staff_login = code.strip().upper() if role == "staff" else None
                 st.rerun()
-            except ValueError:
-                st.error("Check your badge ID and matching private activation code. Staff/screen demo IDs do not need an activation code.")
+            except ValueError as error:
+                st.error(str(error))
     st.caption("Fictional rehearsal accounts, not production authentication. Open separate tabs for different demo users. Progress is shared locally and updates automatically.")
     with st.expander("Fictional test credentials · not for production"):
         st.table([{"Name":r["name"], "Badge ID":r["id"], "Private test code":ACTIVATION_CODES[p]} for p,r in ROSTER.items()])
@@ -300,9 +305,12 @@ if view == "My pass":
             connection_popup(person, incoming[0])
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
-        st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="name">{escape(profile["name"])}</div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{count} of 6 perspectives</span><span>{q.entries(person)} draw entries</span></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="name">{escape(profile["name"])}</div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{count} of 6 perspectives</span><span>{"Network Card unlocked" if person in q.unlocked else "Explore the event"}</span></div></div>', unsafe_allow_html=True)
         tabs = st.tabs(["My pass", "Scan", "Connections", "Reward", "Profile"], default="Reward" if s.pop("claim_from_link", False) else ("Profile" if person not in q.profiles else "My pass"))
         with tabs[0]:
+            st.subheader("My personal QR")
+            st.caption("Let another participant scan this digital badge to connect. Staff can use it to identify your pass. Your private activation code is never included.")
+            show_qr("person", person, profile["name"]+" · "+profile["id"])
             with st.expander("Demo tools · try the card unlock", expanded=False):
                 st.caption("Demo controls: complete four challenges, or simulate all six including two confirmed conversations. Your other progress is kept.")
                 four, six = st.columns(2)
@@ -323,8 +331,6 @@ if view == "My pass":
             for i,c in enumerate(CHALLENGES,1):
                 done = c in q.completed(person)
                 st.markdown(f'<div class="challenge {"done" if done else ""}"><div class="num">{"✓" if done else str(i).zfill(2)}</div><div><strong>{c}{" · Completed" if done else ""}</strong><small>{subtitles[c]}</small></div></div>', unsafe_allow_html=True)
-            with st.expander("Show my badge QR"):
-                show_qr("person",person,profile["name"]+" · "+profile["id"])
             with st.expander("My privacy preferences"):
                 shared = st.checkbox("Share my name and email with my confirmed connections", value=person in q.sharing, key="share-"+person)
                 recap = st.checkbox("Email me an evening recap", value=person in q.recap, key="recap-"+person)
@@ -507,10 +513,57 @@ elif view == "SVIAL staff":
             draft = try_action(lambda:email_draft(q,card,s.recipient_v2.strip()))
             if draft:
                 st.download_button("Download email draft",draft,file_name=CARDS[card][0]+"-rehearsal.eml",mime="message/rfc822",key="email-"+card)
+    with st.expander("Big-screen prize draw · timer"):
+        st.caption("Equal chance per eligible participant. Winners appear as badge IDs only. This is a fictional rehearsal draw.")
+        with st.form("schedule-raffle"):
+            event_day=st.date_input("Draw date", value=datetime.now(ZoneInfo("Europe/Zurich")).date())
+            event_time=st.time_input("Draw time · Europe/Zurich", value=time(19,30))
+            winner_count=st.selectbox("Number of winners",[3,5])
+            minimum=st.number_input("Minimum completed quests", min_value=1,max_value=6,value=1,step=1)
+            if st.form_submit_button("Schedule big-screen draw"):
+                try:
+                    deadline=datetime.combine(event_day,event_time,tzinfo=ZoneInfo("Europe/Zurich"))
+                    q.configure_raffle(s.staff_login,deadline.isoformat(),winner_count,int(minimum))
+                    st.success("Draw scheduled. Keep the big-screen tab open for the countdown and automatic reveal.")
+                except ValueError as error:
+                    st.error(str(error))
+        if q.raffle:
+            st.write(q.public_raffle())
+        st.caption("If fewer people qualify, all qualifying people win; there are no duplicate winners. Completed draws cannot be rerolled without resetting the rehearsal.")
+    with st.expander("Admin · reset rehearsal"):
+        st.warning("Clears ALL participants’ visits, connections, requests, challenge progress, assigned cards, claims and recap/sharing choices. The prize deck is replenished and open tabs are signed out. Downloaded files are not deleted.")
+        st.caption("These controls use demo staff codes, not production administrator authentication.")
+        with st.form("reset-rehearsal"):
+            keep_profiles = st.checkbox("Keep edited participant profiles", value=True)
+            confirmation = st.text_input("Type RESET to clear the rehearsal")
+            if st.form_submit_button("Reset all rehearsal activity"):
+                try:
+                    q.reset_demo(s.staff_login, confirmation, keep_profiles)
+                    st.rerun()
+                except ValueError as error:
+                    st.error(str(error))
     st.caption("Demo staff account · fictional participants only")
 elif view == "Live network":
     st.markdown('<style>.block-container{max-width:1280px}</style>', unsafe_allow_html=True)
     st.title("Our network, together")
+    @st.fragment(run_every=1)
+    def raffle_clock():
+        q.resolve_raffle()
+        draw=q.public_raffle()
+        if draw.get("status") == "scheduled":
+            remaining=max(0,int((datetime.fromisoformat(draw["deadline"])-datetime.now(timezone.utc)).total_seconds()))
+            hours,remainder=divmod(remaining,3600)
+            minutes,seconds=divmod(remainder,60)
+            st.markdown(f'<div class="raffle-panel"><span>PRIZE DRAW · {draw["count"]} WINNERS</span><strong>{hours:02}:{minutes:02}:{seconds:02}</strong><p>{draw["eligible_count"]} eligible participants · Complete at least {draw["minimum"]} quest(s)</p></div>',unsafe_allow_html=True)
+        elif draw.get("status") == "completed":
+            st.subheader("The winning badges")
+            if draw["winner_badges"]:
+                st.markdown('<div class="winner-list">'+''.join('<strong>'+badge+'</strong>' for badge in draw["winner_badges"])+'</div>',unsafe_allow_html=True)
+                st.write("Please visit the SVIAL desk with your pass.")
+            else:
+                st.info("No participants qualified before the draw closed.")
+            st.caption(f'{draw["eligible_count"]} eligible participants · {len(draw["winner_badges"])} winners · Results are saved.')
+    raffle_clock()
     show_companies = st.toggle("Show individual companies", value=False)
     components.html(network_html(q.public_network(), q.public_counts(), show_companies=show_companies), height=760, scrolling=True)
     st.caption("Anonymous connections from this rehearsal session. Updates automatically from all local demo tabs.")
@@ -518,6 +571,9 @@ elif view == "Live network":
 else:
     st.title("The rehearsal kit")
     st.write("Print or display these codes to test scanning with fictional badges, stations and cards.")
+    with st.expander("General event QR · opens the login page", expanded=True):
+        st.image(qr_png(public_base_url()+"/"), width=230, caption="One shared event entry QR. No personal credentials included.")
+        st.download_button("Download general event QR",qr_png(public_base_url()+"/"),file_name="AFJD-event-login.png",mime="image/png")
     kind = st.selectbox("QR type",["person","station","reward"])
     catalog = {"person":ROSTER,"station":STATIONS,"reward":CARDS}[kind]
     token = st.selectbox("Choose a code",list(catalog),format_func=lambda t:ROSTER[t]["name"] if kind == "person" else catalog[t][0])

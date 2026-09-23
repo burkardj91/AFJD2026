@@ -40,3 +40,9 @@ A QR can be displayed on a phone or printed on a badge/poster. The participant u
 STAFF-01, STAFF-02 and SCREEN-01 remain explicit demo-role logins and do not need a private participant code. Test credentials are in a labelled expander for rehearsal convenience.
 
 Tests: `python -m unittest discover -s tests -p "test_quest*.py" -v`, `python scripts/check_quest_shared_ui.py` and `python scripts/check_quest_ui.py`.
+
+Current entry flow: enter only the private test code (for example LEA-7K4M-26). No badge ID or login ID is required. The public personal QR is prominently displayed in My pass after activation. Staff demo IDs use the same single field. Public badge IDs and QR tokens cannot authenticate a participant.
+
+Admin reset: sign in as STAFF-01 or STAFF-02, expand Admin · reset rehearsal, choose whether to keep edited profiles, type RESET and click Reset all rehearsal activity. This clears event activity and all prizes/claims and signs out open tabs. Public demo staff codes are not production admin authentication. Downloaded files remain outside the app.
+
+Big-screen rehearsal draw: staff opens Big-screen prize draw · timer, chooses a date/time in Europe/Zurich, 3 or 5 winners, and the minimum completed quests (default 1). Keep SCREEN-01 open for a one-second countdown and automatic badge-ID reveal. Every eligible person has one equal chance; winners are unique and saved transactionally across screens. If fewer qualify, fewer win. An empty draw closes with no winners. New activity after the deadline cannot enter this draw. The app must be running; this is not an independent background scheduler. Reset rehearsal clears the schedule/results. This is a fictional demo draw; no real prizes are issued.

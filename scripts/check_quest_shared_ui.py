@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory() as directory:
         return next(b for b in app.button if b.label == label)
     def start(code):
         app=AppTest.from_file(source, default_timeout=20).run()
-        next(t for t in app.text_input if t.label=='Demo login ID').input(code)
+        next(t for t in app.text_input if t.label=='Private activation code').input(code)
         if code.startswith("DEMO"):
             private={"DEMO-264":"LEA-7K4M-26","DEMO-137":"ALEX-9P2R-26"}[code]
             next(t for t in app.text_input if t.label=="Private activation code").input(private)
@@ -50,3 +50,20 @@ with tempfile.TemporaryDirectory() as directory:
     assert not staff.exception and not lea.exception
     assert len(staff.session_state['quest_v2'].applications)==1
     print('PASS: independent sessions -> accept -> unlock -> staff validation -> tablet 2 card draw -> QR claim form -> prepared application')
+
+    from datetime import date,timedelta
+    next(t for t in staff.date_input if t.label=='Draw date').set_value(date.today()+timedelta(days=1))
+    button(staff,'Schedule big-screen draw').click().run()
+    assert not staff.exception
+    screen=start('SCREEN-01')
+    assert any('PRIZE DRAW' in m.value for m in screen.markdown)
+    next(t for t in staff.text_input if t.label=='Type RESET to clear the rehearsal').input('RESET')
+    button(staff,'Reset all rehearsal activity').click().run()
+    assert not staff.exception
+    assert any(t.label=='Private activation code' for t in staff.text_input)
+    lea.run()
+    assert not lea.exception
+    assert any(t.label=='Private activation code' for t in lea.text_input)
+    assert not lea.session_state['quest_v2'].visits
+    assert 'claim_v2' not in lea.session_state
+    print('PASS: confirmed admin reset clears activity and signs out staff and participant tabs')

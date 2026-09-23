@@ -33,7 +33,7 @@ def decode(value):
     return value
 
 class SharedQuest:
-    MUTATIONS = {"demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
+    MUTATIONS = {"configure_raffle","resolve_raffle","reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
 
     def __init__(self, path=None, seed=None):
         self.path = str(path or os.environ.get("QUEST_DB_PATH") or Path(__file__).with_name(".localdata") / "quest_demo.sqlite3")
@@ -73,6 +73,8 @@ class SharedQuest:
                     db.execute("BEGIN IMMEDIATE")
                 state = self._load(db)
                 before = json.dumps(encode({f.name:getattr(state,f.name) for f in fields(Quest)}),sort_keys=True)
+                if name in self.MUTATIONS and name != "resolve_raffle":
+                    state.resolve_raffle()
                 result = getattr(state,name)(*args,**kwargs)
                 if name in self.MUTATIONS:
                     after = json.dumps(encode({f.name:getattr(state,f.name) for f in fields(Quest)}),sort_keys=True)

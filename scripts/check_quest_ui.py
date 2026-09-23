@@ -21,7 +21,7 @@ with tempfile.TemporaryDirectory() as folder:
     def click(label):
         next(b for b in app.button if b.label==label).click().run()
         assert not app.exception, [e.message for e in app.exception]
-    next(t for t in app.text_input if t.label=='Demo login ID').input('DEMO-264')
+    next(t for t in app.text_input if t.label=='Private activation code').input('DEMO-264')
     next(t for t in app.text_input if t.label=='Private activation code').input('LEA-7K4M-26')
     click('Enter demo')
     assert app.session_state['claim_v2']==card
@@ -35,13 +35,13 @@ with tempfile.TemporaryDirectory() as folder:
     assert state.profile(person)['organisation']=='Demo University'
     click('Change demo login')
     app.query_params['claim']=card
-    next(t for t in app.text_input if t.label=='Demo login ID').input('DEMO-137')
+    next(t for t in app.text_input if t.label=='Private activation code').input('DEMO-137')
     next(t for t in app.text_input if t.label=='Private activation code').input('ALEX-9P2R-26')
     click('Enter demo')
     assert app.error and 'assign this card' in app.error[0].value
     assert 'claim_v2' not in app.session_state
     click('Change demo login')
-    next(t for t in app.text_input if t.label=='Demo login ID').input('SCREEN-01')
+    next(t for t in app.text_input if t.label=='Private activation code').input('SCREEN-01')
     click('Enter demo')
     visible=' '.join(m.value for m in app.markdown)
     assert 'Lea Meier' not in visible and 'AFJD-0264' not in visible
