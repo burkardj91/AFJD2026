@@ -53,6 +53,9 @@ def parse_payload(value):
         badge = params.get("badge", [""])[0]
         if badge in ROSTER:
             return "person", badge
+        station = params.get("station", [""])[0]
+        if station in STATIONS:
+            return "station", station
         claim = params.get("claim", [""])[0]
         if claim not in CARDS:
             raise ValueError("This link does not contain a valid reward card.")
