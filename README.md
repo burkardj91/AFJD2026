@@ -46,3 +46,19 @@ Current entry flow: enter only the private test code (for example LEA-7K4M-26). 
 Admin reset: sign in as STAFF-01 or STAFF-02, expand Admin · reset rehearsal, choose whether to keep edited profiles, type RESET and click Reset all rehearsal activity. This clears event activity and all prizes/claims and signs out open tabs. Public demo staff codes are not production admin authentication. Downloaded files remain outside the app.
 
 Big-screen rehearsal draw: staff opens Big-screen prize draw · timer, chooses a date/time in Europe/Zurich, 3 or 5 winners, and the minimum completed quests (default 1). Keep SCREEN-01 open for a one-second countdown and automatic badge-ID reveal. Every eligible person has one equal chance; winners are unique and saved transactionally across screens. If fewer qualify, fewer win. An empty draw closes with no winners. New activity after the deadline cannot enter this draw. The app must be running; this is not an independent background scheduler. Reset rehearsal clears the schedule/results. This is a fictional demo draw; no real prizes are issued.
+
+## Updated badge, company and prize rehearsal
+
+Badge fronts: STAFF-01 → QR print kit → Person → download Print-ready badge front. The front contains the name, badge ID and public connection QR. Download the separate private credential slip and place it inside the holder. Open HTML downloads in a browser and print at 100%. The private code is not on the badge front.
+
+Phone cameras can open HTTPS badge links directly; the public URL must be configured with QUEST_PUBLIC_URL. A camera opening a new browser session may require the participant's own activation code again. Persistent verified returning-user authentication remains a production feature. A public badge QR never authenticates its owner. Company/person activity is stored in SQLite on the event server, not in a phone-only local cache.
+
+Alex Keller and Noah Frei are mock Lidl representatives. Staff may edit company annotations before a person has been scanned. Company representative scans immediately complete the organisation's sector task and save each scanned contact. Multiple representatives of the same company create one company visit/node edge per participant, not multiple independent-person nodes or Connect credits. Personal email sharing still depends on confirmation and sharing preference. Reset the rehearsal before testing the new rules with a clean event; existing activity is not automatically erased.
+
+Inventory: 50 free SVIAL memberships through 31.12.2027; 20 free SVIAL event invitations; 60 Small Agro-Food Gifts; 5 SFR prizes with details pending. Existing six card tokens remain valid. Membership claims require Ausbildungsstätte, study programme, postal address and date of birth. Event claims require only the prefilled name. Gifts use a staff-collected marker. SFR prizes are reserved for manual follow-up rather than an invented fulfilment form.
+
+Membership subject: [REHEARSAL] Gratismitgliedschaft AFJD <name>. Intended real routing is SVIAL with participant CC. Test drafts continue to route only to svial@svial.ch and include intended recipient information inside. No real mail is sent. A recipient address alone is not sending-service configuration.
+
+Evening recap schedule: staff chooses date/time under Evening recap · schedule & email queue. Opted-in participants' drafts are queued once when the app next checks at/after that time. Keep the app running with a tab open. Claims queue a draft immediately after validated submission. Queue entries are persisted; mail delivery requires a configured provider, authenticated recipients, delivery statuses and retry controls. Nothing is marked sent while delivery is disabled.
+
+Tests include company deduplication, membership mandatory fields, exact inventory totals, recap consent and idempotent queuing.

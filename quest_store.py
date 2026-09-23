@@ -33,7 +33,7 @@ def decode(value):
     return value
 
 class SharedQuest:
-    MUTATIONS = {"configure_raffle","resolve_raffle","reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
+    MUTATIONS = {"collect_gift","annotate_company","schedule_recaps","queue_due_recaps","configure_raffle","resolve_raffle","reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
 
     def __init__(self, path=None, seed=None):
         # Resolve the current model on construction: Streamlit may reload quest_core
@@ -78,6 +78,7 @@ class SharedQuest:
                 before = json.dumps(encode({f.name:getattr(state,f.name) for f in fields(self.model)}),sort_keys=True)
                 if name in self.MUTATIONS and name != "resolve_raffle":
                     state.resolve_raffle()
+                    state.queue_due_recaps()
                 result = getattr(state,name)(*args,**kwargs)
                 if name in self.MUTATIONS:
                     after = json.dumps(encode({f.name:getattr(state,f.name) for f in fields(self.model)}),sort_keys=True)

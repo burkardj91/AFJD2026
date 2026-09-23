@@ -13,7 +13,9 @@ with tempfile.TemporaryDirectory() as folder:
     person=state.activate('DEMO-264')
     state.simulate_completion(person)
     state.approve_draw(person,'STAFF-01')
-    card=state.draw(person,'STAFF-01')
+    from unittest.mock import patch
+    with patch('quest_core.secrets.choice',return_value='r-7mn4b2'):
+        card=state.draw(person,'STAFF-01')
     source=str(Path(__file__).resolve().parents[1]/'network_quest_mockup.py')
     app=AppTest.from_file(source,default_timeout=20)
     app.query_params['claim']=card
