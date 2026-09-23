@@ -9,6 +9,7 @@ from pathlib import Path
 from quest_visuals import network_html
 from quest_brand import LOGO_PATH, masthead, logo_uri
 from quest_store import SharedQuest
+from quest_login import BrowserLogins, COOKIE_NAME, LOGIN_SECONDS
 from PIL import Image
 import cv2
 import numpy as np
@@ -26,10 +27,44 @@ if s.get("reset_epoch", q.reset_epoch) != q.reset_epoch:
     s.clear()
     st.query_params.clear()
     s.reset_notice = True
+    s.skip_browser_restore = True
 s.reset_epoch = q.reset_epoch
 s.quest_v2 = q
 if s.pop("reset_notice", False):
     st.success("The rehearsal has been reset. Sign in to start again.")
+logins = BrowserLogins(q)
+cookie_writer = components.declare_component("afjd_login_cookie", path=str(Path(__file__).with_name("login_cookie")))
+
+# Wait for the browser to acknowledge cookie writes before continuing navigation.
+if s.get("cookie_write"):
+    operation = s.cookie_write
+    ack = cookie_writer(name=COOKIE_NAME, token=operation["token"], max_age=LOGIN_SECONDS,
+                        request_id=operation["id"], key="remember-cookie-"+operation["id"], default=None)
+    if ack and ack.get("request_id") == operation["id"]:
+        s.pop("cookie_write", None)
+        if not ack.get("ok"):
+            s.cookie_warning = True
+        st.rerun()
+    st.caption("Saving your browser login…")
+    if st.button("Continue without saving browser login"):
+        s.pop("cookie_write", None)
+        s.cookie_warning = True
+        st.rerun()
+    st.stop()
+if s.pop("cookie_warning", False):
+    st.warning("Your browser could not confirm saving the login. You can continue, but opening a QR link may ask you to sign in again.")
+
+# A public badge URL never supplies authentication. Only a validated private
+# browser token may restore the participant before processing a scanned link.
+if s.get("browser_token") and not logins.resolve(s.browser_token):
+    s.clear()
+    s.skip_browser_restore = True
+if not s.get("demo_role_v3") and not s.get("skip_browser_restore"):
+    token = st.context.cookies.get(COOKIE_NAME)
+    remembered = logins.resolve(token)
+    if remembered:
+        s.demo_role_v3, s.person_v2 = "participant", remembered
+        s.browser_token = token
 # Display preferences stay with this browser session.
 with st.container(key="display-controls"):
     with st.popover("Aa · Display"):
@@ -44,6 +79,12 @@ if not s.get("recipient_v2"):
     s.recipient_v2 = "svial@svial.ch"
 
 def change_login():
+    token = s.get("browser_token") or st.context.cookies.get(COOKIE_NAME)
+    logins.revoke(token)
+    s.pop("browser_token", None)
+    s.skip_browser_restore = True
+    if isinstance(token, str) and token:
+        s.cookie_write = {"token":"", "id":os.urandom(8).hex()}
     for key in ["demo_role_v3", "person_v2", "claim_v2", "staff_person_v2", "flash_v2", "deferred_requests", "profile_saved", "validate_person", "reveal_card", "claim_from_link", "scan_notice"]:
         s.pop(key, None)
     st.rerun()
@@ -56,11 +97,18 @@ if not role:
     st.write("Enter your private activation code to open your profile and digital badge. No login ID is needed.")
     with st.form("demo_login"):
         code = st.text_input("Private activation code", type="password", placeholder="LEA-7K4M-26", help="Your code identifies your profile. Demo staff can enter STAFF-01, STAFF-02 or SCREEN-01 here.")
+        remember = st.checkbox("Keep me signed in on this phone for 12 hours", value=False, help="Use on your personal phone. Leave off to test different accounts in separate tabs. Staff and screen logins are never remembered.")
         if st.form_submit_button("Enter demo", type="primary", use_container_width=True):
             try:
                 role, person = q.demo_login(code)
                 s.demo_role_v3, s.person_v2 = role, person
                 s.staff_login = code.strip().upper() if role == "staff" else None
+                if remember and role == "participant":
+                    old_token = st.context.cookies.get(COOKIE_NAME)
+                    logins.revoke(old_token)
+                    token = logins.issue(code)
+                    s.browser_token = token
+                    s.cookie_write = {"token":token, "id":os.urandom(8).hex()}
                 st.rerun()
             except ValueError as error:
                 st.error(str(error))
@@ -83,9 +131,8 @@ with st.sidebar:
             st.caption(f"{p['name']}: {p['code']}")
         if st.button("Switch participant"):
             change_login()
-        if st.button("Sign out of this tab"):
-            st.session_state.clear()
-            st.rerun()
+        if st.button("Sign out / forget this phone"):
+            change_login()
 st.markdown(masthead(), unsafe_allow_html=True)
 with st.expander("Demo tools · switch account", expanded=False):
     st.caption("Local rehearsal with fictional data. Emails are not sent. All tabs share this local rehearsal.")
