@@ -1,9 +1,18 @@
 import unittest
 from datetime import datetime,timezone,timedelta
 from collections import Counter
-from quest_core import Quest, CARDS, payload
+from quest_core import Quest, CARDS, payload, parse_payload
 
 class CompanyPrizeTests(unittest.TestCase):
+    def test_phone_station_link_records_sector(self):
+        url='https://afjd2026.streamlit.app/?station=re-lidl'
+        self.assertEqual(parse_payload(url),('station','re-lidl'))
+        q=Quest();p=q.activate('DEMO-264')
+        q.scan(p,url)
+        self.assertEqual(q.completed(p),{'Retail'})
+        with self.assertRaises(ValueError):
+            q.scan(p,'https://afjd2026.streamlit.app/?station=unknown')
+
     def test_company_contacts_aggregate_but_retain_people(self):
         q=Quest(); p=q.activate('DEMO-264'); a=q.activate('DEMO-137'); b=q.activate('DEMO-189')
         for contact in [a,b,a]:

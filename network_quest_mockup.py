@@ -99,7 +99,7 @@ def public_base_url():
             value = st.secrets.get("QUEST_PUBLIC_URL")
         except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError):
             value = None
-    return (value or "http://127.0.0.1:8503/").rstrip("/")
+    return (value or "https://afjd2026.streamlit.app/").rstrip("/")
 
 @st.cache_data
 def qr_png(value):
@@ -108,7 +108,9 @@ def qr_png(value):
     return buf.getvalue()
 
 def show_qr(kind, token, caption):
-    value = public_base_url()+"/?badge="+token if kind == "person" else payload(kind,token)
+    value = public_base_url()+"/?"+{"person":"badge","station":"station","reward":"claim"}[kind]+"="+token
+    if public_base_url().startswith(("http://127.0.0.1", "http://localhost")):
+        st.warning("Computer-only preview: this QR will not open the app on another phone. Set QUEST_PUBLIC_URL to the deployed HTTPS app address before printing badges.")
     data = qr_png(value)
     st.image(data, width=230, caption=caption)
     st.download_button("Download QR", data, file_name=f"{kind}-{token}.png", mime="image/png", key=f"qr-{kind}-{token}")
@@ -283,7 +285,7 @@ def card_reveal(participant, card):
     st.caption("Scan this QR with your phone, then sign into your own pass. Your card stays reserved for you.")
     with st.expander("Testing on this computer"):
         st.code(claim_link(card), language=None)
-        st.caption("Paste this in the participant’s Scan tab, or open it in their browser tab. A separate phone requires a reachable HTTPS deployment.")
+        st.caption("Paste this in the participant’s Scan help tab, or open it in their browser tab. A separate phone requires a reachable HTTPS deployment.")
     if st.button("Finish · next participant", type="primary", use_container_width=True):
         s.pop("reveal_card", None)
         s.pop("staff_person_v2", None)
@@ -300,6 +302,14 @@ if role == "participant" and person and st.query_params.get("badge"):
             record_scan(person, payload("person", badge))
         except ValueError as error:
             st.error(str(error))
+    st.query_params.clear()
+
+# Native phone camera links also support printed station codes.
+if role == "participant" and person and st.query_params.get("station"):
+    try:
+        record_scan(person, payload("station", st.query_params["station"]))
+    except ValueError as error:
+        st.error(str(error))
     st.query_params.clear()
 
 # A claim link never bypasses the logged-in participant's ownership check.
@@ -338,7 +348,7 @@ if view == "My pass":
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
         st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="name">{escape(profile["name"])}</div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{count} of 6 perspectives</span><span>{"Network Card unlocked" if person in q.unlocked else "Explore the event"}</span></div></div>', unsafe_allow_html=True)
-        tabs = st.tabs(["My pass", "Scan", "Connections", "Reward", "Profile"], default="Reward" if s.pop("claim_from_link", False) else ("Profile" if person not in q.profiles else "My pass"))
+        tabs = st.tabs(["My pass", "Scan help", "Connections", "Reward", "Profile"], default="Reward" if s.pop("claim_from_link", False) else ("Profile" if person not in q.profiles else "My pass"))
         with tabs[0]:
             st.subheader("My personal QR")
             st.caption("Let another participant scan this digital badge to connect. Staff can use it to identify your pass. Your private activation code is never included.")
@@ -372,29 +382,32 @@ if view == "My pass":
         with tabs[1]:
             st.subheader("Scan a badge or stand")
             st.write("Independent contacts confirm the connection. Company representatives complete their organisation’s sector check immediately; contact sharing still requires consent.")
-            value = scanner("participant","Badge or station")
-            if value:
-                result = try_action(lambda:record_scan(person,value))
-                if result:
-                    if result[0] == "reward":
-                        s.claim_v2 = result[1]
-                        s.flash_v2 = "Card recognised. Open the Reward tab to continue."
-                    else:
-                        s.flash_v2 = result[1]
-                    st.rerun()
+            st.write("Use your phone’s normal camera to scan a printed badge or stand QR, then open the link. Sign in with your own private code if asked.")
+            with st.expander("Having trouble scanning?", expanded=False):
+                value = scanner("participant","Badge or station")
+                if value:
+                    result = try_action(lambda:record_scan(person,value))
+                    if result:
+                        if result[0] == "reward":
+                            s.claim_v2 = result[1]
+                            s.flash_v2 = "Card recognised. Open the Reward tab to continue."
+                        else:
+                            s.flash_v2 = result[1]
+                        st.rerun()
             if s.get("flash_v2"):
                 st.success(s.pop("flash_v2"))
-            st.subheader("Organisations & tasks")
-            st.caption("Demo catalogue: company names are illustrative, not confirmed exhibitors. Each organisation has a task; visiting two organisations in one sector earns only one sector check.")
-            for stand in STATIONS:
-                visited = stand in q.visits.get(person, set())
-                with st.container(border=True):
-                    st.write("**"+STATIONS[stand][0]+"** · "+ORGANISATIONS[stand][0])
-                    st.caption(STATIONS[stand][1]+" · "+STATIONS[stand][2])
-                    if st.button("✓ Visited" if visited else "Simulate stand scan", key="stand-"+stand, disabled=visited, use_container_width=True):
-                        q.scan(person, payload("station", stand))
-                        st.toast(STATIONS[stand][1]+" challenge completed", icon="✅")
-                        st.rerun()
+            with st.expander("Demo catalogue · simulate a stand visit", expanded=False):
+                st.subheader("Organisations & tasks")
+                st.caption("Demo catalogue: company names are illustrative, not confirmed exhibitors. Each organisation has a task; visiting two organisations in one sector earns only one sector check.")
+                for stand in STATIONS:
+                    visited = stand in q.visits.get(person, set())
+                    with st.container(border=True):
+                        st.write("**"+STATIONS[stand][0]+"** · "+ORGANISATIONS[stand][0])
+                        st.caption(STATIONS[stand][1]+" · "+STATIONS[stand][2])
+                        if st.button("✓ Visited" if visited else "Simulate stand scan", key="stand-"+stand, disabled=visited, use_container_width=True):
+                            q.scan(person, payload("station", stand))
+                            st.toast(STATIONS[stand][1]+" challenge completed", icon="✅")
+                            st.rerun()
             with st.expander("Rehearsal shortcut", expanded=False):
                 demo = st.selectbox("Fictional station",list(STATIONS),format_func=lambda t:STATIONS[t][0])
                 if st.button("Visit selected station"):
