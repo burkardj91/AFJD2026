@@ -1,5 +1,6 @@
 """Phone-focused local rehearsal; fictional data, no production auth or mail transport."""
-from datetime import date
+from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
 from html import escape
 from io import BytesIO
 import os
@@ -304,7 +305,7 @@ if view == "My pass":
             connection_popup(person, incoming[0])
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
-        st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="name">{escape(profile["name"])}</div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{count} of 6 perspectives</span><span>{q.entries(person)} draw entries</span></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="name">{escape(profile["name"])}</div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{count} of 6 perspectives</span><span>{"Network Card unlocked" if person in q.unlocked else "Explore the event"}</span></div></div>', unsafe_allow_html=True)
         tabs = st.tabs(["My pass", "Scan", "Connections", "Reward", "Profile"], default="Reward" if s.pop("claim_from_link", False) else ("Profile" if person not in q.profiles else "My pass"))
         with tabs[0]:
             st.subheader("My personal QR")
@@ -512,6 +513,23 @@ elif view == "SVIAL staff":
             draft = try_action(lambda:email_draft(q,card,s.recipient_v2.strip()))
             if draft:
                 st.download_button("Download email draft",draft,file_name=CARDS[card][0]+"-rehearsal.eml",mime="message/rfc822",key="email-"+card)
+    with st.expander("Big-screen prize draw · timer"):
+        st.caption("Equal chance per eligible participant. Winners appear as badge IDs only. This is a fictional rehearsal draw.")
+        with st.form("schedule-raffle"):
+            event_day=st.date_input("Draw date", value=datetime.now(ZoneInfo("Europe/Zurich")).date())
+            event_time=st.time_input("Draw time · Europe/Zurich", value=time(19,30))
+            winner_count=st.selectbox("Number of winners",[3,5])
+            minimum=st.number_input("Minimum completed quests", min_value=1,max_value=6,value=1,step=1)
+            if st.form_submit_button("Schedule big-screen draw"):
+                try:
+                    deadline=datetime.combine(event_day,event_time,tzinfo=ZoneInfo("Europe/Zurich"))
+                    q.configure_raffle(s.staff_login,deadline.isoformat(),winner_count,int(minimum))
+                    st.success("Draw scheduled. Keep the big-screen tab open for the countdown and automatic reveal.")
+                except ValueError as error:
+                    st.error(str(error))
+        if q.raffle:
+            st.write(q.public_raffle())
+        st.caption("If fewer people qualify, all qualifying people win; there are no duplicate winners. Completed draws cannot be rerolled without resetting the rehearsal.")
     with st.expander("Admin · reset rehearsal"):
         st.warning("Clears ALL participants’ visits, connections, requests, challenge progress, assigned cards, claims and recap/sharing choices. The prize deck is replenished and open tabs are signed out. Downloaded files are not deleted.")
         st.caption("These controls use demo staff codes, not production administrator authentication.")
@@ -528,6 +546,24 @@ elif view == "SVIAL staff":
 elif view == "Live network":
     st.markdown('<style>.block-container{max-width:1280px}</style>', unsafe_allow_html=True)
     st.title("Our network, together")
+    @st.fragment(run_every=1)
+    def raffle_clock():
+        q.resolve_raffle()
+        draw=q.public_raffle()
+        if draw.get("status") == "scheduled":
+            remaining=max(0,int((datetime.fromisoformat(draw["deadline"])-datetime.now(timezone.utc)).total_seconds()))
+            hours,remainder=divmod(remaining,3600)
+            minutes,seconds=divmod(remainder,60)
+            st.markdown(f'<div class="raffle-panel"><span>PRIZE DRAW · {draw["count"]} WINNERS</span><strong>{hours:02}:{minutes:02}:{seconds:02}</strong><p>{draw["eligible_count"]} eligible participants · Complete at least {draw["minimum"]} quest(s)</p></div>',unsafe_allow_html=True)
+        elif draw.get("status") == "completed":
+            st.subheader("The winning badges")
+            if draw["winner_badges"]:
+                st.markdown('<div class="winner-list">'+''.join('<strong>'+badge+'</strong>' for badge in draw["winner_badges"])+'</div>',unsafe_allow_html=True)
+                st.write("Please visit the SVIAL desk with your pass.")
+            else:
+                st.info("No participants qualified before the draw closed.")
+            st.caption(f'{draw["eligible_count"]} eligible participants · {len(draw["winner_badges"])} winners · Results are saved.')
+    raffle_clock()
     show_companies = st.toggle("Show individual companies", value=False)
     components.html(network_html(q.public_network(), q.public_counts(), show_companies=show_companies), height=760, scrolling=True)
     st.caption("Anonymous connections from this rehearsal session. Updates automatically from all local demo tabs.")

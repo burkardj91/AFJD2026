@@ -51,6 +51,12 @@ with tempfile.TemporaryDirectory() as directory:
     assert len(staff.session_state['quest_v2'].applications)==1
     print('PASS: independent sessions -> accept -> unlock -> staff validation -> tablet 2 card draw -> QR claim form -> prepared application')
 
+    from datetime import date,timedelta
+    next(t for t in staff.date_input if t.label=='Draw date').set_value(date.today()+timedelta(days=1))
+    button(staff,'Schedule big-screen draw').click().run()
+    assert not staff.exception
+    screen=start('SCREEN-01')
+    assert any('PRIZE DRAW' in m.value for m in screen.markdown)
     next(t for t in staff.text_input if t.label=='Type RESET to clear the rehearsal').input('RESET')
     button(staff,'Reset all rehearsal activity').click().run()
     assert not staff.exception

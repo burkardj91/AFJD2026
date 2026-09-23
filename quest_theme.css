@@ -86,3 +86,10 @@ button[kind=secondary],button[kind=tertiary]{background:var(--surface)!important
 .reward-preview,.reward{border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;padding:22px 0;box-shadow:none}
 @media(max-width:600px){.st-key-card-selection [data-testid=stHorizontalBlock]{gap:8px!important}[class*="st-key-draw-choice-"] button{height:220px;min-height:220px;background-size:48px auto!important;background-position:center 24px!important;padding-bottom:18px!important}[class*="st-key-draw-choice-"] button:before{font-size:16px;top:104px}[class*="st-key-draw-choice-"] button p{font-size:10px!important}.pass .name{font-size:27px}}
 @media(prefers-reduced-motion:reduce){[class*="st-key-draw-choice-"] button{transition:none}[class*="st-key-draw-choice-"] button:hover{transform:none}}
+/* Keep the page surface continuous when a long form exceeds the viewport. */
+.stApp,[data-testid=stMain]{background:var(--surface)!important}
+.block-container{height:auto!important;overflow:visible!important;padding-bottom:120px!important}
+[data-testid=stForm]{max-width:100%;box-sizing:border-box}
+.raffle-panel{text-align:center;border-top:2px solid #009641;border-bottom:1px solid var(--line);padding:24px 16px;margin:16px 0 24px}
+.raffle-panel>span{font-size:12px;letter-spacing:.12em;color:var(--muted)}.raffle-panel>strong{display:block;font-size:clamp(38px,8vw,88px);font-variant-numeric:tabular-nums;letter-spacing:.04em;color:var(--accent)}
+.winner-list{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;padding:24px}.winner-list strong{font-size:clamp(24px,4vw,48px);border-bottom:3px solid #ef8281;padding:12px;color:var(--accent)}

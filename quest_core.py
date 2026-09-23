@@ -77,6 +77,36 @@ class Quest:
 
     reset_epoch: int = field(default_factory=int)
 
+    raffle: dict = field(default_factory=dict)
+
+    def configure_raffle(self, staff_id, deadline, winners=3, minimum=1):
+        if staff_id not in {"STAFF-01", "STAFF-02"}:
+            raise ValueError("A staff demo login is required.")
+        target = datetime.fromisoformat(deadline)
+        if target.tzinfo is None or target <= datetime.now(timezone.utc):
+            raise ValueError("Choose a future date and time with a timezone.")
+        if winners not in {3,5} or minimum not in range(1,7):
+            raise ValueError("Choose 3 or 5 winners and 1–6 completed quests.")
+        if self.raffle.get("status") == "completed":
+            raise ValueError("This draw is finished. Reset the rehearsal to start a new draw.")
+        self.raffle = {"deadline":target.isoformat(), "count":winners, "minimum":minimum, "status":"scheduled", "staff":staff_id}
+
+    def resolve_raffle(self, now=None):
+        draw=self.raffle
+        if draw.get("status") != "scheduled":
+            return
+        instant = now or datetime.now(timezone.utc)
+        if instant < datetime.fromisoformat(draw["deadline"]):
+            return
+        eligible=sorted(p for p in self.active if len(self.completed(p)) >= draw["minimum"])
+        winners=secrets.SystemRandom().sample(eligible,min(draw["count"],len(eligible)))
+        draw.update(status="completed", eligible=eligible, winners=winners, resolved_at=instant.isoformat())
+
+    def public_raffle(self):
+        return {k:self.raffle[k] for k in ["deadline","count","minimum","status"] if k in self.raffle} | {
+            "winner_badges":[ROSTER[p]["id"] for p in self.raffle.get("winners",[])],
+            "eligible_count":len(self.raffle.get("eligible",[])) if self.raffle.get("status")=="completed" else sum(len(self.completed(p)) >= self.raffle.get("minimum",1) for p in self.active)}
+
     def reset_demo(self, staff_id, confirmation, keep_profiles=True):
         if staff_id not in {"STAFF-01", "STAFF-02"}:
             raise ValueError("A staff demo login is required to reset the event.")
