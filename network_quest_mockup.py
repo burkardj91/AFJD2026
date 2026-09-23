@@ -38,7 +38,7 @@ cookie_writer = components.declare_component("afjd_login_cookie", path=str(Path(
 # Wait for the browser to acknowledge cookie writes before continuing navigation.
 if s.get("cookie_write"):
     operation = s.cookie_write
-    ack = cookie_writer(name=COOKIE_NAME, token=operation["token"], max_age=LOGIN_SECONDS,
+    ack = cookie_writer(action="write", name=COOKIE_NAME, token=operation["token"], max_age=LOGIN_SECONDS,
                         request_id=operation["id"], key="remember-cookie-"+operation["id"], default=None)
     if ack and ack.get("request_id") == operation["id"]:
         s.pop("cookie_write", None)
@@ -62,9 +62,20 @@ if s.get("browser_token") and not logins.resolve(s.browser_token):
 if not s.get("demo_role_v3") and not s.get("skip_browser_restore"):
     token = st.context.cookies.get(COOKIE_NAME)
     remembered = logins.resolve(token)
+    if not remembered:
+        # Cloud hosting may not forward custom cookies to the Python request.
+        # Read our own browser cookie through the same component that saved it.
+        if "cookie_read_id" not in s:
+            s.cookie_read_id = os.urandom(8).hex()
+        ack = cookie_writer(action="read", name=COOKIE_NAME, request_id=s.cookie_read_id,
+                            key="restore-browser-login", default=None)
+        if isinstance(ack, dict) and ack.get("request_id") == s.cookie_read_id:
+            token = ack.get("token")
+            remembered = logins.resolve(token)
     if remembered:
         s.demo_role_v3, s.person_v2 = "participant", remembered
         s.browser_token = token
+        st.rerun()
 # Display preferences stay with this browser session.
 with st.container(key="display-controls"):
     with st.popover("Aa · Display"):

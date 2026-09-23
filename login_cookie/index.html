@@ -6,7 +6,16 @@ function send(type, extra) {
 }
 window.addEventListener("message", event => {
   if (event.source !== window.parent || event.data.type !== "streamlit:render") return;
-  const {token, name, max_age, request_id} = event.data.args;
+  const {token, name, max_age, request_id, action} = event.data.args;
+  if (action === "read") {
+    let saved = "";
+    try {
+      const found = document.cookie.split("; ").find(c => c.startsWith(name + "="));
+      if (found) saved = decodeURIComponent(found.slice(name.length + 1));
+    } catch (_) { /* Blocked cookies leave the normal login form available. */ }
+    send("streamlit:setComponentValue", {value: {request_id, token: saved}, dataType: "json"});
+    return;
+  }
   let ok = false;
   try {
     const secure = location.protocol === "https:" ? "; Secure" : "";
