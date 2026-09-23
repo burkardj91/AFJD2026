@@ -51,7 +51,7 @@ Big-screen rehearsal draw: staff opens Big-screen prize draw · timer, chooses a
 
 Badge fronts: STAFF-01 → QR print kit → Person → download Print-ready badge front. The front contains the name, badge ID and public connection QR. Download the separate private credential slip and place it inside the holder. Open HTML downloads in a browser and print at 100%. The private code is not on the badge front.
 
-Phone cameras can open HTTPS badge links directly; the public URL must be configured with QUEST_PUBLIC_URL. A camera opening a new browser session may require the participant's own activation code again. Persistent verified returning-user authentication remains a production feature. A public badge QR never authenticates its owner. Company/person activity is stored in SQLite on the event server, not in a phone-only local cache.
+Phone cameras can open HTTPS badge links directly; the public URL must be configured with QUEST_PUBLIC_URL. Participants can opt into a 12-hour remembered browser login. Camera links opening the same browser then restore the participant before processing the scanned badge. Different browsers and private windows require a separate login. A public badge QR never authenticates its owner. Company/person activity is stored in SQLite on the event server, not in a phone-only local cache.
 
 Alex Keller and Noah Frei are mock Lidl representatives. Staff may edit company annotations before a person has been scanned. Company representative scans immediately complete the organisation's sector task and save each scanned contact. Multiple representatives of the same company create one company visit/node edge per participant, not multiple independent-person nodes or Connect credits. Personal email sharing still depends on confirmation and sharing preference. Reset the rehearsal before testing the new rules with a clean event; existing activity is not automatically erased.
 
@@ -62,3 +62,9 @@ Membership subject: [REHEARSAL] Gratismitgliedschaft AFJD <name>. Intended real 
 Evening recap schedule: staff chooses date/time under Evening recap · schedule & email queue. Opted-in participants' drafts are queued once when the app next checks at/after that time. Keep the app running with a tab open. Claims queue a draft immediately after validated submission. Queue entries are persisted; mail delivery requires a configured provider, authenticated recipients, delivery statuses and retry controls. Nothing is marked sent while delivery is disabled.
 
 Tests include company deduplication, membership mandatory fields, exact inventory totals, recap consent and idempotent queuing.
+
+
+### Remembering a phone login
+Select “Keep me signed in on this phone for 12 hours” before entering the participant code. The browser stores an opaque random token in a host-only, SameSite=Lax cookie (Secure on HTTPS); the server stores only its SHA-256 digest, expiry and reset epoch in SQLite. Sign out / forget this phone revokes it, including in other remembered sessions; an admin reset and expiry also invalidate it. Public badge links contain no login token. Staff and screen roles are not remembered. Leave the checkbox off when simulating several accounts in separate tabs.
+
+The cookie component is bundled locally in `login_cookie/index.html`; deploy that directory and `quest_login.py` alongside the app. It waits for a browser acknowledgement and offers a fallback when saving is blocked. This remains fictional rehearsal authentication: the JavaScript-written cookie cannot be HttpOnly and test activation codes are public. Production needs server-managed HttpOnly authentication / OIDC and durable database hosting. Clearing browser cookies, changing browser, or losing the hosted SQLite database requires signing in again.

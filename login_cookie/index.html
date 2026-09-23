@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<script>
+// No remote scripts, credentials, URLs, or personal data are stored here.
+function send(type, extra) {
+  window.parent.postMessage({isStreamlitMessage: true, type, ...extra}, "*");
+}
+window.addEventListener("message", event => {
+  if (event.source !== window.parent || event.data.type !== "streamlit:render") return;
+  const {token, name, max_age, request_id} = event.data.args;
+  let ok = false;
+  try {
+    const secure = location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(token) +
+      "; Path=/; SameSite=Lax; Max-Age=" + (token ? max_age : 0) + secure;
+    const found = document.cookie.split("; ").find(c => c.startsWith(name + "="));
+    ok = token ? found === name + "=" + encodeURIComponent(token) : !found;
+  } catch (_) { ok = false; }
+  send("streamlit:setComponentValue", {value: {request_id, ok}, dataType: "json"});
+});
+send("streamlit:componentReady", {apiVersion: 1});
+send("streamlit:setFrameHeight", {height: 0});
+</script></body></html>
