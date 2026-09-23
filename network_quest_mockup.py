@@ -21,7 +21,14 @@ st.set_page_config(page_title="SVIAL · Network Quest", page_icon=Image.open(LOG
 st.markdown("<style>"+Path(__file__).with_name("quest_theme.css").read_text(encoding="utf-8")+"</style>", unsafe_allow_html=True)
 s = st.session_state
 q = SharedQuest()
+if s.get("reset_epoch", q.reset_epoch) != q.reset_epoch:
+    s.clear()
+    st.query_params.clear()
+    s.reset_notice = True
+s.reset_epoch = q.reset_epoch
 s.quest_v2 = q
+if s.pop("reset_notice", False):
+    st.success("The rehearsal has been reset. Sign in to start again.")
 # Display preferences stay with this browser session.
 with st.container(key="display-controls"):
     with st.popover("Aa · Display"):
@@ -505,6 +512,18 @@ elif view == "SVIAL staff":
             draft = try_action(lambda:email_draft(q,card,s.recipient_v2.strip()))
             if draft:
                 st.download_button("Download email draft",draft,file_name=CARDS[card][0]+"-rehearsal.eml",mime="message/rfc822",key="email-"+card)
+    with st.expander("Admin · reset rehearsal"):
+        st.warning("Clears ALL participants’ visits, connections, requests, challenge progress, assigned cards, claims and recap/sharing choices. The prize deck is replenished and open tabs are signed out. Downloaded files are not deleted.")
+        st.caption("These controls use demo staff codes, not production administrator authentication.")
+        with st.form("reset-rehearsal"):
+            keep_profiles = st.checkbox("Keep edited participant profiles", value=True)
+            confirmation = st.text_input("Type RESET to clear the rehearsal")
+            if st.form_submit_button("Reset all rehearsal activity"):
+                try:
+                    q.reset_demo(s.staff_login, confirmation, keep_profiles)
+                    st.rerun()
+                except ValueError as error:
+                    st.error(str(error))
     st.caption("Demo staff account · fictional participants only")
 elif view == "Live network":
     st.markdown('<style>.block-container{max-width:1280px}</style>', unsafe_allow_html=True)

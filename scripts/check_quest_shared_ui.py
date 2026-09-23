@@ -50,3 +50,14 @@ with tempfile.TemporaryDirectory() as directory:
     assert not staff.exception and not lea.exception
     assert len(staff.session_state['quest_v2'].applications)==1
     print('PASS: independent sessions -> accept -> unlock -> staff validation -> tablet 2 card draw -> QR claim form -> prepared application')
+
+    next(t for t in staff.text_input if t.label=='Type RESET to clear the rehearsal').input('RESET')
+    button(staff,'Reset all rehearsal activity').click().run()
+    assert not staff.exception
+    assert any(t.label=='Private activation code' for t in staff.text_input)
+    lea.run()
+    assert not lea.exception
+    assert any(t.label=='Private activation code' for t in lea.text_input)
+    assert not lea.session_state['quest_v2'].visits
+    assert 'claim_v2' not in lea.session_state
+    print('PASS: confirmed admin reset clears activity and signs out staff and participant tabs')

@@ -33,7 +33,7 @@ def decode(value):
     return value
 
 class SharedQuest:
-    MUTATIONS = {"demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
+    MUTATIONS = {"reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
 
     def __init__(self, path=None, seed=None):
         self.path = str(path or os.environ.get("QUEST_DB_PATH") or Path(__file__).with_name(".localdata") / "quest_demo.sqlite3")

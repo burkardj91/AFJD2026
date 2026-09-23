@@ -42,3 +42,5 @@ STAFF-01, STAFF-02 and SCREEN-01 remain explicit demo-role logins and do not nee
 Tests: `python -m unittest discover -s tests -p "test_quest*.py" -v`, `python scripts/check_quest_shared_ui.py` and `python scripts/check_quest_ui.py`.
 
 Current entry flow: enter only the private test code (for example LEA-7K4M-26). No badge ID or login ID is required. The public personal QR is prominently displayed in My pass after activation. Staff demo IDs use the same single field. Public badge IDs and QR tokens cannot authenticate a participant.
+
+Admin reset: sign in as STAFF-01 or STAFF-02, expand Admin · reset rehearsal, choose whether to keep edited profiles, type RESET and click Reset all rehearsal activity. This clears event activity and all prizes/claims and signs out open tabs. Public demo staff codes are not production admin authentication. Downloaded files remain outside the app.

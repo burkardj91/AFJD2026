@@ -75,6 +75,19 @@ class Quest:
     draw_log: list = field(default_factory=list)
     draw_approvals: dict = field(default_factory=dict)
 
+    reset_epoch: int = field(default_factory=int)
+
+    def reset_demo(self, staff_id, confirmation, keep_profiles=True):
+        if staff_id not in {"STAFF-01", "STAFF-02"}:
+            raise ValueError("A staff demo login is required to reset the event.")
+        if confirmation != "RESET":
+            raise ValueError("Type RESET to confirm.")
+        fresh = Quest()
+        if keep_profiles:
+            fresh.profiles = dict(self.profiles)
+        fresh.reset_epoch = self.reset_epoch + 1
+        self.__dict__.update(fresh.__dict__)
+
     def set_preferences(self, person, shared, recap):
         self.require_active(person)
         self.sharing.add(person) if shared else self.sharing.discard(person)
