@@ -21,6 +21,8 @@ with tempfile.TemporaryDirectory() as folder:
     app.query_params['claim']=card
     app.run()
     def click(label):
+        if label == "Enter demo":
+            next(c for c in app.checkbox if c.label.startswith("Keep me signed in")).uncheck()
         next(b for b in app.button if b.label==label).click().run()
         assert not app.exception, [e.message for e in app.exception]
     next(t for t in app.text_input if t.label=='Private activation code').input('DEMO-264')

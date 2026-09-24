@@ -7,6 +7,7 @@ import os
 import base64
 from pathlib import Path
 from quest_visuals import network_html
+from quest_journey import STAGES, journey_html, celebration_html
 from quest_brand import LOGO_PATH, masthead, logo_uri
 from quest_store import SharedQuest
 from quest_login import BrowserLogins, COOKIE_NAME, LOGIN_SECONDS
@@ -108,7 +109,7 @@ if not role:
     st.write("Enter your private activation code to open your profile and digital badge. No login ID is needed.")
     with st.form("demo_login"):
         code = st.text_input("Private activation code", type="password", placeholder="LEA-7K4M-26", help="Your code identifies your profile. Demo staff can enter STAFF-01, STAFF-02 or SCREEN-01 here.")
-        remember = st.checkbox("Keep me signed in on this phone for 12 hours", value=False, help="Use on your personal phone. Leave off to test different accounts in separate tabs. Staff and screen logins are never remembered.")
+        remember = st.checkbox("Keep me signed in on this phone for 12 hours", value=True, help="Use on your personal phone. Leave off to test different accounts in separate tabs. Staff and screen logins are never remembered.")
         if st.form_submit_button("Enter demo", type="primary", use_container_width=True):
             try:
                 role, person = q.demo_login(code)
@@ -123,7 +124,7 @@ if not role:
                 st.rerun()
             except ValueError as error:
                 st.error(str(error))
-    st.caption("Fictional rehearsal accounts, not production authentication. Open separate tabs for different demo users. Progress is shared locally and updates automatically.")
+    st.caption("Fictional rehearsal accounts, not production authentication. To test different demo users in separate tabs, turn off remembered login. Progress is shared and updates automatically.")
     with st.expander("Fictional test credentials · not for production"):
         st.table([{"Name":r["name"], "Badge ID":r["id"], "Private test code":ACTIVATION_CODES[p]} for p,r in ROSTER.items()])
     st.subheader("Event team")
@@ -132,7 +133,7 @@ if not role:
 
 with st.sidebar:
     st.title("Rehearsal controls")
-    st.caption("Fictional data only. All local tabs share the same rehearsal event. Each tab keeps its own login.")
+    st.caption("Fictional data only. All local tabs share the same rehearsal event. Remembered participant login is shared by new tabs in this browser.")
     allowed_views = {"participant":["My pass"], "staff":["SVIAL staff", "QR print kit"], "screen":["Live network"]}[role]
     view = st.radio("Workspace", allowed_views, key="workspace-"+role)
     if view != "Live network":
@@ -305,6 +306,7 @@ def connection_popup(recipient, sender):
 @st.dialog("Ready for your Network Card", dismissible=False)
 def reward_popup(participant):
     profile = q.profile(participant)
+    st.markdown(celebration_html("You reached the summit!", "Your Network Card is unlocked. Let’s celebrate at the SVIAL desk.", animal=True), unsafe_allow_html=True)
     st.markdown('<div class="invitation"><img src="'+logo_uri()+'" alt="SVIAL ASIAT"><div class="card-kicker">NETWORK QUEST · 2026</div><h2>Your next connection<br>starts at SVIAL.</h2><p>'+escape(profile["name"])+', you have completed the challenge.</p><div class="invitation-footer"><span>4 challenges completed</span><b>✓ Validated</b></div></div>', unsafe_allow_html=True)
     st.write("Visit the SVIAL desk and show your pass. The team will check your name and invite you to draw a card.")
     if st.button("Got it", type="primary", use_container_width=True):
@@ -336,6 +338,7 @@ def claim_link(card):
 
 @st.dialog("Your Network Card", dismissible=False)
 def card_reveal(participant, card):
+    st.markdown(celebration_html("This one is yours!", "A new connection. A little surprise. A moment to remember."), unsafe_allow_html=True)
     benefit = CARDS[card][1]
     wording = {"membership":"Free membership until 31 December 2027.","event":"Your next SVIAL event is on us.","gift":"A small thank-you. Collect your gift at the desk.","sfr":"Your prize is reserved. Ask the team about the SFR details."}[CARDS[card][2]]
     qr = "data:image/png;base64," + base64.b64encode(qr_png(claim_link(card))).decode("ascii")
@@ -405,7 +408,7 @@ if view == "My pass":
             connection_popup(person, incoming[0])
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
-        st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="name">{escape(profile["name"])}</div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{count} of 6 perspectives</span><span>{"Network Card unlocked" if person in q.unlocked else "Explore the event"}</span></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="name">{escape(profile["name"])}</div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Network Card unlocked" if person in q.unlocked else "Explore the event"}</span></div></div>', unsafe_allow_html=True)
         tabs = st.tabs(["My pass", "Scan help", "Connections", "Reward", "Profile"], default="Reward" if s.pop("claim_from_link", False) else ("Profile" if person not in q.profiles else "My pass"))
         with tabs[0]:
             st.subheader("My personal QR")
@@ -425,7 +428,7 @@ if view == "My pass":
                 if person in q.assignments.values():
                     st.caption("You already have an assigned card. These buttons replay the celebration without issuing another prize.")
             st.subheader("Your quest map")
-            st.progress(min(count/4,1), text="Network Card unlocked" if count >= 4 else f"{4-count} more to unlock your Network Card")
+            st.markdown(journey_html(count), unsafe_allow_html=True)
             subtitles = {'Agriculture': 'Agriculture & Primary Production', 'Food Production': 'Food Production & Processing', 'FoodTech & Innovation': 'Ingredients, FoodTech & Innovation', 'Retail': 'Retail & Market', 'Services & Ecosystem': 'Services, Education & Ecosystem'}
             subtitles["Connect"] = f"Meet two people · {min(len([p for p in q.people(person) if p not in q.affiliations]),2)} of 2 confirmed"
             for i,c in enumerate(CHALLENGES,1):
@@ -539,8 +542,8 @@ if view == "My pass":
                     s.setdefault("unlock_seen", set()).discard(person)
                     st.rerun()
             else:
-                st.markdown(f'<div class="reward-preview"><span class="reward-overline">The SVIAL Network Card</span><h2>Meet people.<br>Discover your next opportunity.</h2><p>Complete four different challenges to unlock a physical prize at the SVIAL booth.</p><div class="reward-steps"><div class="reward-step"><b>01 · Explore</b>{count} of 4 challenges completed</div><div class="reward-step"><b>02 · Visit SVIAL</b>Show your personal badge</div><div class="reward-step"><b>03 · Draw your card</b>Discover and claim your benefit</div></div></div>',unsafe_allow_html=True)
-                st.progress(min(count/4,1), text=f"{4-count} more perspectives to unlock your card")
+                st.markdown(f'<div class="reward-preview"><span class="reward-overline">The SVIAL Network Card</span><h2>Meet people.<br>Discover your next opportunity.</h2><p>Complete four different challenges to unlock a physical prize at the SVIAL booth.</p><div class="reward-steps"><div class="reward-step"><b>01 · Explore</b>{STAGES[min(count,4)][0]} · your journey is underway</div><div class="reward-step"><b>02 · Visit SVIAL</b>Show your personal badge</div><div class="reward-step"><b>03 · Draw your card</b>Discover and claim your benefit</div></div></div>',unsafe_allow_html=True)
+                st.markdown(journey_html(count), unsafe_allow_html=True)
         with tabs[4]:
             st.subheader("Complete your profile")
             st.caption("Your registration details are prefilled. Saved details also prefill a membership claim. Use fictional information in this rehearsal; email edits are not verified here.")
@@ -696,6 +699,13 @@ elif view == "Live network":
         elif draw.get("status") == "completed":
             st.subheader("The winning badges")
             if draw["winner_badges"]:
+                draw_marker = str(draw)
+                if s.get("celebrated_raffle") != draw_marker:
+                    s.raffle_celebration_started = datetime.now(timezone.utc).timestamp()
+                    s.celebrated_raffle = draw_marker
+                if datetime.now(timezone.utc).timestamp() - s.get("raffle_celebration_started", 0) < 6:
+                    st.markdown(celebration_html("The results are in!", "Congratulations to our winning badges. Meet the team at SVIAL."), unsafe_allow_html=True)
+                    s.celebrated_raffle = draw_marker
                 st.markdown('<div class="winner-list">'+''.join('<strong>'+badge+'</strong>' for badge in draw["winner_badges"])+'</div>',unsafe_allow_html=True)
                 st.write("Please visit the SVIAL desk with your pass.")
             else:
