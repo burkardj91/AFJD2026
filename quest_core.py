@@ -7,8 +7,20 @@ from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timezone
 
 CLUSTERS = {'Agriculture': 'Agriculture & Primary Production', 'Food Production': 'Food Production & Processing', 'FoodTech & Innovation': 'Ingredients, FoodTech & Innovation', 'Retail': 'Retail & Market', 'Services & Ecosystem': 'Services, Education & Ecosystem'}
-CHALLENGES = (*CLUSTERS, "Connect")
-ORGANISATIONS = {'ag-7v2x': ('ORG-001', 'Primary Production Lab', 'Agriculture', 'Ask how a producer improves soil health or resource use.'), 'fo-8b4q': ('ORG-002', 'Food Processing Lab', 'Food Production', 'Discover a processing or food-safety improvement.'), 'in-3p9d': ('ORG-003', 'Coop', 'Retail', 'Ask how a product reaches the shelf and how suppliers are selected.'), 'fu-6k2s': ('ORG-004', 'Ingredient Innovation Lab', 'FoodTech & Innovation', 'Explore an ingredient or technology and the problem it solves.'), 'sv-5w8j': ('ORG-005', 'SVIAL', 'Services & Ecosystem', 'Discuss a career goal and identify a useful next contact.'), 'ag-soil': ('ORG-006', 'Soil & Seeds', 'Agriculture', 'Discuss a soil-health or crop-production practice.'), 'ag-farm': ('ORG-007', 'Smart Farm', 'Agriculture', 'Explore a precision-farming tool and its benefit.'), 'fo-bowl': ('ORG-008', 'Harvest Bowl', 'Food Production', 'Ask how ingredients are prepared while reducing waste.'), 'fo-dairy': ('ORG-009', 'Alpine Dairy', 'Food Production', 'Explore a dairy or fermentation process.'), 're-lidl': ('ORG-010', 'Lidl', 'Retail', 'Discuss a retail role or how to reduce supply-chain waste.'), 'se-campus': ('ORG-011', 'Agro-Food Campus', 'Services & Ecosystem', 'Find a course or service supporting your next career step.')}
+CHALLENGES = ("Food Process & Engineering", "Vernetzen", "Landwirtschaft", "SVIAL", "Future Food Apéro", "SVIAL-Mentoring")
+QUEST_DESCRIPTIONS = dict(zip(CHALLENGES, (
+    "Besuche ein Unternehmen aus dem Bereich Food Process & Engineering",
+    "Vernetze dich mit drei anderen Teilnehmer:innen",
+    "Tausche dich mit zwei Vertreter:innen der Landwirtschaft/Primärsektors aus",
+    "Tausch dich mit einer Person des SVIAL aus",
+    "Entdecke den Future Food Apéro Bereich",
+    "Tausche dich mit Rosie vom SVIAL-Mentoring aus",
+)))
+EXHIBITORS = [(2, 'mooh Genossenschaft', 'Agriculture', 'ag-7v2x', ''), (3, 'FoodTechScout AG', 'Services & Ecosystem', 'se-campus', 'Prominente Tischplatzierung'), (4, 'Coop', 'Retail', 'in-3p9d', ''), (5, 'IMPAG AG', 'FoodTech & Innovation', 'fu-6k2s', ''), (6, 'Nestlé Suisse S.A., Fabrik Konolfingen', 'Food Production', 'fo-8b4q', 'Prominente Tischplatzierung'), (7, 'Syngenta Agro AG', 'Agriculture', 'ag-soil', ''), (8, 'Pacovis AG', 'FoodTech & Innovation', 'ex-08', ''), (9, 'Strickhof', 'Services & Ecosystem', 'ex-09', ''), (10, 'EggField – Field Food AG', 'FoodTech & Innovation', 'ex-10', ''), (11, 'Lidl Schweiz', 'Retail', 're-lidl', 'Prominente Tischplatzierung'), (12, 'fenaco Genossenschaft', 'Agriculture', 'ag-farm', ''), (13, 'Aviforum', 'Agriculture', 'ex-13', ''), (14, 'Schweizer Bauernverband', 'Services & Ecosystem', 'ex-14', ''), (15, 'Max Schwarz AG', 'Agriculture', 'ex-15', 'Prominente Tischplatzierung'), (16, 'Trinova AG', 'FoodTech & Innovation', 'ex-16', ''), (17, 'Emmi Schweiz AG', 'Food Production', 'fo-dairy', 'Platz für Kühlschrank mit Emmi Caffè Latte'), (18, 'Kanton Thurgau – Arenenberg & Landwirtschaftsamt', 'Services & Ecosystem', 'ex-18', '1× zusätzlicher Ausstellertisch & zusätzlich Platz für Glücksrad'), (19, 'Bio-inspecta', 'Services & Ecosystem', 'ex-19', ''), (20, 'Delica AG', 'Food Production', 'fo-bowl', 'Prominente Tischplatzierung'), (21, 'treuland (Treuhandverband Landwirtschaft Schweiz)', 'Services & Ecosystem', 'ex-21', ''), (22, 'Migros Industrie AG', 'Retail', 'ex-migros', 'Prominente Tischplatzierung'), (23, 'Gebr. Meier Gemüsekulturen AG', 'Agriculture', 'ex-23', ''), (24, 'Ernst Sutter AG', 'Food Production', 'ex-24', ''), (25, 'Centravo Holding AG', 'FoodTech & Innovation', 'ex-25', '1× zusätzlicher Ausstellertisch, prominente Tischplatzierung'), (26, 'SQTS – Swiss Quality Testing Services', 'Services & Ecosystem', 'ex-26', '')]
+ORGANISATIONS = {token:(str(number),name,cluster,"Besuche den Stand und entdecke das Unternehmen.") for number,name,cluster,token,note in EXHIBITORS}
+EXHIBITOR_NOTES = {token:note for _,_,_,token,note in EXHIBITORS}
+ORGANISATIONS["sv-5w8j"] = ("SVIAL", "SVIAL", "Services & Ecosystem", "Tausche dich mit einer Person des SVIAL aus.")
+ORGANISATIONS["future-apero"] = ("APERO", "Future Food Apéro", "FoodTech & Innovation", "Entdecke den Future Food Apéro Bereich.")
 STATIONS = {token:(row[1],row[2],row[3]) for token,row in ORGANISATIONS.items()}
 
 ROSTER = {
@@ -25,6 +37,17 @@ ACTIVATION_CODES = {
     "p-6wx5t1":"NOAH-6T8V-26", "p-2bc7r8":"MIA-3W5X-26",
     "p-4jf9n3":"JONAS-4C7D-26", "p-9ls6d2":"SARA-8F2H-26",
 }
+
+# Fictional representatives for rehearsal; names are not the exhibitors' actual staff.
+for token,name,badge,code in [
+    ("p-ag-one","Demo · mooh Vertretung","AFJD-D01","MOOH-DEMO-26"),
+    ("p-ag-two","Demo · Syngenta Vertretung","AFJD-D02","AGRO-DEMO-26"),
+    ("p-svial","Demo · SVIAL Team","AFJD-D03","SVIAL-DEMO-26"),
+    ("p-rosie","Rosie · Mentoring (Demo)","AFJD-D04","ROSIE-DEMO-26"),
+]:
+    ROSTER[token] = {"name":name,"email":"svial@svial.ch","id":badge,"code":code}
+    ACTIVATION_CODES[token] = code
+DEFAULT_AFFILIATIONS = {"p-3nm9q4":"re-lidl","p-6wx5t1":"re-lidl","p-ag-one":"ag-7v2x","p-ag-two":"ag-soil","p-svial":"sv-5w8j","p-rosie":"sv-5w8j"}
 
 # Keep the original six QR tokens valid when expanding the inventory.
 CARDS = {
@@ -71,6 +94,7 @@ def parse_payload(value):
 
 @dataclass
 class Quest:
+    catalog_version: int = field(default_factory=lambda:2)
     active: set = field(default_factory=set)
     visits: dict = field(default_factory=dict)
     connections: set = field(default_factory=set)
@@ -118,7 +142,7 @@ class Quest:
             "winner_badges":[ROSTER[p]["id"] for p in self.raffle.get("winners",[])],
             "eligible_count":len(self.raffle.get("eligible",[])) if self.raffle.get("status")=="completed" else sum(len(self.completed(p)) >= self.raffle.get("minimum",1) for p in self.active)}
 
-    affiliations: dict = field(default_factory=lambda:{"p-3nm9q4":"re-lidl", "p-6wx5t1":"re-lidl"})
+    affiliations: dict = field(default_factory=lambda:dict(DEFAULT_AFFILIATIONS))
     company_contacts: dict = field(default_factory=dict)
     outbox: dict = field(default_factory=dict)
     recap_deadline: str = field(default_factory=str)
@@ -218,19 +242,15 @@ class Quest:
     def simulate_completion(self, person, all_six=False):
         """Rehearsal shortcut: use normal scan rules and fictional confirmations."""
         self.require_active(person)
-        stations = ["ag-7v2x", "fo-8b4q", "in-3p9d", "fu-6k2s"]
-        if all_six:
-            stations.append("sv-5w8j")
-        for station in stations:
+        for station in ["fo-8b4q", "future-apero"]:
             self.scan(person, payload("station", station))
-        if all_six:
-            for other in [p for p in ROSTER if p != person and p not in self.affiliations][:2]:
-                self.activate(ROSTER[other]["code"])
+        for other in ["p-svial", "p-rosie"]:
+            if other != person:
                 self.scan(person, payload("person", other))
-                if (person, other) in self.pending:
-                    self.confirm(other, person)
-                elif (other, person) in self.pending:
-                    self.confirm(person, other)
+        if all_six or len(self.completed(person)) < 4:
+            for other in ["p-ag-one", "p-ag-two"] + [p for p in ROSTER if p != person and p not in self.affiliations][:3]:
+                if other != person:
+                    self.scan(person, payload("person", other))
 
     def activate(self, code):
         person = next((p for p, r in ROSTER.items() if r["code"] == code.strip().upper()), None)
@@ -247,9 +267,21 @@ class Quest:
         return {b if a == person else a for a, b in self.connections if person in (a, b)}
 
     def completed(self, person):
-        result = {STATIONS[s][1] for s in self.visits.get(person, set())}
-        if len([p for p in self.people(person) if p not in self.affiliations]) >= 2:
-            result.add("Connect")
+        visits = self.visits.get(person, set())
+        contacts = self.people(person)
+        result = set()
+        if any(ORGANISATIONS.get(t, (None,None,None))[2] == "Food Production" for t in visits):
+            result.add(CHALLENGES[0])
+        if len([p for p in contacts if p not in self.affiliations]) >= 3:
+            result.add(CHALLENGES[1])
+        if len([p for p in contacts if ORGANISATIONS.get(self.affiliations.get(p), (None,None,None))[2] == "Agriculture"]) >= 2:
+            result.add(CHALLENGES[2])
+        if any(self.affiliations.get(p) == "sv-5w8j" for p in contacts):
+            result.add(CHALLENGES[3])
+        if "future-apero" in visits:
+            result.add(CHALLENGES[4])
+        if "p-rosie" in contacts:
+            result.add(CHALLENGES[5])
         return result
 
     def refresh(self, person):
@@ -269,7 +301,7 @@ class Quest:
                 return "message", "You have already visited this station."
             visited.add(token)
             self.refresh(person)
-            return "message", f"{STATIONS[token][1]} completed."
+            return "message", f"Besuch gespeichert: {STATIONS[token][0]}."
         if token == person:
             raise ValueError("This is your own badge.")
         company=self.affiliations.get(token)
@@ -280,10 +312,15 @@ class Quest:
         edge = tuple(sorted((person, token)))
         if edge in self.connections:
             return "message", "You are already connected."
-        if (person, token) in self.pending or (token, person) in self.pending:
-            return "message", "This connection is waiting for confirmation."
-        self.pending.add((person, token))
-        return "message", "Connection requested. The other person confirms it in their pass."
+        self.pending.discard((person, token))
+        self.pending.discard((token, person))
+        for p in edge:
+            if p in self.unlocked:
+                self.bonuses[p] = min(9, self.bonuses.get(p, 0) + 1)
+        self.connections.add(edge)
+        for p in edge:
+            self.refresh(p)
+        return "message", "Verbindung gespeichert. Keine Bestätigung nötig; Kontaktdaten bleiben von den Datenschutzeinstellungen abhängig."
 
     def confirm(self, recipient, sender):
         self.require_active(recipient)
@@ -420,7 +457,7 @@ def recap_draft(quest, person):
     lines.append("\nCompany representatives scanned:")
     for contact in sorted(quest.company_contacts.get(person,set())):
         company=quest.affiliations.get(contact)
-        if company: lines.append(quest.profile(contact)["name"]+" · "+ORGANISATIONS[company][1])
+        if company: lines.append((quest.profile(contact)["name"] if contact in quest.sharing else ROSTER[contact]["id"])+" · "+ORGANISATIONS[company][1])
     lines.extend(["", "Completed challenges: " + ", ".join(sorted(quest.completed(person))), "", "Confirmed conversations:"])
     for other in sorted(quest.people(person)):
         lines.append(quest.profile(other)["name"] + " — " + quest.profile(other)["email"] if other in quest.sharing else "Confirmed participant — contact details not shared")

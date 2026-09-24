@@ -9,7 +9,7 @@ from quest_store import SharedQuest
 class RaffleTests(unittest.TestCase):
     def test_deadline_eligibility_and_no_reroll(self):
         q=Quest(); p=q.activate('DEMO-264'); q.activate('DEMO-137')
-        q.scan(p,payload('station','in-3p9d'))
+        q.scan(p,payload('station','fo-8b4q'))
         deadline=datetime.now(timezone.utc)+timedelta(minutes=5)
         with self.assertRaises(ValueError): q.configure_raffle('participant',deadline.isoformat())
         q.configure_raffle('STAFF-01',deadline.isoformat(),3,1)
@@ -23,7 +23,7 @@ class RaffleTests(unittest.TestCase):
     def test_concurrent_screens_and_late_scan(self):
         q=Quest()
         for row in ROSTER.values():
-            p=q.activate(row['code']); q.scan(p,payload('station','ag-7v2x'))
+            p=q.activate(row['code']); q.scan(p,payload('station','fo-8b4q'))
         q.raffle={'status':'scheduled','deadline':(datetime.now(timezone.utc)-timedelta(seconds=1)).isoformat(),'count':3,'minimum':1}
         with tempfile.TemporaryDirectory() as folder:
             db=Path(folder)/'test.db'; SharedQuest(db,seed=q)
@@ -36,5 +36,5 @@ class RaffleTests(unittest.TestCase):
         q=Quest(); p=q.activate('DEMO-264');q.raffle={'status':'scheduled','deadline':(datetime.now(timezone.utc)-timedelta(seconds=1)).isoformat(),'count':5,'minimum':1}
         with tempfile.TemporaryDirectory() as folder:
             state=SharedQuest(Path(folder)/'late.db',seed=q)
-            state.scan(p,payload('station','ag-7v2x'))
+            state.scan(p,payload('station','fo-8b4q'))
             self.assertEqual(state.raffle['winners'],[])

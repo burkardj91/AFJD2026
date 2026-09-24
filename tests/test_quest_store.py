@@ -18,7 +18,7 @@ class SharedTests(unittest.TestCase):
 
     def test_cross_session_acceptance_and_repeat(self):
         self.a.scan(self.lea, payload("person", self.alex))
-        self.assertIn((self.lea,self.alex), self.b.pending)
+        self.assertFalse(self.b.pending)
         self.b.confirm(self.alex,self.lea)
         self.assertEqual(self.a.people(self.lea), {self.alex})
         self.assertEqual(self.b.people(self.alex), {self.lea})
