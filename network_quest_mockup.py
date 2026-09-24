@@ -649,7 +649,7 @@ elif view == "SVIAL staff":
                     st.error(str(error))
     st.caption("Demo staff account · fictional participants only")
 elif view == "Live network":
-    st.markdown('<style>.block-container{max-width:1440px;padding-top:8px!important}.masthead{display:none}h1{font-size:28px!important}</style>', unsafe_allow_html=True)
+    st.markdown('<style>.block-container{max-width:none!important;padding:8px 16px 0!important}.masthead{display:none}h1{font-size:24px!important}[data-testid="stIFrame"]{height:calc(100dvh - 220px)!important;min-height:480px;width:100%!important}</style>', unsafe_allow_html=True)
     st.title("Our network, together")
     @st.fragment(run_every=1)
     def raffle_clock():
@@ -677,7 +677,14 @@ elif view == "Live network":
             st.caption(f'{draw["eligible_count"]} eligible participants · {len(draw["winner_badges"])} winners · Results are saved.')
     raffle_clock()
     show_companies = st.toggle("Show individual companies", value=False)
-    components.html(network_html(q.public_network(), q.public_counts(), show_companies=show_companies), height=600, scrolling=True)
+    crowd_preview = st.toggle("100-person layout preview · fictional", value=False)
+    graph, totals = q.public_network(), q.public_counts()
+    if crowd_preview:
+        graph = {**graph, "people":100, "connections":[(i,(i+7)%100) for i in range(100)],
+                 "visits":[(i,i%len(graph["organisations"])) for i in range(100)]}
+        totals = {"passes":100,"people":100,"visits":100,"unlocked":40}
+        st.caption("Layout preview only. These figures are fictional and do not change event records.")
+    components.html(network_html(graph, totals, show_companies=show_companies), height=900, scrolling=False)
     st.caption("Anonymous connections from this rehearsal session. Updates automatically from all local demo tabs.")
 
 else:
