@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory() as directory:
     button(lea,'Simulate badge scan').click().run()
     button(lea,'Continue exploring').click().run()
     alex.run()
-    button(alex,'Accept connection').click().run()
+    assert not alex.session_state['quest_v2'].pending
     lea.run()
     assert lea.session_state['quest_v2'].people('p-8hd2v7') == {'p-3nm9q4'}
     assert not alex.session_state['quest_v2'].pending

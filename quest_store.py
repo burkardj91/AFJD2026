@@ -62,7 +62,15 @@ class SharedQuest:
 
     def _load(self, db):
         value = decode(json.loads(db.execute("SELECT body FROM event WHERE id=1").fetchone()[0]))
-        return self.model(**value)
+        if value.get("catalog_version", 0) < 2:
+            for person, company in import_module("quest_core").DEFAULT_AFFILIATIONS.items():
+                value.setdefault("affiliations", {}).setdefault(person, company)
+            value["catalog_version"] = 2
+        state = self.model(**value)
+        for sender, target in list(state.pending):
+            state.connections.add(tuple(sorted((sender, target))))
+        state.pending.clear()
+        return state
 
     def __getattr__(self, name):
         if name in {f.name for f in fields(self.model)}:

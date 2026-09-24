@@ -9,7 +9,7 @@ class CompanyPrizeTests(unittest.TestCase):
         self.assertEqual(parse_payload(url),('station','re-lidl'))
         q=Quest();p=q.activate('DEMO-264')
         q.scan(p,url)
-        self.assertEqual(q.completed(p),{'Retail'})
+        self.assertEqual(q.completed(p),set())
         with self.assertRaises(ValueError):
             q.scan(p,'https://afjd2026.streamlit.app/?station=unknown')
 
@@ -17,7 +17,7 @@ class CompanyPrizeTests(unittest.TestCase):
         q=Quest(); p=q.activate('DEMO-264'); a=q.activate('DEMO-137'); b=q.activate('DEMO-189')
         for contact in [a,b,a]:
             q.scan(p,payload('person',contact))
-        self.assertEqual(q.completed(p),{'Retail'})
+        self.assertEqual(q.completed(p),set())
         self.assertEqual(q.company_contacts[p],{a,b})
         self.assertEqual(q.visits[p],{'re-lidl'})
         graph=q.public_network()
@@ -53,4 +53,4 @@ class CompanyPrizeTests(unittest.TestCase):
         q.queue_due_recaps(deadline);q.queue_due_recaps(deadline)
         self.assertEqual(list(q.outbox),['recap:'+p])
         self.assertIn('Lidl',q.outbox['recap:'+p]['draft'])
-        self.assertIn('Alex Keller',q.outbox['recap:'+p]['draft'])
+        self.assertNotIn('Alex Keller',q.outbox['recap:'+p]['draft'])

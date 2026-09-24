@@ -27,8 +27,8 @@ with tempfile.TemporaryDirectory() as folder:
         app.run()
         assert not app.exception, [e.message for e in app.exception]
         assert app.session_state['person_v2'] == 'p-8hd2v7'
-        assert app.session_state['scan_notice']['quests'] == ['Retail']
-        assert ('p-8hd2v7', 'p-3nm9q4') in q.pending
+        assert app.session_state['scan_notice']['quests'] == []
+        assert 'p-3nm9q4' in q.people('p-8hd2v7')
         assert not any(t.label == 'Private activation code' for t in app.text_input)
 
         logins.revoke(saved)

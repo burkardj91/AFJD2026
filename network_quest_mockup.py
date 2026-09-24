@@ -7,7 +7,7 @@ import os
 import base64
 from pathlib import Path
 from quest_visuals import network_html
-from quest_journey import STAGES, journey_html, celebration_html
+from quest_journey import STAGES, animal_image, journey_html, celebration_html
 from quest_brand import LOGO_PATH, masthead, logo_uri
 from quest_store import SharedQuest
 from quest_login import BrowserLogins, COOKIE_NAME, LOGIN_SECONDS
@@ -17,7 +17,7 @@ import numpy as np
 import qrcode
 import streamlit as st
 import streamlit.components.v1 as components
-from quest_core import Quest, ROSTER, ACTIVATION_CODES, STATIONS, CARDS, CHALLENGES, CLUSTERS, ORGANISATIONS, payload, parse_payload, email_draft, recap_draft
+from quest_core import Quest, QUEST_DESCRIPTIONS, EXHIBITOR_NOTES, ROSTER, ACTIVATION_CODES, STATIONS, CARDS, CHALLENGES, CLUSTERS, ORGANISATIONS, payload, parse_payload, email_draft, recap_draft
 
 st.set_page_config(page_title="SVIAL · Network Quest", page_icon=Image.open(LOGO_PATH), layout="centered", initial_sidebar_state="collapsed")
 
@@ -266,7 +266,7 @@ def record_scan(participant, value):
     kind,token=parse_payload(value)
     if kind=="person" and token!=participant:
         company=q.affiliations.get(token)
-        label=q.profile(token)["name"]+(" · "+ORGANISATIONS[company][1] if company else "")
+        label=(q.profile(token)["name"] if token in q.sharing else ROSTER[token]["id"])+(" · "+ORGANISATIONS[company][1] if company else "")
         result=(result[0],"Scanned "+label+". "+result[1])
     if kind != "reward":
         s.scan_notice={"message":result[1],"quests":sorted(newly),"remaining":max(0,4-len(q.completed(participant)))}
@@ -281,26 +281,6 @@ def scanned_popup():
     st.write(str(notice["remaining"])+" quests remaining to unlock your Network Card." if notice["remaining"] else "Your Network Card is unlocked. Visit the SVIAL desk.")
     if st.button("Continue exploring",type="primary",use_container_width=True):
         s.pop("scan_notice",None)
-        st.rerun()
-
-@st.dialog("New connection request", dismissible=False)
-def connection_popup(recipient, sender):
-    st.write("Someone you met would like to connect.")
-    st.info("Compare their badge: " + ROSTER[sender]["id"])
-    st.caption("Confirming counts the connection for both passes. Contact details are shared only according to your privacy preferences.")
-    if st.button("Accept connection", type="primary", use_container_width=True):
-        try:
-            q.confirm(recipient, sender)
-            s.connection_notice = "Connection accepted. Both passes have been updated."
-            st.rerun()
-        except ValueError as error:
-            st.error(str(error))
-    left, right = st.columns(2)
-    if left.button("Decline request", use_container_width=True):
-        q.decline(recipient, sender)
-        st.rerun()
-    if right.button("Later", use_container_width=True):
-        s.setdefault("deferred_requests", set()).add((sender, recipient))
         st.rerun()
 
 @st.dialog("Ready for your Network Card", dismissible=False)
@@ -399,16 +379,20 @@ if view == "My pass":
         st.markdown('<p class="privacy-note">Your badge QR identifies your pass. It does not contain your email address or your private activation code.</p>', unsafe_allow_html=True)
     else:
         profile, count = q.profile(person), len(q.completed(person))
-        incoming = sorted(sender for sender, target in q.pending if target == person and (sender, target) not in s.get("deferred_requests", set()))
         if s.get("scan_notice"):
             scanned_popup()
         elif s.get("preview_unlock") == person:
             reward_popup(person)
-        elif incoming:
-            connection_popup(person, incoming[0])
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
-        st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="name">{escape(profile["name"])}</div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Network Card unlocked" if person in q.unlocked else "Explore the event"}</span></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Network Card unlocked" if person in q.unlocked else "Explore the event"}</span></div></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("**Datenschutz · Du entscheidest**")
+            st.caption("Scans speichern Verbindungen sofort. Name und E-Mail werden nur geteilt, wenn du dies einschaltest. Die öffentliche Leinwand zeigt keine persönlichen Daten.")
+            def save_privacy():
+                q.set_preferences(person, s["share-"+person], s["recap-"+person])
+            st.checkbox("Meinen Namen und meine E-Mail mit meinen Verbindungen teilen", value=person in q.sharing, key="share-"+person, on_change=save_privacy)
+            st.checkbox("Zusammenfassung per E-Mail erhalten", value=person in q.recap, key="recap-"+person, on_change=save_privacy)
         tabs = st.tabs(["My pass", "Scan help", "Connections", "Reward", "Profile"], default="Reward" if s.pop("claim_from_link", False) else ("Profile" if person not in q.profiles else "My pass"))
         with tabs[0]:
             st.subheader("My personal QR")
@@ -429,20 +413,12 @@ if view == "My pass":
                     st.caption("You already have an assigned card. These buttons replay the celebration without issuing another prize.")
             st.subheader("Your quest map")
             st.markdown(journey_html(count), unsafe_allow_html=True)
-            subtitles = {'Agriculture': 'Agriculture & Primary Production', 'Food Production': 'Food Production & Processing', 'FoodTech & Innovation': 'Ingredients, FoodTech & Innovation', 'Retail': 'Retail & Market', 'Services & Ecosystem': 'Services, Education & Ecosystem'}
-            subtitles["Connect"] = f"Meet two people · {min(len([p for p in q.people(person) if p not in q.affiliations]),2)} of 2 confirmed"
             for i,c in enumerate(CHALLENGES,1):
                 done = c in q.completed(person)
-                st.markdown(f'<div class="challenge {"done" if done else ""}"><div class="num">{"✓" if done else str(i).zfill(2)}</div><div><strong>{c}{" · Completed" if done else ""}</strong><small>{subtitles[c]}</small></div></div>', unsafe_allow_html=True)
-            with st.expander("My privacy preferences"):
-                shared = st.checkbox("Share my name and email with my confirmed connections", value=person in q.sharing, key="share-"+person)
-                recap = st.checkbox("Email me an evening recap", value=person in q.recap, key="recap-"+person)
-                if st.button("Save preferences"):
-                    q.set_preferences(person, shared, recap)
-                    st.success("Preferences saved for this rehearsal. No email is sent.")
+                st.markdown(f'<div class="challenge {"done" if done else ""}"><div class="num">{"✓" if done else str(i).zfill(2)}</div><div><strong>{escape(c)}{" · Erledigt" if done else ""}</strong><small>{escape(QUEST_DESCRIPTIONS[c])}</small></div></div>', unsafe_allow_html=True)
         with tabs[1]:
             st.subheader("Scan a badge or stand")
-            st.write("Independent contacts confirm the connection. Company representatives complete their organisation’s sector check immediately; contact sharing still requires consent.")
+            st.write("Scans speichern Kontakte sofort – ohne Bestätigung. Passende Personen oder Stände erfüllen deine Quests; die Freigabe von Name und E-Mail bleibt freiwillig.")
             st.write("Use your phone’s normal camera to scan a printed badge or stand QR, then open the link. Sign in with your own private code if asked.")
             with st.expander("Having trouble scanning?", expanded=False):
                 value = scanner("participant","Badge or station")
@@ -459,7 +435,7 @@ if view == "My pass":
                 st.success(s.pop("flash_v2"))
             with st.expander("Demo catalogue · simulate a stand visit", expanded=False):
                 st.subheader("Organisations & tasks")
-                st.caption("Demo catalogue: company names are illustrative, not confirmed exhibitors. Each organisation has a task; visiting two organisations in one sector earns only one sector check.")
+                st.caption("Aussteller gemäss deiner Liste. Wiederholte Scans speichern keine doppelten Kontakte. Personen-Quests benötigen persönliche Badges, nicht nur Stand-QRs.")
                 for stand in STATIONS:
                     visited = stand in q.visits.get(person, set())
                     with st.container(border=True):
@@ -467,7 +443,7 @@ if view == "My pass":
                         st.caption(STATIONS[stand][1]+" · "+STATIONS[stand][2])
                         if st.button("✓ Visited" if visited else "Simulate stand scan", key="stand-"+stand, disabled=visited, use_container_width=True):
                             q.scan(person, payload("station", stand))
-                            st.toast(STATIONS[stand][1]+" challenge completed", icon="✅")
+                            st.toast("Besuch gespeichert", icon="✅")
                             st.rerun()
             with st.expander("Rehearsal shortcut", expanded=False):
                 demo = st.selectbox("Fictional station",list(STATIONS),format_func=lambda t:STATIONS[t][0])
@@ -479,28 +455,14 @@ if view == "My pass":
                     result = record_scan(person,payload("person",other))
                     s.flash_v2 = result[1]
                     st.rerun()
-                st.caption("Open another tab as that person and accept the connection request. Both passes receive credit. Two confirmed people complete Connect.")
+                st.caption("Sofort verbunden. Drei unterschiedliche Teilnehmende erfüllen die Vernetzungsquest; Firmenvertretungen zählen für die entsprechenden Fachquests.")
         with tabs[2]:
             st.subheader("Connections")
             if s.get("connection_notice"):
                 st.success(s.pop("connection_notice"))
-            st.caption(f"{len(q.people(person))} connected · {sum(t == person for _,t in q.pending)} received · {sum(a == person for a,_ in q.pending)} sent")
-            for sender,target in list(q.pending):
-                if target == person:
-                    st.write("A participant would like to confirm your conversation.")
-                    st.caption("Compare badge: "+ROSTER[sender]["id"])
-                    left,right = st.columns(2)
-                    if left.button("Confirm connection",key="confirm-"+sender):
-                        try:
-                            q.confirm(person,sender)
-                            st.rerun()
-                        except ValueError as error:
-                            st.error(str(error))
-                    if right.button("Decline",key="decline-"+sender):
-                        q.decline(person, sender)
-                        st.rerun()
+            st.caption(f"{len(q.people(person))} Verbindungen · sofort gespeichert")
             if not q.people(person):
-                st.write("Your confirmed connections will appear here.")
+                st.write("Deine gescannten Verbindungen erscheinen hier.")
             for other in sorted(q.people(person)):
                 if other in q.sharing:
                     st.write("**"+q.profile(other)["name"]+"**")
@@ -512,8 +474,8 @@ if view == "My pass":
                 st.subheader("Company contacts scanned")
                 for contact in sorted(q.company_contacts[person]):
                     company=q.affiliations[contact]
-                    st.write(q.profile(contact)["name"]+" · "+ORGANISATIONS[company][1])
-                st.caption("Each contact is saved. Multiple representatives count once per company on the network; they do not count toward the two-person Connect quest. Email sharing still needs consent.")
+                    st.write((q.profile(contact)["name"] if contact in q.sharing else ROSTER[contact]["id"])+" · "+ORGANISATIONS[company][1])
+                st.caption("Jede Person bleibt als Kontakt gespeichert. Auf der Leinwand zählt jedes Unternehmen einmal pro Verbindung. Für die Landwirtschaftsquest zählen zwei unterschiedliche Vertreter:innen; für Vernetzen drei Teilnehmende ohne Firmenzuordnung.")
             waiting = sum(a == person for a,_ in q.pending)
             if waiting:
                 st.caption(f"{waiting} connection request(s) awaiting confirmation.")
@@ -570,7 +532,7 @@ if view == "My pass":
                         st.error(str(e))
             if s.pop("profile_saved", False):
                 st.success("Profile saved. Your membership form will use these details.")
-            st.caption("Your profile is private. Name and email are shared with confirmed connections only if you enable sharing under My pass → My privacy preferences. Badge ID and demo login stay unchanged.")
+            st.caption("Your profile is private. Name and email are shared with confirmed connections only if you enable sharing under Datenschutz oberhalb der Navigation. Badge ID and demo login stay unchanged.")
 elif view == "SVIAL staff":
     st.markdown('<div class="section-label">SVIAL · AFJD 2026</div>',unsafe_allow_html=True)
     st.title("Network Card desk")
@@ -632,6 +594,8 @@ elif view == "SVIAL staff":
             draft = try_action(lambda:email_draft(q,card,s.recipient_v2.strip()))
             if draft:
                 st.download_button("Download email draft",draft,file_name=CARDS[card][0]+"-rehearsal.eml",mime="message/rfc822",key="email-"+card)
+    with st.expander("Ausstellerliste · Organisation"):
+        st.table([{"ID":ORGANISATIONS[t][0],"Firma":ORGANISATIONS[t][1],"Gruppe":CLUSTERS[ORGANISATIONS[t][2]],"Bemerkungen":note} for t,note in EXHIBITOR_NOTES.items()])
     with st.expander("Company annotations · demo database"):
         st.caption("Alex Keller and Noah Frei represent Lidl in this rehearsal. Company affiliation is managed by staff, separately from editable profile text.")
         contact=st.selectbox("Person to annotate",list(ROSTER),format_func=lambda p:ROSTER[p]["name"])
@@ -685,7 +649,7 @@ elif view == "SVIAL staff":
                     st.error(str(error))
     st.caption("Demo staff account · fictional participants only")
 elif view == "Live network":
-    st.markdown('<style>.block-container{max-width:1280px}</style>', unsafe_allow_html=True)
+    st.markdown('<style>.block-container{max-width:1440px;padding-top:8px!important}.masthead{display:none}h1{font-size:28px!important}</style>', unsafe_allow_html=True)
     st.title("Our network, together")
     @st.fragment(run_every=1)
     def raffle_clock():
@@ -713,7 +677,7 @@ elif view == "Live network":
             st.caption(f'{draw["eligible_count"]} eligible participants · {len(draw["winner_badges"])} winners · Results are saved.')
     raffle_clock()
     show_companies = st.toggle("Show individual companies", value=False)
-    components.html(network_html(q.public_network(), q.public_counts(), show_companies=show_companies), height=760, scrolling=True)
+    components.html(network_html(q.public_network(), q.public_counts(), show_companies=show_companies), height=600, scrolling=True)
     st.caption("Anonymous connections from this rehearsal session. Updates automatically from all local demo tabs.")
 
 else:
@@ -743,7 +707,7 @@ if view != "Live network":
     with st.expander("Rehearsal guide"):
         st.write("Change demo login preserves progress: DEMO-264 for Lea, STAFF-01 for staff and QR print kit, SCREEN-01 for the anonymous network. All tabs share one local rehearsal event.")
         st.write("Digital prize: complete four challenges → staff finds your name and validates your pass → unlock the draw → choose a card → scan its QR → review and confirm.")
-        st.write("People: scan another badge, switch participant in the sidebar, activate their private demo code and confirm under Connections.")
+        st.write("People: scan another badge to save the connection immediately. No approval is needed. Sharing names and email is optional.")
 
 # This fragment checks shared state without continuously rerendering the page.
 if role:
