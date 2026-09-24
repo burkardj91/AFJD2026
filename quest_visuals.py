@@ -5,8 +5,15 @@ import textwrap
 from quest_core import CLUSTERS
 
 
+def participant_positions(count):
+    # Sunflower packing fills an ellipse instead of stacking nodes on a ring.
+    return [(800 + 440*math.sqrt((i+.5)/max(count,1))*math.cos(i*2.3999632297),
+             445 + 225*math.sqrt((i+.5)/max(count,1))*math.sin(i*2.3999632297))
+            for i in range(count)]
+
+
 def network_html(network, counts, show_companies=False):
-    centres = [(170,140),(550,120),(930,140),(310,460),(790,460)]
+    centres = [(170,155),(800,125),(1430,155),(230,680),(1370,680)]
     organisations = network['organisations']
     groups = list(CLUSTERS)
     positions = {}
@@ -16,8 +23,8 @@ def network_html(network, counts, show_companies=False):
             angle = 2*math.pi*j/max(1,len(members))
             dx,dy = (65*math.cos(angle), 65*math.sin(angle)) if len(members)>1 else (0,0)
             positions[index] = (x+dx,y+dy)
-    people=[(490+95*math.cos(i*2.39996),350+30*math.sin(i*2.39996)) for i in range(network['people'])]
-    svg=['<svg viewBox="0 -25 1100 625" role="img" aria-label="Five sector clusters with organisations and anonymous participant connections">']
+    people=participant_positions(network['people'])
+    svg=['<svg viewBox="0 0 1600 850" role="img" aria-label="Five sector clusters with organisations and anonymous participant connections">']
     for label,(x,y) in zip(groups,centres):
         svg.append(f'<circle cx="{x}" cy="{y}" r="98" fill="#f1f6f2" stroke="#dce7df"/><text x="{x}" y="{y-112}" text-anchor="middle" class="cluster">{escape(label)}</text>')
     svial=next(i for i,o in enumerate(organisations) if o['connector'])
@@ -25,7 +32,7 @@ def network_html(network, counts, show_companies=False):
         positions[svial]=(centres[-1][0],centres[-1][1]+58)
     sx,sy=positions[svial]
     for x,y in centres[:-1]:
-        svg.append(f'<path d="M{sx} {sy} Q560 355 {x} {y}" class="structural"/>')
+        svg.append(f'<path d="M{sx} {sy} Q800 445 {x} {y}" class="structural"/>')
     for a,b in network['connections']:
         x,y=people[a];u,v=people[b]
         svg.append(f'<path d="M{x} {y} L{u} {v}" class="conversation"/>')
@@ -46,10 +53,10 @@ def network_html(network, counts, show_companies=False):
             count=sum(b in members for _,b in network['visits'])
             svg.append(f'<text x="{x}" y="{y+5}" text-anchor="middle" style="font-size:40px;fill:#006b2d">{count}</text><text x="{x}" y="{y+28}" text-anchor="middle" class="company">Verbindungen</text>')
     for i,(x,y) in enumerate(people):
-        svg.append(f'<circle class="person" style="animation-delay:-{i*.4}s;transform-origin:{x}px {y}px" cx="{x}" cy="{y}" r="6" fill="#ef8281"/>')
+        svg.append(f'<circle class="person" style="animation-delay:-{i*.4}s;transform-origin:{x}px {y}px" cx="{x}" cy="{y}" r="8" fill="#ef8281" stroke="#fff" stroke-width="1.5"/>')
     svg.append('</svg>')
-    directory = ('<div class=company-directory>'+''.join('<div><b>'+escape(o['id'])+'</b> '+escape(o['name'])+'<small>'+escape(o['cluster'])+'</small></div>' for o in organisations)+'</div>') if show_companies else ''
+    directory = ('<details class=directory><summary>Ausstellerverzeichnis</summary><div class=company-directory>'+''.join('<div><b>'+escape(o['id'])+'</b> '+escape(o['name'])+'<small>'+escape(o['cluster'])+'</small></div>' for o in organisations)+'</div></details>') if show_companies else ''
     stats = f'''<div class="stats"><span><b>{counts['passes']}</b>Teilnehmende</span><span><b>{counts['visits']}</b>Standkontakte</span><span><b>{counts['people']}</b>Verbindungen</span><span><b>{counts['unlocked']}</b>Karten freigeschaltet</span></div>'''
     return '''<!doctype html><html><head><style>
-    *{box-sizing:border-box}body{margin:0;background:#fff;color:#233a2b;font:14px Arial,sans-serif}.heading{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid #dce7df}button{background:white;border:1px solid #cad5cd;padding:9px 14px;border-radius:5px;cursor:pointer;color:#233a2b}svg{display:block;width:100%;max-height:360px}.cluster{font-size:16px;font-weight:600;fill:#234832}.company{font-size:12px;fill:#233a2b}.id{font-size:9px;fill:#617067}.structural{fill:none;stroke:#aabcb0;stroke-width:1.2;stroke-dasharray:5 6}.visit{fill:none;stroke:#009641;stroke-width:2;opacity:.65;stroke-dasharray:6 4;animation:flow 3s linear infinite}.conversation{fill:none;stroke:#df7373;stroke-width:2}.person{animation:breathe 3s ease-in-out infinite}.paused *{animation-play-state:paused!important}.legend{font-size:12px;color:#52685b;padding:10px 12px;line-height:1.7}.company-directory{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:20px}.company-directory div{padding:8px;border-bottom:1px solid #dce7df}.company-directory b{color:#006b2d}.company-directory small{display:block;color:#617067;font-size:11px;margin-top:4px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;border-top:1px solid #dce7df;padding:15px 12px}.stats b{font-size:40px;color:#006b2d;display:block}.stats span{font-size:12px}@keyframes flow{to{stroke-dashoffset:-40}}@keyframes breathe{50%{transform:scale(1.4)}}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
-    </style></head><body><div class="heading"><strong>AFJD 2026 · Unser Netzwerk wächst</strong><button id="pause">Pause motion</button></div>''' + stats + ''.join(svg)+directory+f'''<div class="legend">Grün: Unternehmen · Koralle: anonyme Teilnehmende · Linien: gespeicherte Kontakte<br>Persönliche Namen und Badge-IDs werden hier nicht angezeigt.</div>''' + '''<script>document.getElementById('pause').onclick=function(){const paused=document.body.classList.toggle('paused');this.textContent=paused?'Resume motion':'Pause motion';this.setAttribute('aria-pressed',String(paused));};</script></body></html>'''
+    *{box-sizing:border-box}html,body{height:100%;overflow:hidden}body{display:flex;flex-direction:column;margin:0;background:#fff;color:#233a2b;font:14px Arial,sans-serif}.heading{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid #dce7df}button{background:white;border:1px solid #cad5cd;padding:9px 14px;border-radius:5px;cursor:pointer;color:#233a2b}svg{display:block;width:100%;height:100%;min-height:0;flex:1}.heading,.stats,.legend{flex-shrink:0}.directory{position:absolute;right:12px;top:110px;background:white;max-height:65vh;overflow:auto;max-width:650px;z-index:5;border:1px solid #dce7df;padding:10px}.directory summary{cursor:pointer}.tools{display:flex;gap:8px}.screen-hint{font-size:12px;color:#52685b}.heading{padding:8px 16px!important}.stats{padding:8px 16px!important}.stats b{font-size:28px!important}.legend{padding:6px 16px!important;font-size:11px!important}.cluster{font-size:16px;font-weight:600;fill:#234832}.company{font-size:12px;fill:#233a2b}.id{font-size:9px;fill:#617067}.structural{fill:none;stroke:#aabcb0;stroke-width:1.2;stroke-dasharray:5 6}.visit{fill:none;stroke:#009641;stroke-width:2;opacity:.3;stroke-dasharray:6 4;animation:flow 3s linear infinite}.conversation{fill:none;stroke:#df7373;stroke-width:1.5;opacity:.35}.person{animation:breathe 3s ease-in-out infinite}.paused *{animation-play-state:paused!important}.legend{font-size:12px;color:#52685b;padding:10px 12px;line-height:1.7}.company-directory{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:20px}.company-directory div{padding:8px;border-bottom:1px solid #dce7df}.company-directory b{color:#006b2d}.company-directory small{display:block;color:#617067;font-size:11px;margin-top:4px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;border-top:1px solid #dce7df;padding:15px 12px}.stats b{font-size:40px;color:#006b2d;display:block}.stats span{font-size:12px}@keyframes flow{to{stroke-dashoffset:-40}}@keyframes breathe{50%{transform:scale(1.12)}}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+    </style></head><body><div class="heading"><strong>AFJD 2026 · Unser Netzwerk wächst</strong><div class="tools"><button id="pause">Pause motion</button><button id="fullscreen">Vollbild</button></div></div>''' + stats + ''.join(svg)+directory+f'''<div id="screen-hint" class="screen-hint" role="status"></div><div class="legend">Grün: Unternehmen · Koralle: anonyme Teilnehmende · Linien: gespeicherte Kontakte<br>Persönliche Namen und Badge-IDs werden hier nicht angezeigt.</div>''' + '''<script>document.getElementById('fullscreen').onclick=async function(){try{if(document.fullscreenElement){await document.exitFullscreen();}else{await document.documentElement.requestFullscreen();}}catch(e){document.getElementById('screen-hint').textContent='Vollbild ist hier gesperrt. Öffne die App direkt im Browser und drücke F11.';}};document.addEventListener('fullscreenchange',()=>{document.getElementById('fullscreen').textContent=document.fullscreenElement?'Vollbild verlassen':'Vollbild';});document.getElementById('pause').onclick=function(){const paused=document.body.classList.toggle('paused');this.textContent=paused?'Resume motion':'Pause motion';this.setAttribute('aria-pressed',String(paused));};</script></body></html>'''

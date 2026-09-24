@@ -1,6 +1,6 @@
 import unittest
 from quest_core import Quest, CHALLENGES, EXHIBITORS, payload, recap_draft
-from quest_visuals import network_html
+from quest_visuals import network_html, participant_positions
 
 class EventRulesTests(unittest.TestCase):
     def test_six_new_quests_and_immediate_connections(self):
@@ -41,3 +41,15 @@ class EventRulesTests(unittest.TestCase):
             self.assertIn('viewBox',html)
             self.assertNotIn('Lea Meier',html)
         self.assertIn('SQTS',network_html(q.public_network(),q.public_counts(),True))
+
+    def test_hundred_people_are_separated_and_graph_has_no_height_cap(self):
+        points=participant_positions(100)
+        self.assertEqual(len(points),100)
+        self.assertTrue(all(350 < x < 1250 and 210 < y < 680 for x,y in points))
+        nearest=min(((x-a)**2+(y-b)**2)**.5 for i,(x,y) in enumerate(points) for a,b in points[i+1:])
+        self.assertGreater(nearest,20)
+        q=Quest();graph=q.public_network();graph['people']=100
+        html=network_html(graph,q.public_counts())
+        self.assertEqual(html.count('class="person"'),100)
+        self.assertNotIn('max-height:360px',html)
+        self.assertIn('requestFullscreen',html)
