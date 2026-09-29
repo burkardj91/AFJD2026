@@ -103,6 +103,7 @@ class Quest:
     bonuses: dict = field(default_factory=dict)
     assignments: dict = field(default_factory=dict)
     applications: dict = field(default_factory=dict)
+    privacy_reviewed: set = field(default_factory=set)
     sharing: set = field(default_factory=set)
     recap: set = field(default_factory=set)
     profiles: dict = field(default_factory=dict)
@@ -191,6 +192,7 @@ class Quest:
 
     def set_preferences(self, person, shared, recap):
         self.require_active(person)
+        self.privacy_reviewed.add(person)
         self.sharing.add(person) if shared else self.sharing.discard(person)
         self.recap.add(person) if recap else self.recap.discard(person)
 

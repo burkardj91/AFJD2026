@@ -17,6 +17,8 @@ with tempfile.TemporaryDirectory() as directory:
             next(t for t in app.text_input if t.label=="Private activation code").input(private)
         next(c for c in app.checkbox if c.label.startswith('Keep me signed in')).uncheck()
         button(app,'Enter demo').click().run()
+        if any(b.label == 'Datenschutzauswahl speichern' for b in app.button):
+            button(app,'Datenschutzauswahl speichern').click().run()
         assert not app.exception
         return app
     lea=start('DEMO-264')

@@ -272,6 +272,21 @@ def record_scan(participant, value):
         s.scan_notice={"message":result[1],"quests":sorted(newly),"remaining":max(0,4-len(q.completed(participant)))}
     return result
 
+def privacy_form(participant, location):
+    st.caption("Scans speichern Verbindungen sofort. Name und E-Mail werden nur geteilt, wenn du dies einschaltest. Die öffentliche Leinwand zeigt keine persönlichen Daten.")
+    with st.form("privacy-"+location+"-"+participant):
+        shared = st.checkbox("Meinen Namen und meine E-Mail mit meinen Verbindungen teilen", value=participant in q.sharing)
+        recap = st.checkbox("Zusammenfassung per E-Mail erhalten", value=participant in q.recap)
+        if st.form_submit_button("Datenschutzauswahl speichern", type="primary"):
+            q.set_preferences(participant, shared, recap)
+            st.rerun()
+
+@st.dialog("Willkommen · Deine Privatsphäre", dismissible=False)
+def privacy_welcome(participant):
+    st.write("Wähle einmal deine Einstellungen. Du kannst sie später unter Profile → Datenschutz ändern.")
+    with st.expander("Datenschutz · Du entscheidest", expanded=True):
+        privacy_form(participant, "welcome")
+
 @st.dialog("Scan recorded", dismissible=False)
 def scanned_popup():
     notice=s.scan_notice
@@ -333,6 +348,10 @@ def card_reveal(participant, card):
         s.desk_generation = s.get("desk_generation", 0) + 1
         st.rerun()
 
+if role == "participant" and person and person not in q.privacy_reviewed:
+    privacy_welcome(person)
+    st.stop()
+
 # Public badge links identify whom to connect with, never whom to log in as.
 if role == "participant" and person and st.query_params.get("badge"):
     badge = st.query_params["badge"]
@@ -386,13 +405,6 @@ if view == "My pass":
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
         st.markdown(f'<div class="pass"><div class="eyebrow">Your personal network pass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Network Card unlocked" if person in q.unlocked else "Explore the event"}</span></div></div>', unsafe_allow_html=True)
-        with st.container(border=True):
-            st.markdown("**Datenschutz · Du entscheidest**")
-            st.caption("Scans speichern Verbindungen sofort. Name und E-Mail werden nur geteilt, wenn du dies einschaltest. Die öffentliche Leinwand zeigt keine persönlichen Daten.")
-            def save_privacy():
-                q.set_preferences(person, s["share-"+person], s["recap-"+person])
-            st.checkbox("Meinen Namen und meine E-Mail mit meinen Verbindungen teilen", value=person in q.sharing, key="share-"+person, on_change=save_privacy)
-            st.checkbox("Zusammenfassung per E-Mail erhalten", value=person in q.recap, key="recap-"+person, on_change=save_privacy)
         tabs = st.tabs(["My pass", "Scan help", "Connections", "Reward", "Profile"], default="Reward" if s.pop("claim_from_link", False) else ("Profile" if person not in q.profiles else "My pass"))
         with tabs[0]:
             st.subheader("My personal QR")
@@ -507,6 +519,8 @@ if view == "My pass":
                 st.markdown(f'<div class="reward-preview"><span class="reward-overline">The SVIAL Network Card</span><h2>Meet people.<br>Discover your next opportunity.</h2><p>Complete four different challenges to unlock a physical prize at the SVIAL booth.</p><div class="reward-steps"><div class="reward-step"><b>01 · Explore</b>{STAGES[min(count,4)][0]} · your journey is underway</div><div class="reward-step"><b>02 · Visit SVIAL</b>Show your personal badge</div><div class="reward-step"><b>03 · Draw your card</b>Discover and claim your benefit</div></div></div>',unsafe_allow_html=True)
                 st.markdown(journey_html(count), unsafe_allow_html=True)
         with tabs[4]:
+            with st.expander("Datenschutz · Du entscheidest", expanded=False):
+                privacy_form(person, "profile")
             st.subheader("Complete your profile")
             st.caption("Your registration details are prefilled. Saved details also prefill a membership claim. Use fictional information in this rehearsal; email edits are not verified here.")
             with st.form("profile-"+person):
@@ -532,14 +546,17 @@ if view == "My pass":
                         st.error(str(e))
             if s.pop("profile_saved", False):
                 st.success("Profile saved. Your membership form will use these details.")
-            st.caption("Your profile is private. Name and email are shared with confirmed connections only if you enable sharing under Datenschutz oberhalb der Navigation. Badge ID and demo login stay unchanged.")
+            st.caption("Your profile is private. Name and email are shared with confirmed connections only if you enable sharing under Profile → Datenschutz. Badge ID and demo login stay unchanged.")
 elif view == "SVIAL staff":
     st.markdown('<div class="section-label">SVIAL · AFJD 2026</div>',unsafe_allow_html=True)
     st.title("Network Card desk")
     st.caption("Check a pass and invite your guest to select a card.")
     with st.expander("Prize inventory · remaining"):
         st.table([{"Prize":label,"Remaining":sum(row[2]==kind and token not in q.assignments for token,row in CARDS.items()),"Total":sum(row[2]==kind for row in CARDS.values())} for kind,label in [("membership","Free SVIAL membership until 31.12.2027"),("event","Free SVIAL event"),("gift","Small Agro-Food Gift"),("sfr","SFR prize · details pending")]])
-    lookup = st.selectbox("Participant name or badge ID", list(ROSTER), index=None, key="staff-lookup-"+str(s.get("desk_generation",0)), placeholder="Search name or AFJD-ID", format_func=lambda p:q.profile(p)["name"]+" · "+ROSTER[p]["id"])
+    eligible = sorted((p for p in q.unlocked if p in ROSTER), key=lambda p:q.profile(p)["name"])
+    if not eligible:
+        st.info("Noch keine freigeschalteten Network Cards. Berechtigte Personen erscheinen hier automatisch.")
+    lookup = st.selectbox("Participant name or badge ID", eligible, index=None, key="staff-lookup-"+str(s.get("desk_generation",0)), placeholder="Search name or AFJD-ID", format_func=lambda p:q.profile(p)["name"]+" · "+ROSTER[p]["id"])
     if st.button("Validate pass", type="primary", disabled=lookup is None, use_container_width=True):
         s.staff_person_v2 = lookup
         if lookup in q.unlocked and lookup not in q.assignments.values() and lookup not in q.draw_approvals:
