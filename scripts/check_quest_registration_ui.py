@@ -18,6 +18,7 @@ with tempfile.TemporaryDirectory() as folder:
     assert any(t.label=='Administrator password' for t in app.text_input)
     next(t for t in app.text_input if t.label=='Administrator password').input(os.environ['QUEST_ADMIN_PASSWORD'])
     click('Unlock staff tools')
+    assert not any(r.label == 'Workspace' for r in app.sidebar.radio)
     next(r for r in app.radio if r.label=='Workspace').set_value('Registration').run()
     for label,value in [('Vorname','Test'),('Nachname','Arrival'),('E-Mail','arrival@example.test')]:
         next(t for t in app.text_input if t.label==label).input(value)
