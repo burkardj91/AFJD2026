@@ -138,11 +138,16 @@ if role == "staff":
     from quest_registration_ui import protect_staff
     protect_staff(q)
 
+st.markdown(masthead(), unsafe_allow_html=True)
+allowed_views = {"participant":["My pass"], "staff":["SVIAL staff", "Registration", "QR print kit"], "screen":["Live network"]}[role]
+if role == "staff":
+    view = st.radio("Workspace", allowed_views, key="workspace-"+role, horizontal=True)
+else:
+    view = allowed_views[0]
+
 with st.sidebar:
     st.title("Rehearsal controls")
     st.caption("Fictional data only. All local tabs share the same rehearsal event. Remembered participant login is shared by new tabs in this browser.")
-    allowed_views = {"participant":["My pass"], "staff":["SVIAL staff", "Registration", "QR print kit"], "screen":["Live network"]}[role]
-    view = st.radio("Workspace", allowed_views, key="workspace-"+role)
     if view != "Live network":
         st.text_input("SVIAL receiving email", key="recipient_v2")
         st.caption("Mail delivery is disabled. Claims produce downloadable email drafts.")
@@ -152,7 +157,6 @@ with st.sidebar:
             change_login()
         if st.button("Sign out / forget this phone"):
             change_login()
-st.markdown(masthead(), unsafe_allow_html=True)
 with st.expander("Demo tools · switch account", expanded=False):
     st.caption("Local rehearsal with fictional data. Emails are not sent. All tabs share this local rehearsal.")
     if st.button("Change demo login", key="change-demo-login"):
