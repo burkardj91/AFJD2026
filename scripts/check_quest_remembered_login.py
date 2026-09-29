@@ -15,6 +15,7 @@ with tempfile.TemporaryDirectory() as folder:
     q = SharedQuest()
     logins = BrowserLogins(q)
     saved = logins.issue('LEA-7K4M-26')
+    q.set_preferences('p-8hd2v7',False,False)
     source = str(Path(__file__).resolve().parents[1] / 'network_quest_mockup.py')
 
     def browser_component(**args):
