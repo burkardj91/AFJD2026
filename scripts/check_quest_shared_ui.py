@@ -67,7 +67,9 @@ with tempfile.TemporaryDirectory() as directory:
     button(staff,'Schedule big-screen draw').click().run()
     assert not staff.exception
     screen=start('SCREEN-01')
-    assert any('PRIZE DRAW' in m.value for m in screen.markdown)
+    import json
+    presentation = next(c for c in screen.get('component_instance') if c.proto.component_name.endswith('afjd_screen'))
+    assert json.loads(presentation.proto.json_args)['draw']['status'] == 'scheduled'
     next(t for t in staff.text_input if t.label=='Type RESET to clear the rehearsal').input('RESET')
     button(staff,'Reset all rehearsal activity').click().run()
     assert not staff.exception
