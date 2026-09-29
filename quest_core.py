@@ -69,12 +69,13 @@ PENDING_PRIZES = {"gift":"Small Agro-Food Gift", "food":"Future Food Surprise", 
 def payload(kind, token):
     return f"afjd:2026:{kind}:{token}"
 
-def parse_payload(value):
+def parse_payload(value, roster=None):
+    roster = ROSTER if roster is None else roster
     value = value.strip()
     if value.startswith(("http://", "https://")):
         params = parse_qs(urlparse(value).query)
         badge = params.get("badge", [""])[0]
-        if badge in ROSTER:
+        if badge in roster:
             return "person", badge
         station = params.get("station", [""])[0]
         if station in STATIONS:
@@ -87,13 +88,45 @@ def parse_payload(value):
     if len(parts) != 4 or parts[:2] != ["afjd", "2026"]:
         raise ValueError("This is not a valid AFJD 2026 QR code.")
     kind, token = parts[2:]
-    catalog = {"person": ROSTER, "station": STATIONS, "reward": CARDS}.get(kind, {})
+    catalog = {"person": roster, "station": STATIONS, "reward": CARDS}.get(kind, {})
     if token not in catalog:
         raise ValueError("This QR code is not recognised for this event.")
     return kind, token
 
 @dataclass
 class Quest:
+    registrations: dict = field(default_factory=dict)
+
+    def roster(self):
+        return {**ROSTER, **self.registrations}
+
+    def activation_codes(self):
+        return {**ACTIVATION_CODES, **{p:r["code"] for p,r in self.registrations.items()}}
+
+    def import_registrations(self, staff_id, rows):
+        from quest_registration import plan_import
+        if staff_id not in {"STAFF-01", "STAFF-02"}:
+            raise ValueError("Staff login required.")
+        plan = plan_import(rows, self.registrations)
+        if any(r["action"] == "Review" for r in plan):
+            raise ValueError("Resolve the flagged rows before importing. Nothing was saved.")
+        saved = []
+        for row in plan:
+            data = {k:row[k] for k in ("name", "email", "source_id")}
+            person = row.get("person")
+            if not person:
+                person = "p-" + secrets.token_hex(12)
+                used = {r["id"] for r in self.roster().values()}
+                number = 1
+                while f"AFJD-{number:04}" in used: number += 1
+                data.update(id=f"AFJD-{number:04}", code=secrets.token_hex(12).upper())
+                self.registrations[person] = data
+            else:
+                self.registrations[person].update(data)
+                # Preserve participant-edited profile details and all event activity.
+            saved.append(person)
+        return saved
+
     catalog_version: int = field(default_factory=lambda:2)
     active: set = field(default_factory=set)
     visits: dict = field(default_factory=dict)
@@ -140,7 +173,7 @@ class Quest:
 
     def public_raffle(self):
         return {k:self.raffle[k] for k in ["deadline","count","minimum","status"] if k in self.raffle} | {
-            "winner_badges":[ROSTER[p]["id"] for p in self.raffle.get("winners",[])],
+            "winner_badges":[self.roster()[p]["id"] for p in self.raffle.get("winners",[])],
             "eligible_count":len(self.raffle.get("eligible",[])) if self.raffle.get("status")=="completed" else sum(len(self.completed(p)) >= self.raffle.get("minimum",1) for p in self.active)}
 
     affiliations: dict = field(default_factory=lambda:dict(DEFAULT_AFFILIATIONS))
@@ -155,7 +188,7 @@ class Quest:
         self.collected.setdefault(card,{"staff":staff_id,"at":datetime.now(timezone.utc).isoformat()})
 
     def annotate_company(self, staff_id, person, company):
-        if staff_id not in {"STAFF-01","STAFF-02"} or person not in ROSTER:
+        if staff_id not in {"STAFF-01","STAFF-02"} or person not in self.roster():
             raise ValueError("Staff must select a valid person.")
         if company and company not in ORGANISATIONS:
             raise ValueError("Unknown organisation.")
@@ -185,6 +218,7 @@ class Quest:
         if confirmation != "RESET":
             raise ValueError("Type RESET to confirm.")
         fresh = Quest()
+        fresh.registrations = dict(self.registrations)
         if keep_profiles:
             fresh.profiles = dict(self.profiles)
         fresh.reset_epoch = self.reset_epoch + 1
@@ -201,7 +235,7 @@ class Quest:
         self.pending.discard((sender, recipient))
 
     def profile(self, person):
-        return {**ROSTER[person], **self.profiles.get(person, {})}
+        return {**self.roster()[person], **self.profiles.get(person, {})}
 
     def update_profile(self, person, details):
         self.require_active(person)
@@ -224,7 +258,7 @@ class Quest:
             return "screen", None
         if private_code is not None:
             return "participant", self.activate_badge(code, private_code)
-        person = next((p for p,secret in ACTIVATION_CODES.items() if secrets.compare_digest(secret,code)), None)
+        person = next((p for p,secret in self.activation_codes().items() if secrets.compare_digest(secret,code)), None)
         if person is None:
             raise ValueError("Enter a valid private activation code. For Lea, use LEA-7K4M-26.")
         self.active.add(person)
@@ -235,8 +269,8 @@ class Quest:
             raise ValueError("Enter your personal login ID.")
         if not private_code.strip():
             raise ValueError("Enter the private activation code supplied with your login ID.")
-        person = next((p for p,r in ROSTER.items() if badge.strip().upper() in {r["id"], r["code"], p.upper()}), None)
-        if person is None or not secrets.compare_digest(ACTIVATION_CODES[person], private_code.strip().upper()):
+        person = next((p for p,r in self.roster().items() if badge.strip().upper() in {r["id"], r["code"], p.upper()}), None)
+        if person is None or not secrets.compare_digest(self.activation_codes()[person], private_code.strip().upper()):
             raise ValueError("The login ID and private activation code do not match. Use both values from the same test-person row.")
         self.active.add(person)
         return person
@@ -250,12 +284,12 @@ class Quest:
             if other != person:
                 self.scan(person, payload("person", other))
         if all_six or len(self.completed(person)) < 4:
-            for other in ["p-ag-one", "p-ag-two"] + [p for p in ROSTER if p != person and p not in self.affiliations][:3]:
+            for other in ["p-ag-one", "p-ag-two"] + [p for p in self.roster() if p != person and p not in self.affiliations][:3]:
                 if other != person:
                     self.scan(person, payload("person", other))
 
     def activate(self, code):
-        person = next((p for p, r in ROSTER.items() if r["code"] == code.strip().upper()), None)
+        person = next((p for p, r in self.roster().items() if r["code"] == code.strip().upper()), None)
         if not person:
             raise ValueError("Check your private activation code and try again.")
         self.active.add(person)
@@ -292,7 +326,7 @@ class Quest:
 
     def scan(self, person, value):
         self.require_active(person)
-        kind, token = parse_payload(value)
+        kind, token = parse_payload(value, self.roster())
         if kind == "reward":
             if self.assignments.get(token) != person:
                 raise ValueError("Ask SVIAL staff to assign this card to your pass first.")
@@ -459,7 +493,7 @@ def recap_draft(quest, person):
     lines.append("\nCompany representatives scanned:")
     for contact in sorted(quest.company_contacts.get(person,set())):
         company=quest.affiliations.get(contact)
-        if company: lines.append((quest.profile(contact)["name"] if contact in quest.sharing else ROSTER[contact]["id"])+" · "+ORGANISATIONS[company][1])
+        if company: lines.append((quest.profile(contact)["name"] if contact in quest.sharing else quest.roster()[contact]["id"])+" · "+ORGANISATIONS[company][1])
     lines.extend(["", "Completed challenges: " + ", ".join(sorted(quest.completed(person))), "", "Confirmed conversations:"])
     for other in sorted(quest.people(person)):
         lines.append(quest.profile(other)["name"] + " — " + quest.profile(other)["email"] if other in quest.sharing else "Confirmed participant — contact details not shared")

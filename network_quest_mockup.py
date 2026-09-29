@@ -24,6 +24,9 @@ st.set_page_config(page_title="SVIAL · Network Quest", page_icon=Image.open(LOG
 st.markdown("<style>"+Path(__file__).with_name("quest_theme.css").read_text(encoding="utf-8")+"</style>", unsafe_allow_html=True)
 s = st.session_state
 q = SharedQuest()
+DEMO_ROSTER = ROSTER
+ROSTER = q.roster()
+ACTIVATION_CODES = q.activation_codes()
 if s.get("reset_epoch", q.reset_epoch) != q.reset_epoch:
     s.clear()
     st.query_params.clear()
@@ -126,20 +129,24 @@ if not role:
                 st.error(str(error))
     st.caption("Fictional rehearsal accounts, not production authentication. To test different demo users in separate tabs, turn off remembered login. Progress is shared and updates automatically.")
     with st.expander("Fictional test credentials · not for production"):
-        st.table([{"Name":r["name"], "Badge ID":r["id"], "Private test code":ACTIVATION_CODES[p]} for p,r in ROSTER.items()])
+        st.table([{"Name":r["name"], "Badge ID":r["id"], "Private test code":ACTIVATION_CODES[p]} for p,r in DEMO_ROSTER.items()])
     st.subheader("Event team")
     st.table([{"Workspace":"SVIAL staff · tablet 1", "Login ID":"STAFF-01"}, {"Workspace":"SVIAL staff · tablet 2", "Login ID":"STAFF-02"}, {"Workspace":"Big screen", "Login ID":"SCREEN-01"}])
     st.stop()
 
+if role == "staff":
+    from quest_registration_ui import protect_staff
+    protect_staff(q)
+
 with st.sidebar:
     st.title("Rehearsal controls")
     st.caption("Fictional data only. All local tabs share the same rehearsal event. Remembered participant login is shared by new tabs in this browser.")
-    allowed_views = {"participant":["My pass"], "staff":["SVIAL staff", "QR print kit"], "screen":["Live network"]}[role]
+    allowed_views = {"participant":["My pass"], "staff":["SVIAL staff", "Registration", "QR print kit"], "screen":["Live network"]}[role]
     view = st.radio("Workspace", allowed_views, key="workspace-"+role)
     if view != "Live network":
         st.text_input("SVIAL receiving email", key="recipient_v2")
         st.caption("Mail delivery is disabled. Claims produce downloadable email drafts.")
-        for p in ROSTER.values():
+        for p in DEMO_ROSTER.values():
             st.caption(f"{p['name']}: {p['code']}")
         if st.button("Switch participant"):
             change_login()
@@ -226,7 +233,7 @@ def member_form(p, card):
         value = scanner("claim", "Scan the QR on the revealed card to open your claim.")
         if value:
             try:
-                parsed = parse_payload(value)
+                parsed = parse_payload(value, q.roster())
                 if parsed != ("reward", card):
                     raise ValueError("Scan the reward card assigned to your pass.")
                 q.scan(p, value)
@@ -263,7 +270,7 @@ def record_scan(participant, value):
     before=q.completed(participant)
     result=q.scan(participant,value)
     newly=q.completed(participant)-before
-    kind,token=parse_payload(value)
+    kind,token=parse_payload(value, q.roster())
     if kind=="person" and token!=participant:
         company=q.affiliations.get(token)
         label=(q.profile(token)["name"] if token in q.sharing else ROSTER[token]["id"])+(" · "+ORGANISATIONS[company][1] if company else "")
@@ -462,7 +469,7 @@ if view == "My pass":
                 if st.button("Visit selected station"):
                     q.scan(person,payload("station",demo))
                     st.rerun()
-                other = st.selectbox("Demo person to meet",[p for p in ROSTER if p != person],format_func=lambda p:ROSTER[p]["name"]+" · "+ROSTER[p]["id"])
+                other = st.selectbox("Demo person to meet",[p for p in DEMO_ROSTER if p != person],format_func=lambda p:ROSTER[p]["name"]+" · "+ROSTER[p]["id"])
                 if st.button("Simulate badge scan"):
                     result = record_scan(person,payload("person",other))
                     s.flash_v2 = result[1]
@@ -547,6 +554,9 @@ if view == "My pass":
             if s.pop("profile_saved", False):
                 st.success("Profile saved. Your membership form will use these details.")
             st.caption("Your profile is private. Name and email are shared with confirmed connections only if you enable sharing under Profile → Datenschutz. Badge ID and demo login stay unchanged.")
+elif view == "Registration":
+    from quest_registration_ui import registration_page
+    registration_page(q, s.staff_login, public_base_url())
 elif view == "SVIAL staff":
     st.markdown('<div class="section-label">SVIAL · AFJD 2026</div>',unsafe_allow_html=True)
     st.title("Network Card desk")

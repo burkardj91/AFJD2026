@@ -33,7 +33,7 @@ def decode(value):
     return value
 
 class SharedQuest:
-    MUTATIONS = {"collect_gift","annotate_company","schedule_recaps","queue_due_recaps","configure_raffle","resolve_raffle","reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
+    MUTATIONS = {"import_registrations","collect_gift","annotate_company","schedule_recaps","queue_due_recaps","configure_raffle","resolve_raffle","reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
 
     def __init__(self, path=None, seed=None):
         # Resolve the current model on construction: Streamlit may reload quest_core
