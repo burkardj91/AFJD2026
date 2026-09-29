@@ -84,3 +84,45 @@ Person scans connect immediately without approval; duplicate scans remain idempo
 The screen graph now fills the available iframe height, with a Vollbild button (F11 guidance if embedding blocks fullscreen). Participant dots use sunflower packing across a large ellipse instead of overlapping around a small ring. A clearly labelled 100-person layout preview draws synthetic nodes/edges without writing any event data. Company directory is collapsed over the canvas to preserve graph space.
 
 Privacy preferences appear in a first-visit dialog and are saved per participant, including when both options are off. Subsequent editing is in a collapsed Profile → Datenschutz section. Scanned badge/claim links wait until that first choice is saved. The staff participant picker lists unlocked passes only (including already assigned cards for fulfilment).
+
+
+### Fullscreen raffle and sound
+The screen uses the bundled `screen_presentation/index.html` component for both the network and raffle. Deploy that directory with the app. Click “Vollbild + Ton” once before the draw; browsers require user interaction for fullscreen and audio. “Vollbild” alone keeps audio off. The final 30 seconds automatically show a coral countdown, with rising synthesized tones if enabled, followed by the server-confirmed badge winners on green with a short chime and confetti. Mute is available throughout; reduced motion is respected. No remote media assets are loaded.
+
+The presentation remains mounted while its server data updates, preserving fullscreen and audio state. A disconnected display counts down but waits at zero for a confirmed result; it never chooses winners in the browser. Reloading requires sound/fullscreen to be enabled again. Test speaker volume at the venue before the event.
+
+## Eventfrog registration import and late arrivals
+
+Staff workspace **Registration** imports `.xlsx` exports. It finds the row containing
+`Vorname`, `Nachname`, `E-Mail` below titles/notices. Only those fields and `Ticket-ID`
+(or `ID` as fallback) are retained; payment, address and other columns are ignored.
+The source workbook is not saved. Review the preview and confirm the import.
+Flagged rows block the entire batch; correct the spreadsheet and upload again.
+Ticket references identify repeat imports; exact name/email is the fallback.
+Missing people are never deleted. Reimports preserve badge IDs, private codes,
+participant-edited profiles, consent and progress. Staff can annotate company
+representatives using the existing company controls after importing.
+
+**Late registration** creates a unique badge ID, opaque public QR token and random
+private code immediately. **Print badges** downloads public badge sheets and a
+separate private login-slip sheet as printable HTML. Open in a browser and print
+at 100%. Never publish the private slips. Event reset preserves registrations.
+
+Before enabling registration, configure a strong password of at least 16 characters
+in Streamlit app Settings → Secrets (or the server environment):
+
+```toml
+QUEST_ADMIN_PASSWORD = "replace-with-your-own-long-random-password"
+```
+
+The password protects all staff pages when configured; published demo staff codes
+alone no longer unlock the tools. Registration is disabled without this setting.
+Do not commit the password, exports, printed slips or database to GitHub.
+
+**Hosting limitation:** this release still uses SQLite at `QUEST_DB_PATH` (default
+`.localdata/quest_demo.sqlite3`). Streamlit Community Cloud local files are not a
+managed persistent database. Use fictional data for this rehearsal. Before real
+registrations, provision persistent storage/backups and harden authentication
+(including rate limits and private-code storage); this change does not provision
+an external database or enable email delivery. Real registrations are not shown
+in the public demo credential list or participant simulation catalogue.
