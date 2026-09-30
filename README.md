@@ -146,3 +146,30 @@ quest category. `Mentor` / `Mentors` is a role label, not automatic Rosie credit
 printed as a custom label with no automatic quest mapping; inspect the preview.
 Changes to imported annotations after a participant has been scanned are blocked
 until activity is reset, to avoid retroactively changing earned quests.
+
+
+### Word sticker template
+
+**Registration → Import Excel** offers a fictional 12-person Eventfrog workbook.
+Download it, upload it and confirm the import to create working participants in
+the database. Then choose **Print badges → Last import / registration → Download
+template badges · PRIVATE Word**. The same Word document is included in the ZIP.
+
+The supplied `assets/badge-template.docx` is retained as the design authority:
+A4, two columns of five 80 × 50 mm labels. Vorname and Nachname are stored
+separately from the export; the QR is on the right. Add an optional `Affiliation`
+(or `Institution` / `Zugehörigkeit`) column for the visible organisation, or leave
+it blank. `Annotation` remains the separate internal company/role mapping.
+The template logo, type sizes, table geometry and source package parts are retained.
+
+Odd pages are fronts; even pages are private backs with ID and existing access code.
+Ten participants need two pages; twelve need four pages. Empty sticker slots remain
+blank. Default mirrored back columns suit **A4, 100%, duplex long-edge flip**.
+Uncheck mirroring if printing backs separately to insert in badge holders in the
+same left-to-right order. Test one plain-paper sheet on the actual printer first.
+Password values use 10 pt beneath the template's bold 16 pt label so the existing
+24-character credentials fit. Downloading never regenerates or changes a login.
+
+The supplied `outputs/AFJD_Badges_Mockup.docx` in the local workspace is a layout
+sample only; its TEST IDs and preview QR tokens are not live registrations. Use
+the in-app fictional workbook import for functional scanning tests.

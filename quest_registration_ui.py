@@ -53,13 +53,15 @@ def registration_page(q, staff_id, base_url):
         return
     upload_tab, new_tab, print_tab = st.tabs(["Import Excel", "Late registration", "Print badges"])
     with upload_tab:
-        st.write("The header may appear below the Eventfrog event title and notices. Names, email, ticket reference and optional Annotation are saved. The preview shows the internal mapping. Other columns are ignored.")
+        st.write("The header may appear below the Eventfrog event title and notices. Names, email, ticket reference, optional Affiliation (or Institution) and Annotation are saved. Affiliation is printed; Annotation controls quest mapping. The preview shows the internal mapping. Other columns are ignored.")
+        from quest_registration import mock_eventfrog_xlsx
+        st.download_button("Download fictional Eventfrog sample · 12 people", mock_eventfrog_xlsx(), "AFJD-fictional-sample.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         uploaded = st.file_uploader("Eventfrog export (.xlsx)", type=["xlsx"])
         if uploaded:
             try:
                 rows = read_eventfrog(uploaded.getvalue())
                 plan = plan_import(rows, q.registrations)
-                st.dataframe([{k:r[k] for k in ("row","name","email","annotation","mapping","action","reason")} for r in plan], hide_index=True)
+                st.dataframe([{k:r[k] for k in ("row","name","email","affiliation","annotation","mapping","action","reason")} for r in plan], hide_index=True)
                 problems = any(r["action"] == "Review" for r in plan)
                 st.caption("Updates preserve badge IDs, access codes, participant-edited profiles and progress. Resolve Review rows in your spreadsheet and upload it again.")
                 if st.button("Confirm import", disabled=not plan or problems, type="primary"):
@@ -74,10 +76,11 @@ def registration_page(q, staff_id, base_url):
             first = st.text_input("Vorname")
             last = st.text_input("Nachname")
             email = st.text_input("E-Mail")
-            annotation = st.text_input("Annotation", help="Company name, Mentor, SVIAL or Rosie; printed on the badge.")
+            affiliation = st.text_input("Affiliation / Institution", help="Optional visible text on the badge; leave empty if not applicable.")
+            annotation = st.text_input("Annotation", help="Internal mapping: company name, Mentor, SVIAL or Rosie. Separate from printed affiliation.")
             submitted = st.form_submit_button("Create participant", type="primary")
         if submitted:
-            rows = [{"name":first.strip()+" "+last.strip(), "email":email, "annotation":annotation, "invalid_name":not first.strip() or not last.strip()}]
+            rows = [{"name":first.strip()+" "+last.strip(), "email":email, "first_name":first.strip(), "last_name":last.strip(), "affiliation":affiliation, "annotation":annotation, "invalid_name":not first.strip() or not last.strip()}]
             plan = plan_import(rows, q.registrations)
             if plan[0]["action"] != "New":
                 st.error(plan[0]["reason"] or "This participant already exists. Find their badge under Print badges.")
@@ -95,8 +98,12 @@ def registration_page(q, staff_id, base_url):
         if scope == "Choose participants":
             selected = st.multiselect("Participants", list(roster), default=[p for p in st.session_state.get("registration_print",[]) if p in roster], format_func=lambda p:roster[p]["name"]+" · "+roster[p]["id"])
         if selected:
+            from quest_badges import badge_docx
+            mirror = st.checkbox("Mirror backs for long-edge duplex printing", value=True)
+            st.caption("Word template: A4, 10 badges per sheet. Odd pages are fronts; even pages contain private IDs/passwords. Print at 100%. Test one sheet before printing the full batch.")
+            st.download_button("Download template badges · PRIVATE Word", badge_docx(roster, selected, base_url, mirror), "AFJD-template-badges-PRIVATE.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
             badges, slips = print_documents(roster, selected, base_url)
-            st.download_button("Download complete batch · PRIVATE ZIP", batch_archive(roster, selected, base_url), "AFJD-registration-batch-PRIVATE.zip", "application/zip")
+            st.download_button("Download complete batch · PRIVATE ZIP", batch_archive(roster, selected, base_url, mirror), "AFJD-registration-batch-PRIVATE.zip", "application/zip")
             st.download_button("Download public badges", badges, "AFJD-badges.html", "text/html")
             st.download_button("Download separate PRIVATE login slips", slips, "AFJD-private-slips.html", "text/html")
             st.caption("Open each downloaded document in a browser and print at 100%. Never distribute private slips as public badges.")

@@ -22,13 +22,14 @@ def read_eventfrog(content):
                 if header is None:
                     labels = [v.casefold() for v in values]
                     if all(k in labels for k in ("vorname", "nachname", "e-mail")):
-                        header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation") if k in labels}
+                        header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation", "affiliation", "institution", "zugehörigkeit") if k in labels}
                     continue
                 def get(key):
                     return values[header[key]] if key in header and header[key] < len(values) else ""
                 if not any(get(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id")):
                     continue
-                result.append({"name":" ".join(filter(None,[get("vorname"),get("nachname")])), "email":get("e-mail"),
+                result.append({"name":" ".join(filter(None,[get("vorname"),get("nachname")])), "email":get("e-mail"), "first_name":get("vorname"), "last_name":get("nachname"),
+                               **({"affiliation":get(next(k for k in ("affiliation","institution","zugehörigkeit") if k in header))} if any(k in header for k in ("affiliation","institution","zugehörigkeit")) else {}),
                                "source_id":("ticket:"+get("ticket-id")) if get("ticket-id") else (("id:"+get("id")) if get("id") else ""),
                                **({"annotation":get("annotation")} if "annotation" in header else {}), "row":number, "invalid_name":not get("vorname") or not get("nachname")})
             if header is not None:
@@ -42,7 +43,9 @@ def plan_import(rows, registrations):
     plan = []
     seen_sources, seen_people = set(), set()
     for index, source in enumerate(rows, 1):
-        row = {k:str(source.get(k, "")).strip() for k in ("name", "email", "source_id", "annotation")}
+        row = {k:str(source.get(k, "")).strip() for k in ("name", "email", "source_id", "annotation", "affiliation", "first_name", "last_name")}
+        if "first_name" not in source:
+            row["first_name"], _, row["last_name"] = row["name"].partition(" ")
         row.update(row=source.get("row",index), action="New", reason="", person=None)
         row["mapping"] = annotation_mapping(row["annotation"])["label"]
         name, email, sid = row["name"], row["email"].casefold(), row["source_id"]
@@ -68,6 +71,8 @@ def plan_import(rows, registrations):
         if matches:
             row["person"] = matches[0]
             row["action"] = "Update"
+            if "affiliation" not in source:
+                row["affiliation"] = registrations[matches[0]].get("affiliation", "")
             if "annotation" not in source:
                 row["annotation"] = registrations[matches[0]].get("annotation", "")
                 row["mapping"] = annotation_mapping(row["annotation"])["label"]
@@ -109,12 +114,30 @@ def annotation_mapping(value):
     return {"company":None,"label":"Custom badge label · no quest mapping" if value else "Independent participant"}
 
 
-def batch_archive(roster, people, base_url):
+def batch_archive(roster, people, base_url, mirror_backs=True):
     from zipfile import ZipFile, ZIP_DEFLATED
     badges, slips = print_documents(roster, people, base_url)
     stream=BytesIO()
     with ZipFile(stream, "w", ZIP_DEFLATED) as archive:
+        from quest_badges import badge_docx
+        archive.writestr("00-PRIVATE-template-badges.docx", badge_docx(roster, people, base_url, mirror_backs))
         archive.writestr("01-public-badges.html", badges)
         archive.writestr("02-PRIVATE-login-slips.html", slips)
-        archive.writestr("READ-ME.txt", "Contains private access codes. Keep this archive private. Print the public badges and private slips separately at 100% scale.")
+        archive.writestr("READ-ME.txt", "Contains private access codes. Keep this archive private. Word template: odd pages are fronts, even pages are backs, 10 badges per sheet. Print A4 at 100%, long-edge duplex when mirrored backs are selected. Test alignment on plain paper first. HTML files are an alternative separate-slip layout.")
     return stream.getvalue()
+
+
+def mock_eventfrog_xlsx():
+    """Downloadable fictional fixture for exercising the real Excel import."""
+    from openpyxl import Workbook
+    names=[('Lea','Meier',''),('Alex','Keller','Coop'),('Noah','Frei','Lidl'),('Mia','Baumann','SVIAL'),('Jonas','Weber',''),('Sara','Rossi','Mentorin'),('Luca','Huber','mooh'),('Anna','Müller','Emmi'),('Nina','Graf',''),('Tim','Steiner','SVIAL'),('Eva','Kunz','Strickhof'),('Max','Berger','')]
+    book=Workbook();sheet=book.active;sheet.title='Fictional Eventfrog sample'
+    sheet.append(['AFJD fictional badge rehearsal — 12 participants'])
+    sheet.append(['Test data only. Import to generate working IDs and codes in this app.'])
+    sheet.append([])
+    sheet.append(['Ticket-ID','Vorname','Nachname','E-Mail','Affiliation','Annotation'])
+    annotations=['','Coop','Lidl','SVIAL','','Mentor','mooh Genossenschaft','Emmi Schweiz AG','','SVIAL','Strickhof','']
+    for i,(first,last,affiliation) in enumerate(names):
+        sheet.append([f'BADGE-MOCK-{i+1:02}',first,last,f'badge-mock-{i+1:02}@example.test',affiliation,annotations[i]])
+    for col,width in [('A',23),('B',18),('C',18),('D',34),('E',22),('F',29)]:sheet.column_dimensions[col].width=width
+    stream=BytesIO();book.save(stream);return stream.getvalue()

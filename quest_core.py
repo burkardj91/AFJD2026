@@ -117,7 +117,7 @@ class Quest:
                     raise ValueError("An annotation cannot change after this person has been scanned. Reset activity first.")
         saved = []
         for row in plan:
-            data = {k:row[k] for k in ("name", "email", "source_id", "annotation")}
+            data = {k:row[k] for k in ("name", "email", "source_id", "annotation", "first_name", "last_name", "affiliation")}
             person = row.get("person")
             annotation_changed = not person or data["annotation"] != self.registrations[person].get("annotation", "")
             if not person:
