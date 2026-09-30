@@ -150,7 +150,7 @@ until activity is reset, to avoid retroactively changing earned quests.
 
 ### Word sticker template
 
-**Registration → Import Excel** offers a fictional 12-person Eventfrog workbook.
+**Registration → Import Excel** offers a fictional 10-person Eventfrog workbook.
 Download it, upload it and confirm the import to create working participants in
 the database. Then choose **Print badges → Last import / registration → Download
 template badges · PRIVATE Word**. The same Word document is included in the ZIP.
@@ -177,3 +177,5 @@ the in-app fictional workbook import for functional scanning tests.
 Badge revision: standalone logos removed; one small SVIAL logo sits inside each high-error-correction QR. Names and affiliations are explicitly left-aligned. All 12 revised sample QR codes decoded from the rendered pages.
 
 Sticker geometry: two adjacent 85 mm columns, five 55 mm rows, 20 mm side margins and 10 mm top margin. A4 leaves 12 mm below the last row (2 mm extra beyond the 10 mm bottom page margin). Print at 100%; do not fit to page.
+
+Print calibration: badge contents (text and QR, fronts and backs) are shifted 5 mm right inside the unchanged 85 x55 mm sticker grid.

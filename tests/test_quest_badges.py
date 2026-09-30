@@ -8,7 +8,7 @@ from quest_core import Quest
 
 class BadgeTemplateTests(unittest.TestCase):
     def test_import_duplex_mapping_and_template_fidelity(self):
-        rows=read_eventfrog(mock_eventfrog_xlsx());q=Quest()
+        rows=read_eventfrog(mock_eventfrog_xlsx(12));q=Quest()
         ids=q.import_registrations('ADMIN-01',rows)
         self.assertEqual(len(ids),12)
         self.assertEqual(q.registrations[ids[1]]['affiliation'],'Coop')

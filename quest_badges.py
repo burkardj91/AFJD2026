@@ -15,20 +15,27 @@ NS = {'w':W,'a':'http://schemas.openxmlformats.org/drawingml/2006/main','wp':'ht
 def qr_image(value):
     import qrcode
     from PIL import Image, ImageDraw
-    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_H, border=4, box_size=10)
-    qr.add_data(value)
-    qr.make(fit=True)
-    image = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-    logo = Image.open(Path(__file__).with_name('assets') / 'svial-logo-rgb.png').convert('RGBA')
-    width = round(image.width * .15)
-    logo.thumbnail((width, width), Image.Resampling.LANCZOS)
-    x, y = (image.width-logo.width)//2, (image.height-logo.height)//2
-    pad = 6
-    ImageDraw.Draw(image).rectangle((x-pad,y-pad,x+logo.width+pad,y+logo.height+pad),fill='white')
-    image.paste(logo,(x,y),logo)
-    stream = BytesIO()
-    image.save(stream, format='PNG')
-    return stream.getvalue()
+    import cv2
+    import numpy as np
+    logo_source = Image.open(Path(__file__).with_name('assets') / 'svial-logo-rgb.png').convert('RGBA')
+    detector = cv2.QRCodeDetector()
+    # The centre logo can affect some QR masks: validate before printing.
+    for mask in range(8):
+        qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_H, border=4, box_size=10, mask_pattern=mask)
+        qr.add_data(value)
+        qr.make(fit=True)
+        image = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+        logo = logo_source.copy()
+        width = round(image.width * .15)
+        logo.thumbnail((width, width), Image.Resampling.LANCZOS)
+        x, y = (image.width-logo.width)//2, (image.height-logo.height)//2
+        ImageDraw.Draw(image).rectangle((x-6,y-6,x+logo.width+6,y+logo.height+6),fill='white')
+        image.paste(logo,(x,y),logo)
+        if all(detector.detectAndDecode(np.array(sample))[0] == value for sample in (image, image.resize((300,300),Image.Resampling.LANCZOS))):
+            stream = BytesIO()
+            image.save(stream, format='PNG')
+            return stream.getvalue()
+    raise ValueError("Could not produce a readable branded QR. Please retry with a shorter public app URL.")
 
 
 def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image):
@@ -113,6 +120,16 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
                         E.SubElement(relationships,'{'+REL+'}Relationship',Id=rid,Type=R+'/image',Target='media/'+image_name)
                         for blip in cell.findall('.//a:blip',NS):
                             if blip.get('{'+R+'}embed')=='rId4':blip.set('{'+R+'}embed',rid)
+                    # Print calibration: translate contents 5 mm, not the sticker grid.
+                    for paragraph in cell.findall('w:p',NS):
+                        if paragraph.findall('.//w:t',NS):
+                            props=paragraph.find('w:pPr',NS)
+                            if props is None:props=E.SubElement(paragraph,'{'+W+'}pPr')
+                            indent=props.find('w:ind',NS)
+                            if indent is None:indent=E.SubElement(props,'{'+W+'}ind')
+                            indent.set('{'+W+'}left',str(int(indent.get('{'+W+'}left','0'))+283))
+                    for offset in cell.findall('.//wp:positionH/wp:posOffset',NS):
+                        offset.text=str(int(offset.text)+180000)
                 table.append(row)
     for index,element in enumerate(root.findall('.//wp:docPr',NS),1):element.set('id',str(index))
     # Optional Word editing identifiers must remain unique after row cloning.

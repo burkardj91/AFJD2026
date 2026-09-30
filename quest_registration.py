@@ -125,17 +125,17 @@ def batch_archive(roster, people, base_url, mirror_backs=True):
     return stream.getvalue()
 
 
-def mock_eventfrog_xlsx():
+def mock_eventfrog_xlsx(count=10):
     """Downloadable fictional fixture for exercising the real Excel import."""
     from openpyxl import Workbook
     names=[('Lea','Meier',''),('Alex','Keller','Coop'),('Noah','Frei','Lidl'),('Mia','Baumann','SVIAL'),('Jonas','Weber',''),('Sara','Rossi','Mentorin'),('Luca','Huber','mooh'),('Anna','Müller','Emmi'),('Nina','Graf',''),('Tim','Steiner','SVIAL'),('Eva','Kunz','Strickhof'),('Max','Berger','')]
     book=Workbook();sheet=book.active;sheet.title='Fictional Eventfrog sample'
-    sheet.append(['AFJD fictional badge rehearsal — 12 participants'])
+    sheet.append([f'AFJD fictional badge rehearsal — {count} participants'])
     sheet.append(['Test data only. Import to generate working IDs and codes in this app.'])
     sheet.append([])
     sheet.append(['Ticket-ID','Vorname','Nachname','E-Mail','Affiliation','Annotation'])
     annotations=['','Coop','Lidl','SVIAL','','Mentor','mooh Genossenschaft','Emmi Schweiz AG','','SVIAL','Strickhof','']
-    for i,(first,last,affiliation) in enumerate(names):
+    for i,(first,last,affiliation) in enumerate(names[:count]):
         sheet.append([f'BADGE-MOCK-{i+1:02}',first,last,f'badge-mock-{i+1:02}@example.test',affiliation,annotations[i]])
     for col,width in [('A',23),('B',18),('C',18),('D',34),('E',22),('F',29)]:sheet.column_dimensions[col].width=width
     stream=BytesIO();book.save(stream);return stream.getvalue()

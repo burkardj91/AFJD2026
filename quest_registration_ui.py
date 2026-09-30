@@ -55,7 +55,7 @@ def registration_page(q, staff_id, base_url):
     with upload_tab:
         st.write("The header may appear below the Eventfrog event title and notices. Names, email, ticket reference, optional Affiliation (or Institution) and Annotation are saved. Affiliation is printed; Annotation controls quest mapping. The preview shows the internal mapping. Other columns are ignored.")
         from quest_registration import mock_eventfrog_xlsx
-        st.download_button("Download fictional Eventfrog sample · 12 people", mock_eventfrog_xlsx(), "AFJD-fictional-sample.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button("Download fictional Eventfrog sample · 10 people", mock_eventfrog_xlsx(), "AFJD-fictional-sample.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         uploaded = st.file_uploader("Eventfrog export (.xlsx)", type=["xlsx"])
         if uploaded:
             try:
