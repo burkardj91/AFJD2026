@@ -111,13 +111,13 @@ if not role:
     st.title("Welcome to Network Quest")
     st.write("Enter your private activation code to open your profile and digital badge. No login ID is needed.")
     with st.form("demo_login"):
-        code = st.text_input("Private activation code", type="password", placeholder="LEA-7K4M-26", help="Your code identifies your profile. Demo staff can enter STAFF-01, STAFF-02 or SCREEN-01 here.")
+        code = st.text_input("Private activation code", type="password", placeholder="LEA-7K4M-26", help="Your code identifies your profile. Team accounts: ADMIN-01, STAFF-01, STAFF-02 or SCREEN-01.")
         remember = st.checkbox("Keep me signed in on this phone for 12 hours", value=True, help="Use on your personal phone. Leave off to test different accounts in separate tabs. Staff and screen logins are never remembered.")
         if st.form_submit_button("Enter demo", type="primary", use_container_width=True):
             try:
                 role, person = q.demo_login(code)
                 s.demo_role_v3, s.person_v2 = role, person
-                s.staff_login = code.strip().upper() if role == "staff" else None
+                s.staff_login = code.strip().upper() if role in {"staff", "admin"} else None
                 if remember and role == "participant":
                     old_token = st.context.cookies.get(COOKIE_NAME)
                     logins.revoke(old_token)
@@ -131,16 +131,16 @@ if not role:
     with st.expander("Fictional test credentials · not for production"):
         st.table([{"Name":r["name"], "Badge ID":r["id"], "Private test code":ACTIVATION_CODES[p]} for p,r in DEMO_ROSTER.items()])
     st.subheader("Event team")
-    st.table([{"Workspace":"SVIAL staff · tablet 1", "Login ID":"STAFF-01"}, {"Workspace":"SVIAL staff · tablet 2", "Login ID":"STAFF-02"}, {"Workspace":"Big screen", "Login ID":"SCREEN-01"}])
+    st.table([{"Workspace":"Administrator", "Login ID":"ADMIN-01"}, {"Workspace":"SVIAL staff · tablet 1", "Login ID":"STAFF-01"}, {"Workspace":"SVIAL staff · tablet 2", "Login ID":"STAFF-02"}, {"Workspace":"Big screen", "Login ID":"SCREEN-01"}])
     st.stop()
 
-if role == "staff":
+if role in {"staff", "admin"}:
     from quest_registration_ui import protect_staff
-    protect_staff(q)
+    protect_staff(q, role)
 
 st.markdown(masthead(), unsafe_allow_html=True)
-allowed_views = {"participant":["My pass"], "staff":["SVIAL staff", "Registration", "QR print kit"], "screen":["Live network"]}[role]
-if role == "staff":
+allowed_views = {"participant":["My pass"], "staff":["SVIAL staff"], "admin":["Registration", "Event administration", "QR print kit"], "screen":["Live network"]}[role]
+if role in {"staff", "admin"}:
     view = st.radio("Workspace", allowed_views, key="workspace-"+role, horizontal=True)
 else:
     view = allowed_views[0]
@@ -627,6 +627,8 @@ elif view == "SVIAL staff":
                 st.download_button("Download email draft",draft,file_name=CARDS[card][0]+"-rehearsal.eml",mime="message/rfc822",key="email-"+card)
     with st.expander("Ausstellerliste · Organisation"):
         st.table([{"ID":ORGANISATIONS[t][0],"Firma":ORGANISATIONS[t][1],"Gruppe":CLUSTERS[ORGANISATIONS[t][2]],"Bemerkungen":note} for t,note in EXHIBITOR_NOTES.items()])
+elif view == "Event administration":
+    st.title("Event administration")
     with st.expander("Company annotations · demo database"):
         st.caption("Alex Keller and Noah Frei represent Lidl in this rehearsal. Company affiliation is managed by staff, separately from editable profile text.")
         contact=st.selectbox("Person to annotate",list(ROSTER),format_func=lambda p:ROSTER[p]["name"])
@@ -668,7 +670,7 @@ elif view == "SVIAL staff":
         st.caption("If fewer people qualify, all qualifying people win; there are no duplicate winners. Completed draws cannot be rerolled without resetting the rehearsal.")
     with st.expander("Admin · reset rehearsal"):
         st.warning("Clears ALL participants’ visits, connections, requests, challenge progress, assigned cards, claims and recap/sharing choices. The prize deck is replenished and open tabs are signed out. Downloaded files are not deleted.")
-        st.caption("These controls use demo staff codes, not production administrator authentication.")
+        st.caption("Administrator only. Participant registrations and login codes are preserved by an activity reset.")
         with st.form("reset-rehearsal"):
             keep_profiles = st.checkbox("Keep edited participant profiles", value=True)
             confirmation = st.text_input("Type RESET to clear the rehearsal")
@@ -678,7 +680,7 @@ elif view == "SVIAL staff":
                     st.rerun()
                 except ValueError as error:
                     st.error(str(error))
-    st.caption("Demo staff account · fictional participants only")
+    st.caption("Administrator tools · event settings")
 elif view == "Live network":
     st.markdown('<style>.block-container{max-width:none!important;padding:8px 16px 0!important}.masthead{display:none}h1{font-size:24px!important}[data-testid="stIFrame"]{height:calc(100dvh - 220px)!important;min-height:480px;width:100%!important}</style>', unsafe_allow_html=True)
     st.title("Our network, together")
@@ -713,9 +715,8 @@ else:
     st.code(payload(kind,token),language=None)
     if kind == "person":
         printed=q.profile(token)
-        image_uri="data:image/png;base64,"+base64.b64encode(qr_png(public_base_url()+"/?badge="+token)).decode("ascii")
-        badge_html='<html><meta charset="utf-8"><style>@page{size:A4;margin:15mm}body{font:16px Arial}.badge{width:86mm;height:110mm;border:1px solid #ddd;text-align:center;padding:8mm;box-sizing:border-box}img{width:52mm}h1{font-size:24px}</style><div class="badge"><p>AFJD 2026 · SVIAL</p><h1>'+escape(printed["name"])+'</h1><img src="'+image_uri+'"><p>'+printed["id"]+'</p><small>Scan to connect</small></div></html>'
-        slip_html='<html><meta charset="utf-8"><style>body{font:16px Arial}section{width:80mm;border:1px dashed #777;padding:8mm}</style><section><h2>PRIVATE · inside badge holder</h2><p>'+escape(printed["name"])+'</p><p>Open '+escape(public_base_url())+'</p><h2>'+ACTIVATION_CODES[token]+'</h2><p>Keep this code private. Do not display it on the badge front.</p><small>Fictional reusable test credentials.</small></section></html>'
+        from quest_registration import print_documents
+        badge_html, slip_html = print_documents({token:{**printed, "code":ACTIVATION_CODES[token]}}, [token], public_base_url())
         st.download_button("Print-ready badge front",badge_html,file_name=printed["id"]+"-badge.html",mime="text/html")
         st.download_button("Separate private credential slip",slip_html,file_name=printed["id"]+"-private-slip.html",mime="text/html")
         st.caption("Download, open in a browser, then Print at 100%. Put the private slip inside the holder, behind the public badge.")

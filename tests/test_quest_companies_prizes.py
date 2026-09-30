@@ -48,7 +48,7 @@ class CompanyPrizeTests(unittest.TestCase):
         q=Quest();p=q.activate('DEMO-264');q.activate('DEMO-137')
         q.scan(p,payload('person','p-3nm9q4'));q.set_preferences(p,False,True)
         deadline=datetime.now(timezone.utc)+timedelta(minutes=1)
-        q.schedule_recaps('STAFF-01',deadline.isoformat())
+        q.schedule_recaps('ADMIN-01',deadline.isoformat())
         q.queue_due_recaps(deadline-timedelta(seconds=1));self.assertFalse(q.outbox)
         q.queue_due_recaps(deadline);q.queue_due_recaps(deadline)
         self.assertEqual(list(q.outbox),['recap:'+p])

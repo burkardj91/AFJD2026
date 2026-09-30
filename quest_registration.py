@@ -22,7 +22,7 @@ def read_eventfrog(content):
                 if header is None:
                     labels = [v.casefold() for v in values]
                     if all(k in labels for k in ("vorname", "nachname", "e-mail")):
-                        header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id") if k in labels}
+                        header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation") if k in labels}
                     continue
                 def get(key):
                     return values[header[key]] if key in header and header[key] < len(values) else ""
@@ -30,7 +30,7 @@ def read_eventfrog(content):
                     continue
                 result.append({"name":" ".join(filter(None,[get("vorname"),get("nachname")])), "email":get("e-mail"),
                                "source_id":("ticket:"+get("ticket-id")) if get("ticket-id") else (("id:"+get("id")) if get("id") else ""),
-                               "row":number, "invalid_name":not get("vorname") or not get("nachname")})
+                               **({"annotation":get("annotation")} if "annotation" in header else {}), "row":number, "invalid_name":not get("vorname") or not get("nachname")})
             if header is not None:
                 return result
         raise ValueError("No header with Vorname, Nachname and E-Mail found.")
@@ -42,8 +42,9 @@ def plan_import(rows, registrations):
     plan = []
     seen_sources, seen_people = set(), set()
     for index, source in enumerate(rows, 1):
-        row = {k:str(source.get(k, "")).strip() for k in ("name", "email", "source_id")}
+        row = {k:str(source.get(k, "")).strip() for k in ("name", "email", "source_id", "annotation")}
         row.update(row=source.get("row",index), action="New", reason="", person=None)
+        row["mapping"] = annotation_mapping(row["annotation"])["label"]
         name, email, sid = row["name"], row["email"].casefold(), row["source_id"]
         issue = ""
         if not name or source.get("invalid_name") or any(x.startswith("=") for x in (name,email,sid)):
@@ -67,6 +68,9 @@ def plan_import(rows, registrations):
         if matches:
             row["person"] = matches[0]
             row["action"] = "Update"
+            if "annotation" not in source:
+                row["annotation"] = registrations[matches[0]].get("annotation", "")
+                row["mapping"] = annotation_mapping(row["annotation"])["label"]
             if not sid: row["source_id"] = registrations[matches[0]].get("source_id", "")
         if issue: row.update(action="Review",reason=issue)
         plan.append(row)
@@ -82,7 +86,35 @@ def print_documents(roster, people, base_url):
         stream = BytesIO()
         qrcode.make(base_url.rstrip("/")+"/?badge="+person).save(stream, format="PNG")
         uri = "data:image/png;base64,"+base64.b64encode(stream.getvalue()).decode("ascii")
-        fronts.append(f'<section><p>AGRO-FOOD MESSE 2026</p><h1>{escape(r["name"])}</h1><img src="{uri}"><p>{escape(r["id"])}</p><small>Scan to connect · SVIAL</small></section>')
+        from quest_brand import logo_uri
+        fronts.append(f'<section class="badge"><header><h1>{escape(r["name"])}</h1><img class="logo" alt="SVIAL" src="{logo_uri()}"></header><p class="annotation">{escape(r.get("annotation", ""))}</p><img class="qr" alt="Personal public QR code" src="{uri}"><p class="badge-id">{escape(r["id"])}</p><small>AGRO-FOOD MESSE 2026</small></section>')
         slips.append(f'<section><h2>PRIVATE · Zugangscode</h2><h1>{escape(r["name"])}</h1><p>{escape(base_url)}</p><strong>{escape(r["code"])}</strong><p>Separat im Badgehalter aufbewahren. Nicht öffentlich zeigen.</p></section>')
-    style='<meta charset="utf-8"><style>@page{size:A4;margin:12mm}body{font:15px Arial;display:flex;flex-wrap:wrap;gap:5mm}section{box-sizing:border-box;width:86mm;height:110mm;border:1px solid #ccc;text-align:center;padding:6mm;break-inside:avoid}h1{font-size:23px;color:#009641}img{width:50mm}strong{overflow-wrap:anywhere}</style>'
+    style='<meta charset="utf-8"><style>@page{size:A4;margin:12mm}body{font:15px Arial;display:flex;flex-wrap:wrap;gap:5mm}section{box-sizing:border-box;width:86mm;height:110mm;border:1px solid #ccc;text-align:center;padding:6mm;break-inside:avoid}header{display:flex;align-items:start;justify-content:space-between;gap:3mm;min-height:18mm}h1{font-size:22px;color:#009641;margin:0;text-align:left;overflow-wrap:anywhere}.logo{width:16mm;height:auto}.qr{width:48mm;height:48mm}.annotation{height:10mm;margin:2mm 0;font-size:14px;overflow-wrap:anywhere}.badge-id{font-size:18px;letter-spacing:1px;margin:2mm}strong{overflow-wrap:anywhere}</style>'
     return tuple('<!doctype html><html lang="de">'+style+'<body>'+''.join(parts)+'</body></html>' for parts in (fronts,slips))
+
+
+def annotation_mapping(value):
+    """Exact, reviewable aliases; never infer affiliation from a loose substring."""
+    from quest_core import ORGANISATIONS
+    value = value.strip().casefold()
+    aliases = {"coop":"in-3p9d", "lidl":"re-lidl", "lidl schweiz":"re-lidl", "svial":"sv-5w8j"}
+    aliases.update({r[1].casefold():token for token,r in ORGANISATIONS.items()})
+    if value in {"rosie", "svial-mentoring", "rosie vom svial-mentoring"}:
+        return {"company":"sv-5w8j", "label":"SVIAL + Rosie mentoring quest"}
+    if value in aliases:
+        token=aliases[value]
+        return {"company":token,"label":ORGANISATIONS[token][1]+" · "+ORGANISATIONS[token][2]}
+    if value in {"mentor", "mentors", "mentorin", "mentor:in", "mentoren"}:
+        return {"company":None,"label":"Mentor role · no company or Rosie quest credit"}
+    return {"company":None,"label":"Custom badge label · no quest mapping" if value else "Independent participant"}
+
+
+def batch_archive(roster, people, base_url):
+    from zipfile import ZipFile, ZIP_DEFLATED
+    badges, slips = print_documents(roster, people, base_url)
+    stream=BytesIO()
+    with ZipFile(stream, "w", ZIP_DEFLATED) as archive:
+        archive.writestr("01-public-badges.html", badges)
+        archive.writestr("02-PRIVATE-login-slips.html", slips)
+        archive.writestr("READ-ME.txt", "Contains private access codes. Keep this archive private. Print the public badges and private slips separately at 100% scale.")
+    return stream.getvalue()

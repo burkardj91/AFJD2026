@@ -12,13 +12,13 @@ class RaffleTests(unittest.TestCase):
         q.scan(p,payload('station','fo-8b4q'))
         deadline=datetime.now(timezone.utc)+timedelta(minutes=5)
         with self.assertRaises(ValueError): q.configure_raffle('participant',deadline.isoformat())
-        q.configure_raffle('STAFF-01',deadline.isoformat(),3,1)
+        q.configure_raffle('ADMIN-01',deadline.isoformat(),3,1)
         q.resolve_raffle(deadline-timedelta(seconds=1)); self.assertEqual(q.raffle['status'],'scheduled')
         q.resolve_raffle(deadline); self.assertEqual(q.raffle['winners'],[p])
         q.simulate_completion('p-3nm9q4'); q.resolve_raffle(deadline+timedelta(seconds=1))
         self.assertEqual(q.raffle['winners'],[p])
         self.assertNotIn('Lea',str(q.public_raffle()))
-        with self.assertRaises(ValueError): q.configure_raffle('STAFF-01',(deadline+timedelta(hours=1)).isoformat())
+        with self.assertRaises(ValueError): q.configure_raffle('ADMIN-01',(deadline+timedelta(hours=1)).isoformat())
 
     def test_concurrent_screens_and_late_scan(self):
         q=Quest()
@@ -32,7 +32,7 @@ class RaffleTests(unittest.TestCase):
             state=SharedQuest(db); result=state.public_raffle()
             self.assertEqual(len(set(result['winner_badges'])),3)
             state.resolve_raffle(); self.assertEqual(state.public_raffle(),result)
-            state.reset_demo('STAFF-01','RESET'); self.assertFalse(state.raffle)
+            state.reset_demo('ADMIN-01','RESET'); self.assertFalse(state.raffle)
         q=Quest(); p=q.activate('DEMO-264');q.raffle={'status':'scheduled','deadline':(datetime.now(timezone.utc)-timedelta(seconds=1)).isoformat(),'count':5,'minimum':1}
         with tempfile.TemporaryDirectory() as folder:
             state=SharedQuest(Path(folder)/'late.db',seed=q)

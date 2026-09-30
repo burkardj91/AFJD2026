@@ -62,6 +62,11 @@ with tempfile.TemporaryDirectory() as directory:
     assert len(staff.session_state['quest_v2'].applications)==1
     print('PASS: independent sessions -> accept -> unlock -> staff validation -> tablet 2 card draw -> QR claim form -> prepared application')
 
+    os.environ['QUEST_ADMIN_PASSWORD']='fictional-admin-password-for-test'
+    staff=start('ADMIN-01')
+    next(t for t in staff.text_input if t.label=='Administrator password').input(os.environ['QUEST_ADMIN_PASSWORD'])
+    button(staff,'Unlock staff tools').click().run()
+    next(r for r in staff.radio if r.label=='Workspace').set_value('Event administration').run()
     from datetime import date,timedelta
     next(t for t in staff.date_input if t.label=='Draw date').set_value(date.today()+timedelta(days=1))
     button(staff,'Schedule big-screen draw').click().run()

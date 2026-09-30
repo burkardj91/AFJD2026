@@ -34,7 +34,7 @@ class BrowserLoginTests(unittest.TestCase):
         self.logins.revoke(token)
         self.assertIsNone(self.logins.resolve(token))
         token = self.logins.issue('LEA-7K4M-26')
-        self.q.reset_demo('STAFF-01', 'RESET')
+        self.q.reset_demo('ADMIN-01', 'RESET')
         self.q.demo_login('LEA-7K4M-26')
         self.assertIsNone(self.logins.resolve(token))
 

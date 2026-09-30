@@ -23,7 +23,7 @@ class EventRulesTests(unittest.TestCase):
     def test_two_distinct_representatives_same_company_and_no_name_leak(self):
         q=Quest();p=q.activate('DEMO-264')
         for other in ['p-3nm9q4','p-6wx5t1']:
-            q.annotate_company('STAFF-01',other,'ag-7v2x')
+            q.annotate_company('ADMIN-01',other,'ag-7v2x')
         q.scan(p,payload('person','p-3nm9q4'))
         q.scan(p,payload('person','p-3nm9q4'))
         self.assertNotIn('Landwirtschaft',q.completed(p))
