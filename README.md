@@ -93,8 +93,8 @@ The presentation remains mounted while its server data updates, preserving fulls
 
 ## Eventfrog registration import and late arrivals
 
-Staff workspace **Registration** imports `.xlsx` exports. It finds the row containing
-`Vorname`, `Nachname`, `E-Mail` below titles/notices. Only those fields and `Ticket-ID`
+Administrator workspace **Registration** imports `.xlsx` exports. It finds the row containing
+`Vorname`, `Nachname`, `E-Mail` below titles/notices. Only those fields, optional `Annotation`, and `Ticket-ID`
 (or `ID` as fallback) are retained; payment, address and other columns are ignored.
 The source workbook is not saved. Review the preview and confirm the import.
 Flagged rows block the entire batch; correct the spreadsheet and upload again.
@@ -115,8 +115,11 @@ in Streamlit app Settings → Secrets (or the server environment):
 QUEST_ADMIN_PASSWORD = "replace-with-your-own-long-random-password"
 ```
 
-The password protects all staff pages when configured; published demo staff codes
-alone no longer unlock the tools. Registration is disabled without this setting.
+Sign in as **ADMIN-01**, then enter this password. Only this account can import,
+print credentials, edit annotations, schedule the main draw/recaps and reset activity.
+Booth accounts STAFF-01/STAFF-02 cannot access these actions. Set a separate
+`QUEST_STAFF_PASSWORD` (at least 16 characters) for the booth team; it is required
+once registrations exist. Registration is disabled without the admin password.
 Do not commit the password, exports, printed slips or database to GitHub.
 
 **Hosting limitation:** this release still uses SQLite at `QUEST_DB_PATH` (default
@@ -126,3 +129,20 @@ registrations, provision persistent storage/backups and harden authentication
 (including rate limits and private-code storage); this change does not provision
 an external database or enable email delivery. Real registrations are not shown
 in the public demo credential list or participant simulation catalogue.
+
+
+### Batch export and annotations
+
+After importing, **Print badges → Last import / registration** prepares all imported
+participants together. Choose **All registered participants** for a full reprint.
+The private ZIP contains public badge sheets and separate private login slips.
+No individual selection is needed. Name is at the top, logo upper right, annotation
+beneath the name, public QR in the middle, anonymous ID below it. IDs, opaque QR
+tokens and private codes are stored in registrations and survive reimports/resets.
+
+`Annotation` matches exact exhibitor names (plus Coop/Lidl aliases) to company and
+quest category. `Mentor` / `Mentors` is a role label, not automatic Rosie credit.
+`Rosie` / `SVIAL-Mentoring` maps to SVIAL and the mentoring quest. Other text is
+printed as a custom label with no automatic quest mapping; inspect the preview.
+Changes to imported annotations after a participant has been scanned are blocked
+until activity is reset, to avoid retroactively changing earned quests.

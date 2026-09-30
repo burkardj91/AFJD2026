@@ -105,15 +105,21 @@ class Quest:
 
     def import_registrations(self, staff_id, rows):
         from quest_registration import plan_import
-        if staff_id not in {"STAFF-01", "STAFF-02"}:
-            raise ValueError("Staff login required.")
+        if staff_id != "ADMIN-01":
+            raise ValueError("Administrator account required.")
         plan = plan_import(rows, self.registrations)
         if any(r["action"] == "Review" for r in plan):
             raise ValueError("Resolve the flagged rows before importing. Nothing was saved.")
+        for row in plan:
+            person = row.get("person")
+            if person and row["annotation"] != self.registrations[person].get("annotation", ""):
+                if any(person in edge for edge in self.connections):
+                    raise ValueError("An annotation cannot change after this person has been scanned. Reset activity first.")
         saved = []
         for row in plan:
-            data = {k:row[k] for k in ("name", "email", "source_id")}
+            data = {k:row[k] for k in ("name", "email", "source_id", "annotation")}
             person = row.get("person")
+            annotation_changed = not person or data["annotation"] != self.registrations[person].get("annotation", "")
             if not person:
                 person = "p-" + secrets.token_hex(12)
                 used = {r["id"] for r in self.roster().values()}
@@ -124,6 +130,11 @@ class Quest:
             else:
                 self.registrations[person].update(data)
                 # Preserve participant-edited profile details and all event activity.
+            from quest_registration import annotation_mapping
+            if annotation_changed:
+                mapping = annotation_mapping(data["annotation"])
+                if mapping["company"]: self.affiliations[person] = mapping["company"]
+                else: self.affiliations.pop(person, None)
             saved.append(person)
         return saved
 
@@ -149,8 +160,8 @@ class Quest:
     raffle: dict = field(default_factory=dict)
 
     def configure_raffle(self, staff_id, deadline, winners=3, minimum=1):
-        if staff_id not in {"STAFF-01", "STAFF-02"}:
-            raise ValueError("A staff demo login is required.")
+        if staff_id != "ADMIN-01":
+            raise ValueError("Administrator account required.")
         target = datetime.fromisoformat(deadline)
         if target.tzinfo is None or target <= datetime.now(timezone.utc):
             raise ValueError("Choose a future date and time with a timezone.")
@@ -188,8 +199,8 @@ class Quest:
         self.collected.setdefault(card,{"staff":staff_id,"at":datetime.now(timezone.utc).isoformat()})
 
     def annotate_company(self, staff_id, person, company):
-        if staff_id not in {"STAFF-01","STAFF-02"} or person not in self.roster():
-            raise ValueError("Staff must select a valid person.")
+        if staff_id != "ADMIN-01" or person not in self.roster():
+            raise ValueError("An administrator must select a valid person.")
         if company and company not in ORGANISATIONS:
             raise ValueError("Unknown organisation.")
         if any(person in contacts for contacts in self.company_contacts.values()):
@@ -198,8 +209,8 @@ class Quest:
         else: self.affiliations.pop(person,None)
 
     def schedule_recaps(self, staff_id, deadline):
-        if staff_id not in {"STAFF-01","STAFF-02"}:
-            raise ValueError("Staff login required.")
+        if staff_id != "ADMIN-01":
+            raise ValueError("Administrator account required.")
         target=datetime.fromisoformat(deadline)
         if target.tzinfo is None or target <= datetime.now(timezone.utc):
             raise ValueError("Choose a future recap time.")
@@ -213,12 +224,13 @@ class Quest:
             self.outbox.setdefault(key,{"kind":"recap","person":person,"status":"Queued — mail service not configured","draft":recap_draft(self,person).decode("utf-8")})
 
     def reset_demo(self, staff_id, confirmation, keep_profiles=True):
-        if staff_id not in {"STAFF-01", "STAFF-02"}:
-            raise ValueError("A staff demo login is required to reset the event.")
+        if staff_id != "ADMIN-01":
+            raise ValueError("Administrator account required to reset the event.")
         if confirmation != "RESET":
             raise ValueError("Type RESET to confirm.")
         fresh = Quest()
         fresh.registrations = dict(self.registrations)
+        fresh.affiliations = dict(self.affiliations)
         if keep_profiles:
             fresh.profiles = dict(self.profiles)
         fresh.reset_epoch = self.reset_epoch + 1
@@ -252,6 +264,8 @@ class Quest:
     def demo_login(self, code, private_code=None):
         """Public rehearsal credentials only, not production authentication."""
         code = code.strip().upper()
+        if code == "ADMIN-01":
+            return "admin", None
         if code in {"STAFF-01", "STAFF-02"}:
             return "staff", None
         if code == "SCREEN-01":
@@ -316,7 +330,7 @@ class Quest:
             result.add(CHALLENGES[3])
         if "future-apero" in visits:
             result.add(CHALLENGES[4])
-        if "p-rosie" in contacts:
+        if "p-rosie" in contacts or any(self.registrations.get(p, {}).get("annotation", "").strip().casefold() in {"rosie", "svial-mentoring", "rosie vom svial-mentoring"} for p in contacts):
             result.add(CHALLENGES[5])
         return result
 
@@ -417,7 +431,7 @@ class Quest:
 
     def approve_draw(self, person, staff_id):
         if staff_id not in {"STAFF-01", "STAFF-02"}:
-            raise ValueError("A staff demo login is required.")
+            raise ValueError("Administrator account required.")
         self.require_active(person)
         if len(self.completed(person)) < 4:
             raise ValueError("Four challenges must be completed first.")
@@ -425,7 +439,7 @@ class Quest:
 
     def draw(self, person, staff_id):
         if staff_id not in {"STAFF-01", "STAFF-02"}:
-            raise ValueError("A staff demo login is required.")
+            raise ValueError("Administrator account required.")
         self.require_active(person)
         existing = next((c for c,p in self.assignments.items() if p == person), None)
         if existing:
