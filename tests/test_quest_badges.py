@@ -17,6 +17,8 @@ class BadgeTemplateTests(unittest.TestCase):
         archive=ZipFile(BytesIO(badge_docx(q.registrations,ids,'https://afjd2026.streamlit.app')))
         xml=E.fromstring(archive.read('word/document.xml'));trs=xml.findall('.//w:tr',NS)
         self.assertEqual(len(trs),20)
+        self.assertEqual(len(xml.findall('.//w:drawing',NS)),12)
+        self.assertFalse(xml.xpath('.//a:blip[@r:embed="rId5"]', namespaces={**NS,'r':'http://schemas.openxmlformats.org/officeDocument/2006/relationships'}))
         def texts(row,col):return ''.join(trs[row].findall('w:tc',NS)[col].xpath('.//w:t/text()',namespaces=NS))
         self.assertIn('Lea',texts(0,0));self.assertIn('Alex',texts(0,2))
         self.assertIn(q.registrations[ids[1]]['code'],texts(5,0))

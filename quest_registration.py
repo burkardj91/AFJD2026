@@ -88,13 +88,11 @@ def print_documents(roster, people, base_url):
     fronts, slips = [], []
     for person in people:
         r = roster[person]
-        stream = BytesIO()
-        qrcode.make(base_url.rstrip("/")+"/?badge="+person).save(stream, format="PNG")
-        uri = "data:image/png;base64,"+base64.b64encode(stream.getvalue()).decode("ascii")
-        from quest_brand import logo_uri
-        fronts.append(f'<section class="badge"><header><h1>{escape(r["name"])}</h1><img class="logo" alt="SVIAL" src="{logo_uri()}"></header><p class="annotation">{escape(r.get("annotation", ""))}</p><img class="qr" alt="Personal public QR code" src="{uri}"><p class="badge-id">{escape(r["id"])}</p><small>AGRO-FOOD MESSE 2026</small></section>')
+        from quest_badges import qr_image
+        uri = "data:image/png;base64,"+base64.b64encode(qr_image(base_url.rstrip("/")+"/?badge="+person)).decode("ascii")
+        fronts.append(f'<section class="badge"><header><h1>{escape(r["name"])}</h1></header><p class="annotation">{escape(r.get("affiliation", ""))}</p><img class="qr" alt="Personal public QR code" src="{uri}"><p class="badge-id">{escape(r["id"])}</p><small>AGRO-FOOD MESSE 2026</small></section>')
         slips.append(f'<section><h2>PRIVATE · Zugangscode</h2><h1>{escape(r["name"])}</h1><p>{escape(base_url)}</p><strong>{escape(r["code"])}</strong><p>Separat im Badgehalter aufbewahren. Nicht öffentlich zeigen.</p></section>')
-    style='<meta charset="utf-8"><style>@page{size:A4;margin:12mm}body{font:15px Arial;display:flex;flex-wrap:wrap;gap:5mm}section{box-sizing:border-box;width:86mm;height:110mm;border:1px solid #ccc;text-align:center;padding:6mm;break-inside:avoid}header{display:flex;align-items:start;justify-content:space-between;gap:3mm;min-height:18mm}h1{font-size:22px;color:#009641;margin:0;text-align:left;overflow-wrap:anywhere}.logo{width:16mm;height:auto}.qr{width:48mm;height:48mm}.annotation{height:10mm;margin:2mm 0;font-size:14px;overflow-wrap:anywhere}.badge-id{font-size:18px;letter-spacing:1px;margin:2mm}strong{overflow-wrap:anywhere}</style>'
+    style='<meta charset="utf-8"><style>@page{size:A4;margin:12mm}body{font:15px Arial;display:flex;flex-wrap:wrap;gap:5mm}section{box-sizing:border-box;width:86mm;height:110mm;border:1px solid #ccc;text-align:center;padding:6mm;break-inside:avoid}header{display:flex;align-items:start;justify-content:space-between;gap:3mm;min-height:18mm}h1{font-size:22px;color:#009641;margin:0;text-align:left;overflow-wrap:anywhere}.logo{width:16mm;height:auto}.qr{width:48mm;height:48mm}.annotation{text-align:left;height:10mm;margin:2mm 0;font-size:14px;overflow-wrap:anywhere}.badge-id{font-size:18px;letter-spacing:1px;margin:2mm}strong{overflow-wrap:anywhere}</style>'
     return tuple('<!doctype html><html lang="de">'+style+'<body>'+''.join(parts)+'</body></html>' for parts in (fronts,slips))
 
 

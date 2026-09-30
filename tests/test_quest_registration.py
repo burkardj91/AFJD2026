@@ -62,7 +62,7 @@ class RegistrationTests(unittest.TestCase):
         from quest_core import Quest
         from zipfile import ZipFile
         q=Quest()
-        rows=[{'name':'Company Person','email':'company@example.test','annotation':'Coop'},
+        rows=[{'name':'Company Person','email':'company@example.test','annotation':'Coop','affiliation':'Coop'},
               {'name':'Mentor Person','email':'mentor@example.test','annotation':'Mentor'},
               {'name':'Rosie Test','email':'rosie@example.test','annotation':'SVIAL-Mentoring'}]
         for staff in ['STAFF-01','STAFF-02','SCREEN-01']:
@@ -81,7 +81,7 @@ class RegistrationTests(unittest.TestCase):
         front=archive.read('01-public-badges.html').decode()
         slips=archive.read('02-PRIVATE-login-slips.html').decode()
         self.assertEqual(front.count('<section class="badge">'),3)
-        self.assertIn('class="logo"',front)
+        self.assertNotIn('class="logo"',front)
         self.assertIn('Coop',front)
         for p in ids:
             self.assertIn(q.roster()[p]['name'],front)

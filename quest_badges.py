@@ -14,8 +14,20 @@ NS = {'w':W,'a':'http://schemas.openxmlformats.org/drawingml/2006/main','wp':'ht
 
 def qr_image(value):
     import qrcode
+    from PIL import Image, ImageDraw
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_H, border=4, box_size=10)
+    qr.add_data(value)
+    qr.make(fit=True)
+    image = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    logo = Image.open(Path(__file__).with_name('assets') / 'svial-logo-rgb.png').convert('RGBA')
+    width = round(image.width * .15)
+    logo.thumbnail((width, width), Image.Resampling.LANCZOS)
+    x, y = (image.width-logo.width)//2, (image.height-logo.height)//2
+    pad = 6
+    ImageDraw.Draw(image).rectangle((x-pad,y-pad,x+logo.width+pad,y+logo.height+pad),fill='white')
+    image.paste(logo,(x,y),logo)
     stream = BytesIO()
-    qrcode.make(value, border=4, box_size=10).save(stream, format='PNG')
+    image.save(stream, format='PNG')
     return stream.getvalue()
 
 
@@ -55,6 +67,18 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
                                 E.SubElement(run,'{'+W+'}br')
                                 E.SubElement(run,'{'+W+'}t').text=person['code']
                     else:
+                        # The QR contains the only visible logo; remove every template logo.
+                        for drawing in list(cell.findall('.//w:drawing',NS)):
+                            if any(b.get('{'+R+'}embed') == 'rId5' for b in drawing.findall('.//a:blip',NS)):
+                                drawing.getparent().remove(drawing)
+                        for paragraph in cell.findall('w:p',NS):
+                            if paragraph.findall('.//w:t',NS):
+                                properties=paragraph.find('w:pPr',NS)
+                                if properties is None:
+                                    properties=E.Element('{'+W+'}pPr');paragraph.insert(0,properties)
+                                alignment=properties.find('w:jc',NS)
+                                if alignment is None:alignment=E.SubElement(properties,'{'+W+'}jc')
+                                alignment.set('{'+W+'}val','left')
                         first = person.get('first_name')
                         last = person.get('last_name')
                         if first is None or last is None:

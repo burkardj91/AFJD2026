@@ -173,3 +173,5 @@ Password values use 10 pt beneath the template's bold 16 pt label so the existin
 The supplied `outputs/AFJD_Badges_Mockup.docx` in the local workspace is a layout
 sample only; its TEST IDs and preview QR tokens are not live registrations. Use
 the in-app fictional workbook import for functional scanning tests.
+
+Badge revision: standalone logos removed; one small SVIAL logo sits inside each high-error-correction QR. Names and affiliations are explicitly left-aligned. All 12 revised sample QR codes decoded from the rendered pages.
