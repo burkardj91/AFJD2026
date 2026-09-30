@@ -37,8 +37,30 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
     with ZipFile(TEMPLATE) as source:
         parts = {name:source.read(name) for name in source.namelist()}
     root = E.fromstring(parts['word/document.xml'])
+    # Word requires a paragraph after the table; keep it within the 2 mm remainder.
+    for paragraph in root.findall('w:body/w:p',NS):
+        for child in list(paragraph):paragraph.remove(child)
+        properties=E.SubElement(paragraph,'{'+W+'}pPr')
+        spacing=E.SubElement(properties,'{'+W+'}spacing')
+        for key,value in {'before':'0','after':'0','line':'20','lineRule':'exact'}.items():spacing.set('{'+W+'}'+key,value)
     relationships = E.fromstring(parts['word/_rels/document.xml.rels'])
     table = root.find('.//w:body/w:tbl',NS)
+    # A4: 20 mm side margins; 2 x 85 mm labels, 5 x 55 mm rows.
+    # 10 mm top margin leaves 12 mm below the 275 mm grid.
+    margins = root.find('.//w:sectPr/w:pgMar',NS)
+    for side,value in {'top':567,'bottom':567,'left':1134,'right':1134}.items():
+        margins.set('{'+W+'}'+side,str(value))
+    table.find('w:tblPr/w:tblW',NS).set('{'+W+'}w','9638')
+    position = table.find('w:tblPr/w:tblpPr',NS)
+    position.set('{'+W+'}tblpY','567')
+    grid = table.find('w:tblGrid',NS)
+    for column in list(grid):grid.remove(column)
+    for _ in range(2):E.SubElement(grid,'{'+W+'}gridCol').set('{'+W+'}w','4819')
+    for row in table.findall('w:tr',NS):
+        row.remove(row.findall('w:tc',NS)[1])  # No gap between the two columns.
+        row.find('w:trPr/w:trHeight',NS).set('{'+W+'}val','3118')
+        for cell in row.findall('w:tc',NS):
+            cell.find('w:tcPr/w:tcW',NS).set('{'+W+'}w','4819')
     prototypes = [deepcopy(row) for row in table.findall('w:tr',NS)]
     for row in table.findall('w:tr',NS): table.remove(row)
     for start in range(0,len(people),10):
@@ -46,7 +68,7 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
         for back in (False, True):
             for row_index in range(5):
                 row = deepcopy(prototypes[row_index + (5 if back else 0)])
-                for col,cell in enumerate([row.findall('w:tc',NS)[0],row.findall('w:tc',NS)[2]]):
+                for col,cell in enumerate(row.findall('w:tc',NS)):
                     index = row_index*2 + ((1-col) if back and mirror_backs else col)
                     if index >= len(batch):
                         for child in list(cell):

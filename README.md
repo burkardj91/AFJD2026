@@ -156,7 +156,7 @@ the database. Then choose **Print badges → Last import / registration → Down
 template badges · PRIVATE Word**. The same Word document is included in the ZIP.
 
 The supplied `assets/badge-template.docx` is retained as the design authority:
-A4, two columns of five 80 × 50 mm labels. Vorname and Nachname are stored
+A4, two columns of five 85 × 55 mm labels. Vorname and Nachname are stored
 separately from the export; the QR is on the right. Add an optional `Affiliation`
 (or `Institution` / `Zugehörigkeit`) column for the visible organisation, or leave
 it blank. `Annotation` remains the separate internal company/role mapping.
@@ -175,3 +175,5 @@ sample only; its TEST IDs and preview QR tokens are not live registrations. Use
 the in-app fictional workbook import for functional scanning tests.
 
 Badge revision: standalone logos removed; one small SVIAL logo sits inside each high-error-correction QR. Names and affiliations are explicitly left-aligned. All 12 revised sample QR codes decoded from the rendered pages.
+
+Sticker geometry: two adjacent 85 mm columns, five 55 mm rows, 20 mm side margins and 10 mm top margin. A4 leaves 12 mm below the last row (2 mm extra beyond the 10 mm bottom page margin). Print at 100%; do not fit to page.
