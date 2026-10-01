@@ -21,9 +21,11 @@ with tempfile.TemporaryDirectory() as folder:
     app.query_params['claim']=card
     app.run()
     def click(label):
-        if label == "Anmelden":
-            next(c for c in app.checkbox if c.label.startswith("Auf diesem Handy")).uncheck()
         next(b for b in app.button if b.label==label).click().run()
+        if "cookie_write" in app.session_state:
+            # AppTest has no browser JS; emulate the successful cookie acknowledgement.
+            del app.session_state["cookie_write"]
+            app.run()
         privacy = [b for b in app.button if b.label == "Datenschutzauswahl speichern"]
         if privacy and label == "Anmelden":
             privacy[0].click().run()

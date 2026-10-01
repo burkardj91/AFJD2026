@@ -122,7 +122,7 @@ class Quest:
                     raise ValueError("Die Annotation kann nach einem Scan nicht geändert werden. Setze zuerst die Aktivitäten zurück.")
         saved = []
         for row in plan:
-            data = {k:row[k] for k in ("name", "email", "source_id", "annotation", "first_name", "last_name", "affiliation")}
+            data = {k:row[k] for k in ("name", "email", "source_id", "annotation", "first_name", "last_name", "affiliation", "source_name", "source_email", "provisional_name", "blank_badge", "identity_pending", "identity_corrected")}
             person = row.get("person")
             annotation_changed = not person or data["annotation"] != self.registrations[person].get("annotation", "")
             if not person:
@@ -143,7 +143,39 @@ class Quest:
             saved.append(person)
         return saved
 
-    catalog_version: int = field(default_factory=lambda:3)
+    def correct_registration(self, staff_id, person, first, last, email, affiliation=""):
+        if staff_id != "ADMIN-01" or person not in self.registrations:
+            raise ValueError("Wähle als Administrator eine importierte Person.")
+        first, last, email = first.strip(), last.strip(), email.strip()
+        if not first or not last or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+            raise ValueError("Vorname, Nachname und eine gültige E-Mail sind erforderlich.")
+        data = dict(first_name=first, last_name=last, name=first+" "+last, email=email, affiliation=affiliation.strip())
+        self.registrations[person].update(data, blank_badge=False, identity_pending=False, identity_corrected=True)
+        self.profiles.setdefault(person, {}).update(data)
+        self.privacy_reviewed.discard(person)
+        self.sharing.discard(person)
+        self.recap.discard(person)
+        self.outbox.pop("recap:"+person, None)
+
+    def claim_recap_delivery(self, key):
+        mail = self.outbox.get(key)
+        if not mail or mail.get("kind") != "recap" or mail.get("attempted"):
+            return None
+        person = mail["person"]
+        if person not in self.active or person not in self.recap or self.registrations.get(person, {}).get("identity_pending"):
+            return None
+        if datetime.now(timezone.utc) < datetime.fromisoformat(self.recap_deadline):
+            return None
+        # Snapshot current sharing choices at dispatch; claim transaction prevents
+        # concurrent workers from submitting the same recap twice.
+        mail.update(draft=recap_draft(self,person).decode("utf-8"), attempted=True, status="Versand läuft · bei Unterbruch vor Wiederholung prüfen")
+        return mail["draft"]
+
+    def mark_recap_delivery(self, key, status):
+        if key in self.outbox:
+            self.outbox[key].update(status=status, attempted=True)
+
+    catalog_version: int = field(default_factory=lambda:4)
     active: set = field(default_factory=set)
     visits: dict = field(default_factory=dict)
     connections: set = field(default_factory=set)
@@ -195,7 +227,7 @@ class Quest:
     affiliations: dict = field(default_factory=lambda:dict(DEFAULT_AFFILIATIONS))
     company_contacts: dict = field(default_factory=dict)
     outbox: dict = field(default_factory=dict)
-    recap_deadline: str = field(default_factory=str)
+    recap_deadline: str = field(default_factory=lambda:"2026-10-08T21:00:00+02:00")
     collected: dict = field(default_factory=dict)
 
     def collect_gift(self, staff_id, card):
@@ -225,8 +257,10 @@ class Quest:
         if not self.recap_deadline or (now or datetime.now(timezone.utc)) < datetime.fromisoformat(self.recap_deadline):
             return
         for person in self.recap & self.active:
+            if self.registrations.get(person, {}).get("identity_pending"):
+                continue
             key="recap:"+person
-            self.outbox.setdefault(key,{"kind":"recap","person":person,"status":"Wartet · E-Mail-Dienst nicht eingerichtet","draft":recap_draft(self,person).decode("utf-8")})
+            self.outbox.setdefault(key,{"kind":"recap","person":person,"status":"Wartet auf geplanten Versand","draft":recap_draft(self,person).decode("utf-8")})
 
     def reset_demo(self, staff_id, confirmation, keep_profiles=True):
         if staff_id != "ADMIN-01":
@@ -330,7 +364,7 @@ class Quest:
         result = set()
         if any(ORGANISATIONS.get(t, (None,None,None))[2] == "Food Production" for t in visits):
             result.add(CHALLENGES[0])
-        if len(contacts) >= 3:
+        if len([p for p in contacts if p not in self.affiliations]) >= 3:
             result.add(CHALLENGES[1])
         if len([p for p in contacts if ORGANISATIONS.get(self.affiliations.get(p), (None,None,None))[2] == "Agriculture"]) >= 2:
             result.add(CHALLENGES[2])
@@ -436,7 +470,7 @@ class Quest:
                 raise ValueError("Gib ein gültiges Geburtsdatum ein.")
         self.applications[card] = {"person": person, "identity": {k:self.profile(person)[k] for k in ["name", "email"]}, "details": dict(details), "status": "Vorbereitet · nicht versendet"}
 
-        self.outbox["claim:"+card]={"kind":"claim","person":person,"status":"Wartet · E-Mail-Dienst nicht eingerichtet","draft":email_draft(self,card,"svial@svial.ch").decode("utf-8")}
+        self.outbox["claim:"+card]={"kind":"claim","person":person,"status":"Wartet auf geplanten Versand","draft":email_draft(self,card,"svial@svial.ch").decode("utf-8")}
 
     def approve_draw(self, person, staff_id):
         if staff_id not in {"STAFF-01", "STAFF-02"}:

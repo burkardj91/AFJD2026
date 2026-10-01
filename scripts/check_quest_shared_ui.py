@@ -15,8 +15,11 @@ with tempfile.TemporaryDirectory() as directory:
         if code.startswith("DEMO"):
             private={"DEMO-264":"LEA-7K4M-26","DEMO-137":"ALEX-9P2R-26"}[code]
             next(t for t in app.text_input if t.label=="Persönlicher Zugangscode").input(private)
-        next(c for c in app.checkbox if c.label.startswith('Auf diesem Handy')).uncheck()
         button(app,'Anmelden').click().run()
+        if "cookie_write" in app.session_state:
+            # AppTest has no browser JS; emulate the successful cookie acknowledgement.
+            del app.session_state["cookie_write"]
+            app.run()
         if any(b.label == 'Datenschutzauswahl speichern' for b in app.button):
             button(app,'Datenschutzauswahl speichern').click().run()
         assert not app.exception

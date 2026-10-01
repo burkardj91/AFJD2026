@@ -18,13 +18,14 @@ class BrowserLoginTests(unittest.TestCase):
         other = BrowserLogins(SharedQuest(self.q.path))
         self.assertEqual(other.resolve(token), 'p-8hd2v7')
         with self.q.connect() as db:
-            record = str(db.execute('SELECT * FROM browser_logins').fetchall())
+            record = str(db.execute('SELECT * FROM browser_logins_4h').fetchall())
         self.assertNotIn(token, record)
         self.assertNotIn('LEA-7K4M-26', record)
         for invalid in [None, 'p-8hd2v7', 'LEA-7K4M-26', 'x'*43]:
             self.assertIsNone(other.resolve(invalid))
 
     def test_expiry_revocation_and_reset(self):
+        self.assertEqual(LOGIN_SECONDS, 4 * 60 * 60)
         with patch('quest_login.time.time', return_value=1000):
             token = self.logins.issue('LEA-7K4M-26')
             self.assertEqual(self.logins.resolve(token), 'p-8hd2v7')

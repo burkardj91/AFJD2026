@@ -24,7 +24,7 @@ def read_eventfrog(content):
                 if header is None:
                     labels = [v.casefold() for v in values]
                     if all(k in labels for k in ("vorname", "nachname", "e-mail")):
-                        header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation", "affiliation", "institution", "zugehörigkeit") if k in labels}
+                        header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation", "affiliation", "institution", "zugehörigkeit", "namensschild leer") if k in labels}
                     continue
                 def get(key):
                     return values[header[key]] if key in header and header[key] < len(values) else ""
@@ -32,6 +32,7 @@ def read_eventfrog(content):
                     continue
                 result.append({"name":" ".join(filter(None,[get("vorname"),get("nachname")])), "email":get("e-mail"), "first_name":get("vorname"), "last_name":get("nachname"),
                                **({"affiliation":get(next(k for k in ("affiliation","institution","zugehörigkeit") if k in header))} if any(k in header for k in ("affiliation","institution","zugehörigkeit")) else {}),
+                               "blank_badge":get("namensschild leer").casefold() in {"ja","true","1","x"},
                                "source_id":("ticket:"+get("ticket-id")) if get("ticket-id") else (("id:"+get("id")) if get("id") else ""),
                                **({"annotation":get("annotation")} if "annotation" in header else {}), "row":number, "invalid_name":not get("vorname") or not get("nachname")})
             if header is not None:
@@ -42,47 +43,54 @@ def read_eventfrog(content):
 
 
 def plan_import(rows, registrations):
-    plan = []
-    seen_sources, seen_people = set(), set()
+    plan, seen_sources, seen_people = [], set(), set()
+    known = dict(registrations)
     for index, source in enumerate(rows, 1):
         row = {k:str(source.get(k, "")).strip() for k in ("name", "email", "source_id", "annotation", "affiliation", "first_name", "last_name")}
         if "first_name" not in source:
             row["first_name"], _, row["last_name"] = row["name"].partition(" ")
         row.update(row=source.get("row",index), action="New", reason="", person=None)
-        row["mapping"] = annotation_mapping(row["annotation"])["label"]
         name, email, sid = row["name"], row["email"].casefold(), row["source_id"]
+        identity = (name.casefold(), email)
         issue = ""
         if not name or source.get("invalid_name") or any(x.startswith("=") for x in (name,email,sid)):
             issue = "Vor- und Nachname sind Pflicht; Formeln werden nicht unterstützt."
         elif not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
             issue = "Eine gültige E-Mail-Adresse ist erforderlich."
-        elif (sid and sid in seen_sources) or (name.casefold(),email) in seen_people:
+        elif (sid and sid in seen_sources) or (not sid and identity in seen_people):
             issue = "Doppelte Zeile in dieser Datei."
         matches = [p for p,r in registrations.items() if sid and r.get("source_id") == sid]
-        identity = [p for p,r in registrations.items() if r["email"].casefold() == email and r["name"].casefold() == name.casefold()]
-        if not matches:
-            matches = identity
-            if matches and sid and registrations[matches[0]].get("source_id") not in ("",sid):
-                issue = "Name und E-Mail gehören zu einem anderen Ticket. Vor dem Import prüfen."
-            elif not matches and any(r["email"].casefold()==email for r in registrations.values()):
-                issue = "Diese E-Mail existiert mit einem anderen Namen. Prüfe die Person."
-        elif identity and matches != identity:
-            issue = "Ticket sowie Name und E-Mail verweisen auf unterschiedliche Personen."
-        if len(matches) > 1:
-            issue = "Mehrere Treffer in der Datenbank."
+        if not sid:
+            matches = [p for p,r in registrations.items() if (r["name"].casefold(), r["email"].casefold()) == identity]
+            if not matches and any(r["email"].casefold()==email for r in registrations.values()):
+                issue = "Diese E-Mail existiert mit einem anderen Namen. Prüfe die Person oder ergänze die Ticket-ID."
+        if len(matches)>1: issue = "Mehrere Treffer in der Datenbank."
+        previous = registrations[matches[0]] if matches else {}
+        duplicates = [r for r in known.values() if (r.get("source_name",r["name"]).casefold(), r.get("source_email",r["email"]).casefold()) == identity]
+        ordinal = len(duplicates)+1
+        pending = bool(source.get("blank_badge")) or (not matches and bool(sid) and ordinal>1)
+        row.update(source_name=name, source_email=row["email"], provisional_name=name+(" "+str(ordinal) if ordinal>1 else ""), blank_badge=pending, identity_pending=pending, identity_corrected=False)
         if matches:
-            row["person"] = matches[0]
-            row["action"] = "Update"
-            if "affiliation" not in source:
-                row["affiliation"] = registrations[matches[0]].get("affiliation", "")
-            if "annotation" not in source:
-                row["annotation"] = registrations[matches[0]].get("annotation", "")
-                row["mapping"] = annotation_mapping(row["annotation"])["label"]
-            if not sid: row["source_id"] = registrations[matches[0]].get("source_id", "")
+            row.update(person=matches[0], action="Update")
+            for key in ("affiliation", "annotation"):
+                if key not in source: row[key]=previous.get(key, "")
+            for key in ("source_name", "source_email", "provisional_name", "blank_badge", "identity_pending", "identity_corrected"):
+                if key in previous: row[key]=previous[key]
+            if previous.get("identity_corrected"):
+                for key in ("name","email","first_name","last_name","affiliation"):
+                    row[key]=previous.get(key,row[key])
+            if not sid: row["source_id"]=previous.get("source_id", "")
+        if source.get("blank_badge") and not row["identity_corrected"]:
+            row.update(blank_badge=True, identity_pending=True)
+        if row["identity_pending"]:
+            row["name"] = row["provisional_name"]
+        row["mapping"] = annotation_mapping(row["annotation"])["label"]
+        if row["blank_badge"]: row["reason"]="Leeres Namensschild · tatsächliche Person unter Badge korrigieren erfassen."
         if issue: row.update(action="Review",reason=issue)
         plan.append(row)
+        if row["action"] == "New": known["new:"+str(index)]=row
         if sid: seen_sources.add(sid)
-        seen_people.add((name.casefold(),email))
+        seen_people.add(identity)
     return plan
 
 
@@ -92,7 +100,7 @@ def print_documents(roster, people, base_url):
         r = roster[person]
         from quest_badges import qr_image
         uri = "data:image/png;base64,"+base64.b64encode(qr_image(base_url.rstrip("/")+"/?badge="+person)).decode("ascii")
-        fronts.append(f'<section class="badge"><header><h1>{escape(r["name"])}</h1></header><p class="annotation">{escape(r.get("affiliation", ""))}</p><img class="qr" alt="Persönlicher öffentlicher QR-Code" src="{uri}"><p class="badge-id">{escape(r["id"])}</p><small>AGRO-FOOD MESSE 2026</small></section>')
+        fronts.append(f'<section class="badge"><header><h1>{escape("" if r.get("blank_badge") else r["name"])}</h1></header><p class="annotation">{escape(r.get("affiliation", ""))}</p><img class="qr" alt="Persönlicher öffentlicher QR-Code" src="{uri}"><p class="badge-id">{escape(r["id"])}</p><small>AGRO-FOOD MESSE 2026</small></section>')
         slips.append(f'<section><h2>PRIVAT · Zugangscode</h2><h1>{escape(r["name"])}</h1><p>{escape(base_url)}</p><strong>{escape(r["code"])}</strong><p>Separat im Badgehalter aufbewahren. Nicht öffentlich zeigen.</p></section>')
     style='<meta charset="utf-8"><style>@page{size:A4;margin:12mm}body{font:15px Arial;display:flex;flex-wrap:wrap;gap:5mm}section{box-sizing:border-box;width:86mm;height:110mm;border:1px solid #ccc;text-align:center;padding:6mm;break-inside:avoid}header{display:flex;align-items:start;justify-content:space-between;gap:3mm;min-height:18mm}h1{font-size:22px;color:#009641;margin:0;text-align:left;overflow-wrap:anywhere}.logo{width:16mm;height:auto}.qr{width:48mm;height:48mm}.annotation{text-align:left;height:10mm;margin:2mm 0;font-size:14px;overflow-wrap:anywhere}.badge-id{font-size:18px;letter-spacing:1px;margin:2mm}strong{overflow-wrap:anywhere}</style>'
     return tuple('<!doctype html><html lang="de">'+style+'<body>'+''.join(parts)+'</body></html>' for parts in (fronts,slips))

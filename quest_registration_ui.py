@@ -51,9 +51,9 @@ def registration_page(q, staff_id, base_url):
     if len(admin_password()) < 16:
         st.info('Hinterlege QUEST_ADMIN_PASSWORD (mindestens 16 Zeichen) in Streamlit Secrets oder der Serverumgebung und melde dich erneut an. Das schützt Verwaltung, Importe und private Zugangszettel.')
         return
-    upload_tab, new_tab, print_tab = st.tabs(["Excel importieren", "Nachmeldung", "Badges drucken"])
+    upload_tab, new_tab, print_tab, correct_tab = st.tabs(["Excel importieren", "Nachmeldung", "Badges drucken", "Badge korrigieren"])
     with upload_tab:
-        st.write("Die Spaltenüberschriften dürfen unter dem Eventfrog-Titel und den Hinweisen stehen. Gespeichert werden Name, E-Mail, Ticketreferenz sowie optional Institution und Annotation. Die Institution erscheint auf dem Badge; Annotation steuert die Quest-Zuordnung. Andere Spalten werden ignoriert.")
+        st.write("Die Spaltenüberschriften dürfen unter dem Eventfrog-Titel und den Hinweisen stehen. Gespeichert werden Name, E-Mail, Ticketreferenz sowie optional Institution und Annotation. Die Institution erscheint auf dem Badge; Annotation steuert die Quest-Zuordnung. Mit der optionalen Spalte „Namensschild leer“ (ja) bleibt das Namensfeld vorne leer. Mehrere Tickets mit gleichem Namen erhalten ab dem zweiten Ticket automatisch einen Platzhalter; unterschiedliche Ticket-IDs sind dafür erforderlich. Andere Spalten werden ignoriert.")
         from quest_registration import mock_eventfrog_xlsx
         st.download_button("Eventfrog-Testdatei · 10 Personen herunterladen", mock_eventfrog_xlsx(), "AFJD-fictional-sample.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         uploaded = st.file_uploader("Eventfrog-Export (.xlsx)", type=["xlsx"])
@@ -109,3 +109,20 @@ def registration_page(q, staff_id, base_url):
             st.caption("HTML-Dateien im Browser öffnen und bei 100 % drucken. Private Zugangszettel nie als öffentliche Badges verteilen.")
         else:
             st.info("Importiere eine Excel-Datei oder erfasse eine Nachmeldung. Wähle anschliessend die Personen für den Druck.")
+
+    with correct_tab:
+        st.write("Suche die anonyme Badge-ID. QR-Code, Zugangscode und Fortschritt bleiben bestehen. Die Person bestätigt anschliessend ihre Datenschutzeinstellungen erneut.")
+        roster = q.registrations
+        person = st.selectbox("Badge-ID oder Name", list(roster), index=None, format_func=lambda p:roster[p]["id"]+" · "+roster[p]["name"])
+        if person:
+            entry=roster[person]
+            with st.form("correct-badge-"+person):
+                first=st.text_input("Tatsächlicher Vorname", value="" if entry.get("identity_pending") else entry.get("first_name", ""))
+                last=st.text_input("Tatsächlicher Nachname", value="" if entry.get("identity_pending") else entry.get("last_name", ""))
+                email=st.text_input("Persönliche E-Mail", value="" if entry.get("identity_pending") else entry["email"])
+                affiliation=st.text_input("Institution auf dem Badge", value=entry.get("affiliation", ""))
+                if st.form_submit_button("Badge aktualisieren"):
+                    try:
+                        q.correct_registration(staff_id, person, first, last, email, affiliation)
+                        st.success("Gespeichert. ID und QR-Code bleiben unverändert.")
+                    except ValueError as error: st.error(str(error))

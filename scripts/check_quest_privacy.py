@@ -13,8 +13,11 @@ with tempfile.TemporaryDirectory() as folder:
     def login(code):
         app=AppTest.from_file(source,default_timeout=20).run()
         next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input(code)
-        next(c for c in app.checkbox if c.label.startswith('Auf diesem Handy')).uncheck()
         next(b for b in app.button if b.label=='Anmelden').click().run()
+        if "cookie_write" in app.session_state:
+            # AppTest has no browser JS; emulate the successful cookie acknowledgement.
+            del app.session_state["cookie_write"]
+            app.run()
         assert not app.exception
         return app
     app=login('LEA-7K4M-26')

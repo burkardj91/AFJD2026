@@ -33,7 +33,7 @@ def decode(value):
     return value
 
 class SharedQuest:
-    MUTATIONS = {"import_registrations","collect_gift","annotate_company","schedule_recaps","queue_due_recaps","configure_raffle","resolve_raffle","reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
+    MUTATIONS = {"claim_recap_delivery","correct_registration","mark_recap_delivery","import_registrations","collect_gift","annotate_company","schedule_recaps","queue_due_recaps","configure_raffle","resolve_raffle","reset_demo","demo_login","activate_badge","activate","update_profile","simulate_completion","scan","confirm","decline","set_preferences","assign","submit","draw","approve_draw","refresh"}
 
     def __init__(self, path=None, seed=None):
         # Resolve the current model on construction: Streamlit may reload quest_core
@@ -66,11 +66,13 @@ class SharedQuest:
             for person, company in import_module("quest_core").DEFAULT_AFFILIATIONS.items():
                 value.setdefault("affiliations", {}).setdefault(person, company)
             value["catalog_version"] = 2
+        if not value.get("recap_deadline"):
+            value["recap_deadline"] = "2026-10-08T21:00:00+02:00"
         state = self.model(**value)
         for sender, target in list(state.pending):
             state.connections.add(tuple(sorted((sender, target))))
         state.pending.clear()
-        if state.catalog_version < 3:
+        if state.catalog_version < 4:
             from quest_registration import MENTORING_ANNOTATIONS
             for person, row in state.registrations.items():
                 if row.get("annotation", "").strip().casefold() in MENTORING_ANNOTATIONS:
@@ -81,7 +83,7 @@ class SharedQuest:
             for person in state.active:
                 state.refresh(person)
             state.draw_approvals = {p:v for p,v in state.draw_approvals.items() if p in state.unlocked}
-            state.catalog_version = 3
+            state.catalog_version = 4
         return state
 
     def __getattr__(self, name):

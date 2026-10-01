@@ -101,7 +101,7 @@ def mail_admin(q, staff_id):
         except FileNotFoundError: config = {}
         mode = config.get("mode", "test")
         test_recipient = config.get("test_recipient", "svial@svial.ch")
-        st.caption("Testmodus: alle Nachrichten gehen ausschliesslich an die Testadresse. Im Live-Modus erhält jede Person ihre eigene Kontakt-Mail; test_recipient wird dafür ignoriert. Der Versand erfolgt nur per Klick, nicht beim Neuladen.")
+        st.caption("Testmodus: alle Nachrichten gehen ausschliesslich an die Testadresse. Im Live-Modus erhält jede Person ihre eigene Kontakt-Mail; test_recipient wird dafür ignoriert. Einzeltests erfolgen per Klick. Geplante Zusammenfassungen werden automatisch versendet, solange der Server läuft und auto_send nicht deaktiviert ist.")
         st.write("Modus: **" + ("Live" if mode == "live" else "Test") + "** · Testadresse: " + str(test_recipient))
         if not config.get("enabled"):
             st.info("Versand ist deaktiviert. Hinterlege [email] in Streamlit Secrets und setze enabled = true.")

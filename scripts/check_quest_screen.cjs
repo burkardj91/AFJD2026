@@ -1,0 +1,20 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const html=fs.readFileSync('screen_presentation/index.html','utf8');
+const script=html.match(/<script>([\s\S]*)<\/script>/)[1];
+const nodes={},events={};
+const element=()=>({style:{},textContent:'',className:'',hidden:true,children:[],setAttribute(){},append(x){this.children.push(x)},replaceChildren(){this.children=[]}});
+const document={getElementById:id=>nodes[id]||(nodes[id]=element()),createElement:element,addEventListener(){}};
+const parent={postMessage(){}};const ctx={document,parent,performance:{now:()=>0},Date,setInterval(){}};
+ctx.window=ctx;ctx.addEventListener=(type,handler)=>events[type]=handler;
+vm.runInNewContext(script,ctx);
+const deadline='2030-10-08T19:30:00+02:00';
+function update(seconds,status='scheduled'){events.message({source:parent,data:{type:'streamlit:render',args:{server_now:Date.parse(deadline)/1000-seconds,epoch:0,html:'',draw:{deadline,status,winner_badges:['AFJD-0264']}}}})}
+update(301);assert.equal(nodes.show.className,'');assert.equal(nodes.ribbon.hidden,false);
+update(300);assert.equal(nodes.show.className,'active');assert.equal(nodes.count.textContent,'05:00');
+update(30);assert.equal(nodes.show.className,'active final');
+update(0,'completed');assert.equal(nodes.show.className,'active winners');
+update(-3600,'completed');assert.equal(nodes.show.className,'active winners','winners stay until staff returns');
+nodes.back.onclick();assert.equal(nodes.show.className,'');assert.equal(nodes.ribbon.hidden,true);
+update(-7200,'completed');assert.equal(nodes.show.className,'');
+assert(html.indexOf('<div id="ribbon"')>html.indexOf('</section></div>'));
+console.log('PASS: footer countdown, five-minute takeover, final colour, persistent winners and manual return');

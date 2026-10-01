@@ -7,7 +7,7 @@ from quest_store import SharedQuest
 
 
 class PublishedRulesTests(unittest.TestCase):
-    def test_retail_requires_person_and_three_distinct_people_include_reps(self):
+    def test_retail_requires_person_and_three_distinct_people_exclude_reps(self):
         q = Quest()
         p = q.activate('DEMO-264')
         for station in ['sv-5w8j', 'in-3p9d', 're-lidl']:
@@ -19,8 +19,11 @@ class PublishedRulesTests(unittest.TestCase):
         q.scan(p, payload('person', 'p-3nm9q4'))
         self.assertNotIn('Vernetzen', q.completed(p))
         q.scan(p, payload('person', 'p-6wx5t1'))
-        self.assertEqual(q.completed(p), {'Detailhandel', 'Vernetzen'})
+        self.assertEqual(q.completed(p), {'Detailhandel'})
         self.assertEqual(len(q.people(p)), 3)
+        for target in ["p-2bc7r8", "p-4jf9n3", "p-9ls6d2"]:
+            q.scan(p, payload("person", target))
+        self.assertIn("Vernetzen", q.completed(p))
 
     def test_imported_mentor_counts_but_general_svial_does_not(self):
         q = Quest()
