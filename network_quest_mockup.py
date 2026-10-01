@@ -10,7 +10,7 @@ from quest_visuals import network_html
 from quest_journey import STAGES, animal_image, journey_html, celebration_html
 from quest_brand import LOGO_PATH, masthead, logo_uri
 from quest_store import SharedQuest
-from quest_login import BrowserLogins, COOKIE_NAME, LOGIN_SECONDS
+from quest_login import BrowserLogins, COOKIE_NAME, LOGIN_SECONDS, guarded_login
 from PIL import Image
 import cv2
 import numpy as np
@@ -114,13 +114,13 @@ if not role:
     if st.query_params.get("badge"):
         st.info("Dies ist ein öffentlicher Badge-Link. Melde dich mit deinem eigenen Zugangscode an. Durch Scannen übernimmst du keinen fremden Badge.")
     st.markdown(masthead(), unsafe_allow_html=True)
-    st.title("Willkommen bei der Netzwerk-Quest")
-    st.write("Öffne dein Profil und deinen digitalen Badge mit deinem persönlichen Zugangscode.")
+    st.title("Schön, dass du dabei bist!")
+    st.markdown("Entdecke die Kraft deines Netzwerks. **Am 8. Oktober 2026 ab 17 Uhr** erhältst du am Welcome Desk deinen persönlichen Zugangscode. Lerne Menschen kennen, entdecke die Agro-Food-Branche und schalte mit deinen Quests tolle Gewinne frei.")
     with st.form("demo_login"):
-        code = st.text_input("Persönlicher Zugangscode", type="password", placeholder="LEA-7K4M-26", help="Dein Code gehört zu deinem Profil. Team-Zugänge: ADMIN-01, STAFF-01, STAFF-02 oder SCREEN-01.")
+        code = st.text_input("Persönlicher Zugangscode", type="password", placeholder="Dein Code vom Welcome Desk", help="Dein privater Zugangscode gehört zu deinem persönlichen Pass.")
         if st.form_submit_button("Anmelden", type="primary", use_container_width=True):
             try:
-                role, person = q.demo_login(code)
+                role, person = guarded_login(q, code, st.context.ip_address)
                 s.demo_role_v3, s.person_v2 = role, person
                 s.staff_login = code.strip().upper() if role in {"staff", "admin"} else None
                 if role == "participant":
@@ -132,11 +132,7 @@ if not role:
                 st.rerun()
             except ValueError as error:
                 st.error(str(error))
-    st.caption("Fiktive Testkonten. Du bleibst automatisch vier Stunden angemeldet. Für getrennte Testpersonen verschiedene Browserprofile verwenden. Der Fortschritt wird gemeinsam gespeichert und automatisch aktualisiert.")
-    with st.expander("Fiktive Zugangsdaten · nur zum Testen"):
-        st.table([{"Name":r["name"], "Badge-ID":r["id"], "Persönlicher Testcode":ACTIVATION_CODES[p]} for p,r in DEMO_ROSTER.items()])
-    st.subheader("Veranstaltungsteam")
-    st.table([{"Arbeitsbereich":"Administrator", "Zugangskennung":"ADMIN-01"}, {"Arbeitsbereich":"SVIAL-Team · Tablet 1", "Zugangskennung":"STAFF-01"}, {"Arbeitsbereich":"SVIAL-Team · Tablet 2", "Zugangskennung":"STAFF-02"}, {"Arbeitsbereich":"Leinwand", "Zugangskennung":"SCREEN-01"}])
+    st.caption("Du bleibst auf diesem Gerät automatisch vier Stunden angemeldet. Bewahre deinen privaten Zugangscode sicher auf.")
     st.stop()
 
 if role in {"staff", "admin"}:
@@ -155,15 +151,15 @@ with st.sidebar:
     st.caption("Nur fiktive Daten. Alle Tabs teilen dieselbe Demo. Neue Tabs in diesem Browser übernehmen die gespeicherte Anmeldung.")
     if view != "Live-Netzwerk":
         st.text_input("SVIAL-Empfangsadresse", key="recipient_v2")
-        st.caption("Gewinnanträge bleiben Entwürfe. Kontakt-Mails können im Admin-Bereich versendet werden.")
-        for p in DEMO_ROSTER.values():
-            st.caption(f"{p['name']}: {p['code']}")
+        st.caption("Mit aktiviertem Maildienst werden neue Gewinnanträge und Bestätigungen automatisch versendet.")
+        for token, row in DEMO_ROSTER.items():
+            st.caption(row["name"]+": "+ACTIVATION_CODES[token])
         if st.button("Person wechseln"):
             change_login()
         if st.button("Abmelden / Anmeldung vergessen"):
             change_login()
 with st.expander("Demo · Konto wechseln", expanded=False):
-    st.caption("Demo mit fiktiven Daten. Versandtests sind nur über die Administration möglich. Alle Tabs teilen dieselbe Demo.")
+    st.caption("Testwerkzeuge bleiben verfügbar. Alle Tabs teilen denselben Datenbestand. Versand richtet sich nach der Konfiguration der Administration.")
     if st.button("Demo-Konto wechseln", key="change-demo-login"):
         change_login()
 
@@ -240,8 +236,14 @@ def member_form(p, card):
         st.info("Dein SFR-Preis ist reserviert. Besprich die Einlösung mit dem SVIAL-Team; die Details werden noch geklärt.")
         return
     if card in q.applications:
-        st.success("Dein Antrag ist vorbereitet. In dieser Demo wurde keine E-Mail versendet.")
-        st.write("Das SVIAL-Team kann den E-Mail-Entwurf im Arbeitsbereich ansehen.")
+        st.success("Vielen Dank für deine Anmeldung!")
+        from quest_membership import MEMBERSHIP_NOTE
+        if CARDS[card][2] == "membership": st.write(MEMBERSHIP_NOTE)
+        st.write("Deine Anmeldung geht an svial@svial.ch. Die persönliche Bestätigung geht an "+q.profile(p)["email"]+".")
+        for key in ("claim:"+card, "confirmation:"+card):
+            if key in q.outbox: st.caption(q.outbox[key]["status"])
+        if not email_config.get("enabled"):
+            st.info("Der E-Mail-Versand ist noch deaktiviert. Deine Anmeldung und die Bestätigung sind als Entwürfe gespeichert.")
         return
     if s.get("claim_v2") != card:
         value = scanner("claim", "Scanne den QR-Code der aufgedeckten Karte, um deinen Antrag zu öffnen.")
@@ -252,6 +254,7 @@ def member_form(p, card):
                     raise ValueError("Scanne die Gewinnkarte, die deinem Pass zugeordnet ist.")
                 q.scan(p, value)
                 s.claim_v2 = card
+                s.claim_from_link = True
                 st.rerun()
             except ValueError as e:
                 st.error(str(e))
@@ -264,16 +267,23 @@ def member_form(p, card):
         st.text_input("E-Mail-Adresse", value=saved["email"], disabled=True)
         details = {}
         if CARDS[card][2] == "membership":
-            details["address"] = st.text_area("Postadresse", value=saved.get("address", ""), placeholder="Strasse, Postleitzahl, Ort und Land")
-            details["study_programme"] = st.text_input("Studiengang (Pflicht für die Mitgliedschaft)", value=saved.get("study_programme", ""))
-            details["organisation"] = st.text_input("Ausbildungsstätte (Pflicht für die Mitgliedschaft)", value=saved.get("organisation", ""))
+            details["address"] = st.text_area("Postadresse (Pflicht)", value=saved.get("address", ""), placeholder="Strasse, Postleitzahl, Ort und Land")
+            qualifications = ["HAFL", "ETHZ", "HES-SO", "ZHAW", "Andere"]
+            programmes = ["Agrarwissenschaften", "Lebensmittelwissenschaften", "Andere"]
+            details["qualification"] = st.selectbox("Abschluss (Pflicht)", qualifications, index=None, placeholder="Bitte auswählen") or ""
+            details["study_programme"] = st.selectbox("Studiengang (Pflicht)", programmes, index=None, placeholder="Bitte auswählen") or ""
             dob = st.date_input("Geburtsdatum (Pflicht für die Mitgliedschaft)", value=date.fromisoformat(saved["date_of_birth"]) if saved.get("date_of_birth") else None, min_value=date(1900,1,1), max_value=date.today())
             details["date_of_birth"] = dob.isoformat() if dob else ""
         else:
             st.caption("Für diesen Preis ist nur dein vorausgefüllter Name nötig.")
-        st.caption("Demo: Empfänger und Kopie sind svial@svial.ch. Es wird nichts versendet.")
+        if CARDS[card][2] == "membership":
+            from quest_membership import MEMBERSHIP_NOTE
+            st.write(MEMBERSHIP_NOTE)
+            st.caption("Nach der Anmeldung erhältst du eine Bestätigung per E-Mail. Deine Angaben werden an svial@svial.ch übermittelt.")
+        if email_config.get("mode", "test") == "test":
+            st.caption("Versandtest: Nachrichten werden an "+str(email_config.get("test_recipient", "j.burkard@svial.ch"))+" umgeleitet.")
         consent = st.checkbox("Ich bestätige meinen Antrag und stimme der Übermittlung dieser Angaben an SVIAL sowie einer Kopie an meine E-Mail-Adresse zur Bearbeitung zu.")
-        if st.form_submit_button("Meinen Antrag vorbereiten", type="primary"):
+        if st.form_submit_button("Anmeldung absenden", type="primary"):
             try:
                 q.submit(p, card, details, consent)
                 st.rerun()
@@ -355,8 +365,8 @@ def claim_link(card):
 @st.dialog("Deine Netzwerkkarte", dismissible=False)
 def card_reveal(participant, card):
     st.markdown(celebration_html("Dieser Gewinn gehört dir!", "Eine neue Verbindung. Eine kleine Überraschung. Ein Moment, der bleibt."), unsafe_allow_html=True)
-    benefit = CARDS[card][1]
-    wording = {"membership":"Gratismitgliedschaft bis zum 31. Dezember 2027.","event":"Dein nächster SVIAL-Event geht auf uns.","gift":"Ein kleines Dankeschön. Hole dein Geschenk am Stand ab.","sfr":"Dein Preis ist reserviert. Frage das Team nach den SFR-Details."}[CARDS[card][2]]
+    benefit = {"membership":"Du gehörst dazu.", "event":"Wir laden dich ein.", "gift":"Eine kleine Freude für dich.", "sfr":"Entdecke etwas Neues."}[CARDS[card][2]]
+    wording = {"membership":"Deine Gratismitgliedschaft beim SVIAL bis zum 31. Dezember 2027.","event":"Dein nächster SVIAL-Event geht auf uns.","gift":"Ein kleines Dankeschön. Hole dein Geschenk am Stand ab.","sfr":"Dein Preis ist reserviert. Frage das Team nach den SFR-Details."}[CARDS[card][2]]
     qr = "data:image/png;base64," + base64.b64encode(qr_png(claim_link(card))).decode("ascii")
     st.markdown('<div class="reveal-stage"><div class="turning-card"><div class="card-back"><img src="'+logo_uri()+'" alt="SVIAL"><span>Verbindungen, die wachsen.</span></div><div class="card-front"><img src="'+logo_uri()+'" alt="SVIAL"><span class="card-kicker">DEINE NETZWERKKARTE</span><h2>'+escape(benefit)+'</h2><p>'+wording+'</p><img class="claim-qr" src="'+qr+'" alt="Zum Einlösen deiner Karte scannen"><small>Scannen. Angaben prüfen. Gewinn einlösen.</small><div class="card-owner">'+escape(q.profile(participant)["name"])+' · '+CARDS[card][0]+'</div></div></div></div>', unsafe_allow_html=True)
     st.caption("Scanne diesen QR-Code mit deinem Handy und melde dich mit deinem eigenen Code an. Die Karte bleibt für dich reserviert.")
@@ -427,7 +437,7 @@ if view == "Mein Pass":
             reward_popup(person)
         personal_qr = base64.b64encode(branded_qr(public_base_url()+"/?badge="+person)).decode("ascii")
         st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Netzwerkkarte freigeschaltet" if person in q.unlocked else "Entdecke die Veranstaltung"}</span></div></div>', unsafe_allow_html=True)
-        tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Mein Pass" if s.pop("claim_from_link", False) else "Mein Pass")
+        tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else "Mein Pass")
         with tabs[0]:
             with st.expander("Demo · Freischaltung testen", expanded=False):
                 st.caption("Erfülle vier Quests oder simuliere alle sechs Aufgaben. Dein bisheriger Fortschritt bleibt erhalten.")
@@ -449,7 +459,14 @@ if view == "Mein Pass":
             st.subheader("Deine Belohnung")
             card = next((c for c,p in q.assignments.items() if p == person),None)
             if card:
-                member_form(person,card)
+                if CARDS[card][2] == "membership":
+                    st.markdown('<div class="reward"><span>DEIN GEWINN</span><strong>Willkommen in deinem Agro-Food-Netzwerk.</strong><span>Deine SVIAL-Gratismitgliedschaft bis Ende 2027.</span></div>', unsafe_allow_html=True)
+                    if st.button("Mitgliedschaft im Profil einlösen", type="primary"):
+                        q.scan(person,payload("reward",card))
+                        s.claim_v2 = card
+                        st.rerun()
+                else:
+                    member_form(person,card)
             elif person in q.unlocked:
                 st.markdown('<div class="reward"><span class="reward-overline">Dein nächster Stopp · SVIAL</span><strong>Deine Netzwerkkarte wartet auf dich.</strong><span>Zeige deinen Badge am SVIAL-Stand. Das Team schaltet deine Kartenziehung frei und verknüpft deinen Gewinn mit diesem Pass.</span></div>',unsafe_allow_html=True)
                 if st.button("Meine Einladung zum Gewinn zeigen", type="primary"):
@@ -489,12 +506,15 @@ if view == "Mein Pass":
                 if st.button("Ausgewählte Station besuchen"):
                     q.scan(person,payload("station",demo))
                     st.rerun()
-                other = st.selectbox("Testperson kennenlernen",[p for p in DEMO_ROSTER if p != person],format_func=lambda p:ROSTER[p]["name"]+" · "+ROSTER[p]["id"])
-                if st.button("Badge-Scan simulieren"):
+                imported = list(q.registrations)
+                catalogue = st.radio("Personenkatalog für den Test", ["Importierte Personen / Reserve-Badges", "Fiktive Beispielpersonen"], index=0 if imported else 1)
+                candidates = imported if catalogue == "Importierte Personen / Reserve-Badges" else list(DEMO_ROSTER)
+                other = st.selectbox("Testperson kennenlernen",[p for p in candidates if p != person],format_func=lambda p:ROSTER[p]["name"]+" · "+ROSTER[p]["id"])
+                if st.button("Badge-Scan simulieren", disabled=not other):
                     result = record_scan(person,payload("person",other))
                     s.flash_v2 = result[1]
                     st.rerun()
-                st.caption("Sofort verbunden. Drei unterschiedliche Personen erfüllen die Vernetzungsquest. Firmenvertretungen zählen zusätzlich für passende Fachquests.")
+                st.caption("Sofort verbunden. Drei Teilnehmende ohne Firmenzuordnung erfüllen die Vernetzungsquest. Firmenvertretungen zählen für passende Fachquests.")
         with tabs[2]:
             st.subheader("Kontakte")
             if s.get("connection_notice"):
@@ -522,22 +542,16 @@ if view == "Mein Pass":
         with tabs[3]:
             with st.expander("Datenschutz · Du entscheidest", expanded=False):
                 privacy_form(person, "profile")
-            st.subheader("Ergänze dein Profil")
+            claim_card = s.get("claim_v2")
+            if claim_card in q.assignments and q.assignments[claim_card] == person and CARDS[claim_card][2] == "membership":
+                st.subheader("Deine SVIAL-Gratismitgliedschaft")
+                member_form(person, claim_card)
+            st.subheader("Dein Profil")
             st.caption("Deine Anmeldedaten sind vorausgefüllt. Gespeicherte Angaben werden auch für einen Mitgliedschaftsantrag übernommen. Verwende fiktive Daten; geänderte E-Mail-Adressen werden in der Demo nicht verifiziert.")
             with st.form("profile-"+person):
                 details = {}
                 details["name"] = st.text_input("Dein vollständiger Name", value=profile["name"])
                 details["email"] = st.text_input("Deine E-Mail-Adresse", value=profile["email"], disabled=person in DEMO_ROSTER)
-                details["organisation"] = st.text_input("Ausbildungsstätte / Arbeitgeber", value=profile.get("organisation", ""))
-                details["study_programme"] = st.text_input("Studiengang / Qualifikation", value=profile.get("study_programme", ""))
-                sectors = ["Not specified", *CLUSTERS, "Other"]
-                if profile.get("sector", "Not specified") not in sectors:
-                    sectors.append(profile["sector"])
-                details["sector"] = st.selectbox("Dein Bereich", sectors, index=sectors.index(profile.get("sector", "Not specified")), format_func=lambda v:CLUSTER_LABELS.get(v, {"Not specified":"Keine Angabe", "Other":"Andere"}.get(v,v)))
-                details["address"] = st.text_area("Deine Postadresse", value=profile.get("address", ""))
-                born = st.date_input("Dein Geburtsdatum (freiwillig)", value=date.fromisoformat(profile["date_of_birth"]) if profile.get("date_of_birth") else None, min_value=date(1900,1,1), max_value=date.today())
-                details["date_of_birth"] = born.isoformat() if born else ""
-                details["linkedin"] = st.text_input("LinkedIn-Profil (freiwillig)", value=profile.get("linkedin", ""))
                 if st.form_submit_button("Mein Profil speichern", type="primary"):
                     try:
                         q.update_profile(person, details)
@@ -619,6 +633,12 @@ elif view == "SVIAL-Team":
         st.table([{"ID":ORGANISATIONS[t][0],"Firma":ORGANISATIONS[t][1],"Gruppe":CLUSTER_LABELS[ORGANISATIONS[t][2]],"Bemerkungen":note} for t,note in EXHIBITOR_NOTES.items()])
 elif view == "Veranstaltung verwalten":
     st.title("Veranstaltung verwalten")
+    with st.expander("Testzugänge & Team-Zugänge", expanded=False):
+        st.caption("Vertraulich behandeln. Diese Übersicht ist nur im geschützten Admin-Bereich sichtbar.")
+        st.table([{"Name":r["name"], "Badge-ID":r["id"], "Zugangscode":ACTIVATION_CODES[p], "E-Mail":q.profile(p)["email"]} for p,r in ROSTER.items()])
+        st.table([{"Kennung":"ADMIN-01", "Passwort":"QUEST_ADMIN_PASSWORD in Secrets"}, {"Kennung":"STAFF-01 / STAFF-02", "Passwort":"QUEST_STAFF_PASSWORD in Secrets"}, {"Kennung":"SCREEN-01", "Passwort":"Kein Passwort · anonyme Leinwand"}])
+        st.caption("Mia-Test: AFJD-MB-310. Mit ihrem zugeordneten Mitgliedschafts-QR oder über Mein Pass → Mitgliedschaft im Profil einlösen öffnet sich das Formular.")
+
     from quest_mail import mail_admin
     mail_admin(q, s.staff_login)
     with st.expander("Firmenzuordnung · Demo-Datenbank"):
@@ -643,7 +663,7 @@ elif view == "Veranstaltung verwalten":
                 except ValueError as error: st.error(str(error))
         for key,mail in q.outbox.items():
             st.caption(mail["status"])
-            st.download_button("Herunterladen: "+{"recap":"Zusammenfassung","claim":"Antrag"}.get(mail["kind"],mail["kind"])+" · "+q.profile(mail["person"])["name"],mail["draft"],file_name=key.replace(":","-")+".eml",mime="message/rfc822",key="queue-"+key)
+            st.download_button("Herunterladen: "+{"recap":"Zusammenfassung","claim":"Antrag","confirmation":"Mitgliedschaftsbestätigung"}.get(mail["kind"],mail["kind"])+" · "+q.profile(mail["person"])["name"],mail["draft"],file_name=key.replace(":","-")+".eml",mime="message/rfc822",key="queue-"+key)
     with st.expander("Hauptverlosung · Countdown"):
         st.caption("Gleiche Chance pro berechtigter Person. Gewinner:innen erscheinen nur mit Badge-ID. Dies ist eine fiktive Testverlosung.")
         with st.form("schedule-raffle"):

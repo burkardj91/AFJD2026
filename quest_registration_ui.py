@@ -72,6 +72,11 @@ def registration_page(q, staff_id, base_url):
                 if isinstance(error, ValueError): st.error(str(error))
                 else: st.error("Die Datei konnte nicht gelesen werden. Exportiere eine gültige .xlsx-Datei und versuche es erneut.")
     with new_tab:
+        st.caption("Reserve-Badges haben bereits QR-Code, ID und kurzen Zugangscode. Das Namensfeld vorne bleibt leer, bis du die Person unter Badge korrigieren erfasst.")
+        if st.button("20 Reserve-Badges anlegen"):
+            from quest_registration import reserve_rows
+            st.session_state.registration_print = q.import_registrations(staff_id, reserve_rows())
+            st.success("20 Reserve-Badges sind unter Badges drucken verfügbar. Wiederholtes Klicken erzeugt keine weiteren Kopien.")
         with st.form("late-registration"):
             first = st.text_input("Vorname")
             last = st.text_input("Nachname")
@@ -121,8 +126,10 @@ def registration_page(q, staff_id, base_url):
                 last=st.text_input("Tatsächlicher Nachname", value="" if entry.get("identity_pending") else entry.get("last_name", ""))
                 email=st.text_input("Persönliche E-Mail", value="" if entry.get("identity_pending") else entry["email"])
                 affiliation=st.text_input("Institution auf dem Badge", value=entry.get("affiliation", ""))
+                renew_code=st.checkbox("Neuen kurzen Zugangscode erstellen", value=False, help="Format AFJD-LM-482. Der alte Zugangscode und gespeicherte Anmeldungen werden ungültig. QR-Code und Badge-ID bleiben gleich.")
                 if st.form_submit_button("Badge aktualisieren"):
                     try:
-                        q.correct_registration(staff_id, person, first, last, email, affiliation)
+                        q.correct_registration(staff_id, person, first, last, email, affiliation, renew_code=renew_code)
                         st.success("Gespeichert. ID und QR-Code bleiben unverändert.")
+                        st.code(q.registrations[person]["code"], language=None)
                     except ValueError as error: st.error(str(error))
