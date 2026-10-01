@@ -47,7 +47,7 @@ class RecapTests(unittest.TestCase):
         from email import policy
         from email.parser import BytesParser
         mail=BytesParser(policy=policy.default).parsebytes(draft)
-        self.assertEqual(mail['To'],'lea@example.test')
+        self.assertEqual(mail['To'],'svial@svial.ch')
         body=mail.get_body(preferencelist=("plain",)).get_content()
         self.assertIn('Coop',body)
         self.assertIn('Institution / Zugehörigkeit',body)

@@ -150,7 +150,7 @@ with st.sidebar:
     st.caption("Nur fiktive Daten. Alle Tabs teilen dieselbe Demo. Neue Tabs in diesem Browser übernehmen die gespeicherte Anmeldung.")
     if view != "Live-Netzwerk":
         st.text_input("SVIAL-Empfangsadresse", key="recipient_v2")
-        st.caption("Der E-Mail-Versand ist deaktiviert. Anträge erzeugen herunterladbare E-Mail-Entwürfe.")
+        st.caption("Gewinnanträge bleiben Entwürfe. Kontakt-Mails können im Admin-Bereich versendet werden.")
         for p in DEMO_ROSTER.values():
             st.caption(f"{p['name']}: {p['code']}")
         if st.button("Person wechseln"):
@@ -158,7 +158,7 @@ with st.sidebar:
         if st.button("Abmelden / Anmeldung vergessen"):
             change_login()
 with st.expander("Demo · Konto wechseln", expanded=False):
-    st.caption("Demo mit fiktiven Daten. E-Mails werden nicht versendet. Alle Tabs teilen dieselbe Demo.")
+    st.caption("Demo mit fiktiven Daten. Versandtests sind nur über die Administration möglich. Alle Tabs teilen dieselbe Demo.")
     if st.button("Demo-Konto wechseln", key="change-demo-login"):
         change_login()
 
@@ -282,16 +282,16 @@ def record_scan(participant, value):
     kind,token=parse_payload(value, q.roster())
     if kind=="person" and token!=participant:
         company=q.affiliations.get(token)
-        label=(q.profile(token)["name"] if token in q.sharing else ROSTER[token]["id"])+(" · "+ORGANISATIONS[company][1] if company else "")
+        label=q.profile(token)["name"]+(" · "+ORGANISATIONS[company][1] if company else "")
         result=(result[0],"Gescannt: "+label+". "+result[1])
     if kind != "reward":
         s.scan_notice={"message":result[1],"quests":sorted(newly),"remaining":max(0,4-len(q.completed(participant)))}
     return result
 
 def privacy_form(participant, location):
-    st.caption("Scans speichern Verbindungen sofort. Name, Institution und E-Mail werden geteilt, wenn du zustimmst. Du kannst die vorausgewählte Freigabe ausschalten. Adresse, Geburtsdatum und Angaben aus einem Gewinnantrag werden nicht geteilt. Die öffentliche Leinwand zeigt keine persönlichen Daten.")
+    st.caption("Scans speichern Verbindungen sofort. Dein Name und deine Institution sind für deine Kontakte sichtbar. Deine E-Mail wird nur geteilt, wenn du die vorausgewählte Freigabe bestätigst. Du kannst sie hier ausschalten. Adresse, Geburtsdatum und Angaben aus einem Gewinnantrag werden nicht geteilt. Die öffentliche Leinwand zeigt keine persönlichen Daten.")
     with st.form("privacy-"+location+"-"+participant):
-        shared = st.checkbox("Meinen Namen, meine Institution und meine E-Mail mit meinen Kontakten teilen", value=(participant not in q.privacy_reviewed or participant in q.sharing))
+        shared = st.checkbox("Meine E-Mail-Adresse mit meinen Kontakten teilen", value=(participant not in q.privacy_reviewed or participant in q.sharing))
         recap = st.checkbox("Zusammenfassung per E-Mail erhalten", value=(participant not in q.privacy_reviewed or participant in q.recap))
         if st.form_submit_button("Datenschutzauswahl speichern", type="primary"):
             q.set_preferences(participant, shared, recap)
@@ -422,7 +422,7 @@ if view == "Mein Pass":
             reward_popup(person)
         personal_qr = base64.b64encode(branded_qr(public_base_url()+"/?badge="+person)).decode("ascii")
         st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Netzwerkkarte freigeschaltet" if person in q.unlocked else "Entdecke die Veranstaltung"}</span></div></div>', unsafe_allow_html=True)
-        tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Mein Pass" if s.pop("claim_from_link", False) else ("Profil" if person not in q.profiles else "Mein Pass"))
+        tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Mein Pass" if s.pop("claim_from_link", False) else "Mein Pass")
         with tabs[0]:
             with st.expander("Demo · Freischaltung testen", expanded=False):
                 st.caption("Erfülle vier Quests oder simuliere alle sechs Aufgaben. Dein bisheriger Fortschritt bleibt erhalten.")
@@ -455,7 +455,7 @@ if view == "Mein Pass":
 
         with tabs[1]:
             st.subheader("Badge oder Stand scannen")
-            st.write("Scans speichern Kontakte sofort – ohne Bestätigung. Passende Personen oder Stände erfüllen deine Quests; die Freigabe von Name und E-Mail bleibt freiwillig.")
+            st.write("Scans speichern Kontakte sofort – ohne Bestätigung. Passende Personen oder Stände erfüllen deine Quests; der Name ist sichtbar und die E-Mail-Freigabe bleibt freiwillig.")
             st.write("Scanne direkt hier mit einem Kamerafoto oder nutze die normale Kamera-App deines Handys und öffne den erkannten Link. Bleibe dafür im selben Browser angemeldet. QR-Bild und Code-Eingabe sind Alternativen, falls das Scannen nicht klappt.")
             value = scanner("participant", "QR-Code erfassen", camera_first=True)
             if value:
@@ -513,7 +513,7 @@ if view == "Mein Pass":
                     from email import policy
                     from email.parser import BytesParser
                     st.html(BytesParser(policy=policy.default).parsebytes(draft).get_body(preferencelist=("html",)).get_content())
-            st.caption("Der Entwurf ist an deine Profil-E-Mail adressiert. Der E-Mail-Versand ist noch nicht eingerichtet.")
+            st.caption("Der Entwurf ist an deine Profil-E-Mail adressiert. Die Administration kann ihn nach Einrichtung des Maildiensts versenden.")
         with tabs[3]:
             with st.expander("Datenschutz · Du entscheidest", expanded=False):
                 privacy_form(person, "profile")
@@ -522,7 +522,7 @@ if view == "Mein Pass":
             with st.form("profile-"+person):
                 details = {}
                 details["name"] = st.text_input("Dein vollständiger Name", value=profile["name"])
-                details["email"] = st.text_input("Deine E-Mail-Adresse", value=profile["email"])
+                details["email"] = st.text_input("Deine E-Mail-Adresse", value=profile["email"], disabled=person in DEMO_ROSTER)
                 details["organisation"] = st.text_input("Ausbildungsstätte / Arbeitgeber", value=profile.get("organisation", ""))
                 details["study_programme"] = st.text_input("Studiengang / Qualifikation", value=profile.get("study_programme", ""))
                 sectors = ["Not specified", *CLUSTERS, "Other"]
@@ -542,7 +542,7 @@ if view == "Mein Pass":
                         st.error(str(e))
             if s.pop("profile_saved", False):
                 st.success("Profil gespeichert. Diese Angaben werden für einen Mitgliedschaftsantrag übernommen.")
-            st.caption("Dein Profil ist privat. Name und E-Mail werden nur mit deiner Zustimmung unter Profil → Datenschutz geteilt. Badge-ID und Zugangscode bleiben unverändert.")
+            st.caption("Dein Profil ist privat. Dein Name und deine Institution sind für deine Kontakte sichtbar. Die E-Mail-Freigabe steuerst du unter Profil → Datenschutz. Badge-ID und Zugangscode bleiben unverändert.")
 elif view == "Registration":
     from quest_registration_ui import registration_page
     registration_page(q, s.staff_login, public_base_url())
@@ -614,6 +614,8 @@ elif view == "SVIAL-Team":
         st.table([{"ID":ORGANISATIONS[t][0],"Firma":ORGANISATIONS[t][1],"Gruppe":CLUSTER_LABELS[ORGANISATIONS[t][2]],"Bemerkungen":note} for t,note in EXHIBITOR_NOTES.items()])
 elif view == "Veranstaltung verwalten":
     st.title("Veranstaltung verwalten")
+    from quest_mail import mail_admin
+    mail_admin(q, s.staff_login)
     with st.expander("Firmenzuordnung · Demo-Datenbank"):
         st.caption("Alex Keller und Noah Frei vertreten in der Demo Lidl. Die Firmenzuordnung wird administrativ verwaltet, unabhängig vom bearbeitbaren Profiltext.")
         contact=st.selectbox("Person zuordnen",list(ROSTER),format_func=lambda p:ROSTER[p]["name"])
@@ -624,7 +626,7 @@ elif view == "Veranstaltung verwalten":
                 st.success("Firmenzuordnung gespeichert.")
             except ValueError as error: st.error(str(error))
     with st.expander("Zusammenfassung · Zeitplan & E-Mail-Warteschlange"):
-        st.caption("Entwürfe werden auf dem App-Server gespeichert. Der automatische Versand ist noch nicht eingerichtet. Demo-Empfänger: svial@svial.ch.")
+        st.caption("Dieser Zeitplan erstellt Entwürfe auf dem App-Server. Der Versand erfolgt oben unter E-Mail-Versand per Klick. Demo-Empfänger: svial@svial.ch.")
         with st.form("recap-schedule"):
             recap_day=st.date_input("Datum der Zusammenfassung", value=datetime.now(ZoneInfo("Europe/Zurich")).date())
             recap_time=st.time_input("Uhrzeit der Zusammenfassung · Europe/Zurich",value=time(21,0))
@@ -713,7 +715,7 @@ if view != "Live-Netzwerk":
     with st.expander("Demo-Anleitung"):
         st.write("Beim Kontowechsel bleibt der Fortschritt erhalten. LEA-7K4M-26 für Lea, STAFF-01 für das Standteam, ADMIN-01 für die Verwaltung, SCREEN-01 für die Leinwand. Alle Tabs teilen dieselbe Demo.")
         st.write("Dein Gewinn: Vier Quests erfüllen → Team prüft deinen Pass → Ziehung freischalten → Karte wählen → QR scannen → Angaben prüfen und bestätigen.")
-        st.write("Scanne einen anderen Badge, um den Kontakt sofort zu speichern. Eine Bestätigung ist nicht nötig. Das Teilen von Name und E-Mail ist freiwillig.")
+        st.write("Scanne einen anderen Badge, um den Kontakt sofort zu speichern. Eine Bestätigung ist nicht nötig. Namen sind sichtbar; das Teilen der E-Mail ist freiwillig.")
 
 # This fragment checks shared state without continuously rerendering the page.
 if role and role != "screen":
