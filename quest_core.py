@@ -493,25 +493,63 @@ def email_draft(quest, card, recipient):
     return msg.as_bytes()
 
 
+FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLScBYUkCh6fJjwD40zLrUGenNcFqBXJRKZf5vWWDc9hsi4FVHw/viewform?usp=header"
+
+
+def contact_rows(quest, person):
+    """One contact table; only explicitly shared identity fields are exported."""
+    rows = []
+    represented = set()
+    for other in sorted(quest.people(person)):
+        profile = quest.profile(other)
+        company = quest.affiliations.get(other)
+        if company:
+            represented.add(company)
+        if other in quest.sharing:
+            # Keep the Eventfrog split unless the participant edited their name.
+            if profile.get("first_name") and profile["name"] == quest.roster()[other]["name"]:
+                first, last = profile["first_name"], profile.get("last_name", "")
+            else:
+                first, _, last = profile["name"].partition(" ")
+            affiliation = ORGANISATIONS[company][1] if company else profile.get("affiliation", "") or profile.get("organisation", "")
+            rows.append({"Vorname":first, "Nachname":last, "Institution / Zugehörigkeit":affiliation, "E-Mail":profile["email"]})
+        else:
+            rows.append({"Vorname":"Nicht freigegeben", "Nachname":"", "Institution / Zugehörigkeit":ORGANISATIONS[company][1] if company else "", "E-Mail":"Nicht freigegeben"})
+    # A stand-only scan has no personal email or invented contact name.
+    for station in sorted(quest.visits.get(person, set()) - represented):
+        rows.append({"Vorname":"—", "Nachname":"—", "Institution / Zugehörigkeit":ORGANISATIONS[station][1], "E-Mail":"—"})
+    return rows
+
+
 def recap_draft(quest, person):
-    """Safe rehearsal recap. Delivery is never performed here."""
+    """Personal email preview. No transport or automatic sending occurs here."""
+    from html import escape
     quest.require_active(person)
     if person not in quest.recap:
         raise ValueError("Stimme zuerst dem Erhalt der Zusammenfassung zu.")
+    profile = quest.profile(person)
+    if not re.fullmatch(r"[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+", profile["email"]):
+        raise ValueError("Für die Zusammenfassung ist eine gültige E-Mail-Adresse nötig.")
+    first = profile.get("first_name") if profile["name"] == quest.roster()[person]["name"] else None
+    first = first or profile["name"].split()[0]
+    greeting = f"Liebe {first},"
+    intro = "Vielen Dank, dass du dabei warst. Das hat uns sehr gefreut! Hier findest du deine Kontakte von heute Abend. Wir hoffen, dass du dich langfristig mit ihnen vernetzt."
+    info = "Falls du noch mehr Informationen zum SVIAL wünschst, besuche www.svial.ch. Dort findest du auch mehr Informationen zum Mentoring-Programm und weiteren spannenden Events."
+    feedback = "Wir würden uns freuen, wenn du uns kurz ein Feedback zum Event gibst."
+    closing = "Vielen Dank, bis bald und mit besten Grüssen\ndein SVIAL-Team"
+    rows = contact_rows(quest, person)
+    columns = ["Vorname", "Nachname", "Institution / Zugehörigkeit", "E-Mail"]
+    lines = [greeting, "", intro, "", " | ".join(columns)]
+    lines.extend(" | ".join(row[c] or "—" for c in columns) for row in rows)
+    if not rows: lines.append("Du hast noch keine Kontakte gespeichert.")
+    lines.extend(["", "Ein Strich bedeutet: keine persönlichen Angaben zum Stand vorhanden. Nicht freigegebene Kontaktdaten bleiben ausgeblendet.", "", info, "https://www.svial.ch", "", feedback, FEEDBACK_URL, "", closing])
+    headers = "".join('<th style="padding:10px;text-align:left;background:#009641;color:white">'+escape(c)+'</th>' for c in columns)
+    table_rows = "".join('<tr>'+"".join('<td style="padding:10px;border-bottom:1px solid #dce3de">'+escape(row[c] or "—")+'</td>' for c in columns)+'</tr>' for row in rows)
+    html = '<html lang="de"><body style="font-family:Arial,sans-serif;color:#202b27;line-height:1.6"><div style="max-width:760px;margin:auto"><h1 style="color:#009641;font-size:24px">Deine Kontakte vom Agro-Food Job Dating</h1><p>'+escape(greeting)+'</p><p>'+escape(intro)+'</p><table style="width:100%;border-collapse:collapse"><thead><tr>'+headers+'</tr></thead><tbody>'+table_rows+'</tbody></table><p style="font-size:12px">Ein Strich bedeutet: keine persönlichen Angaben zum Stand vorhanden. Nicht freigegebene Kontaktdaten bleiben ausgeblendet.</p><p>Falls du noch mehr Informationen zum SVIAL wünschst, besuche <a href="https://www.svial.ch">www.svial.ch</a>. Dort findest du auch mehr Informationen zum Mentoring-Programm und weiteren spannenden Events.</p><p>'+escape(feedback)+' <a href="'+escape(FEEDBACK_URL, quote=True)+'">Zum Feedbackformular</a></p><p>'+escape(closing).replace("\n","<br>")+'</p></div></body></html>'
     msg = EmailMessage()
-    msg["To"] = "svial@svial.ch"
-    msg["Subject"] = "[DEMO] Deine Netzwerk-Zusammenfassung · " + quest.profile(person)["name"]
+    msg["To"] = profile["email"]
+    msg["Subject"] = "Deine Kontakte vom Agro-Food Job Dating 2026"
     msg["X-Unsent"] = "1"
-    lines = ["DEMO · Nicht versendet. Testempfänger ist ausschliesslich svial@svial.ch.", "", "Deine besuchten Unternehmen:"]
-    for token in sorted(quest.visits.get(person, set())):
-        org = ORGANISATIONS[token]
-        lines.append(f"{org[1]} ({org[0]}) | {CLUSTER_LABELS[org[2]]} | Aufgabe: {org[3]}")
-    lines.append("\nGespeicherte Unternehmenskontakte:")
-    for contact in sorted(quest.company_contacts.get(person,set())):
-        company=quest.affiliations.get(contact)
-        if company: lines.append((quest.profile(contact)["name"] if contact in quest.sharing else quest.roster()[contact]["id"])+" · "+ORGANISATIONS[company][1])
-    lines.extend(["", "Erfüllte Quests: " + ", ".join(sorted(quest.completed(person))), "", "Gespeicherte Kontakte:"])
-    for other in sorted(quest.people(person)):
-        lines.append(quest.profile(other)["name"] + " — " + quest.profile(other)["email"] if other in quest.sharing else "Kontakt gespeichert · Kontaktdaten nicht freigegeben")
     msg.set_content("\n".join(lines))
+    msg.add_alternative(html, subtype="html")
     return msg.as_bytes()
