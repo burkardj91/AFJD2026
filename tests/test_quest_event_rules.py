@@ -10,7 +10,7 @@ class EventRulesTests(unittest.TestCase):
         self.assertFalse(q.completed(p))  # stand scans do not prove person exchanges
         q.scan(p,payload('station','fo-8b4q'))
         q.scan(p,payload('station','future-apero'))
-        for other in ['p-ag-one','p-ag-two','p-rosie','p-2bc7r8','p-4jf9n3','p-9ls6d2']:
+        for other in ['p-3nm9q4','p-ag-one','p-ag-two','p-rosie','p-2bc7r8','p-4jf9n3','p-9ls6d2']:
             q.scan(p,payload('person',other))
         self.assertEqual(q.completed(p),set(CHALLENGES))
         self.assertFalse(q.pending)

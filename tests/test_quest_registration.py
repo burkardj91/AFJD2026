@@ -62,7 +62,7 @@ class RegistrationTests(unittest.TestCase):
         from quest_core import Quest
         from zipfile import ZipFile
         q=Quest()
-        rows=[{'name':'Company Person','email':'company@example.test','annotation':'Coop'},
+        rows=[{'name':'Company Person','email':'company@example.test','annotation':'Coop','affiliation':'Coop'},
               {'name':'Mentor Person','email':'mentor@example.test','annotation':'Mentor'},
               {'name':'Rosie Test','email':'rosie@example.test','annotation':'SVIAL-Mentoring'}]
         for staff in ['STAFF-01','STAFF-02','SCREEN-01']:
@@ -71,7 +71,7 @@ class RegistrationTests(unittest.TestCase):
             with self.assertRaises(ValueError):q.configure_raffle(staff,'2099-10-08T19:30:00+02:00')
         ids=q.import_registrations('ADMIN-01',rows)
         self.assertEqual(q.affiliations[ids[0]],'in-3p9d')
-        self.assertNotIn(ids[1],q.affiliations)
+        self.assertEqual(q.affiliations[ids[1]],"sv-5w8j")
         self.assertEqual(annotation_mapping('Unknown sponsor')['company'],None)
         q.demo_login('LEA-7K4M-26');q.scan('p-8hd2v7',payload('person',ids[2]))
         self.assertIn('SVIAL-Mentoring',q.completed('p-8hd2v7'))
@@ -81,7 +81,7 @@ class RegistrationTests(unittest.TestCase):
         front=archive.read('01-public-badges.html').decode()
         slips=archive.read('02-PRIVATE-login-slips.html').decode()
         self.assertEqual(front.count('<section class="badge">'),3)
-        self.assertIn('class="logo"',front)
+        self.assertNotIn('class="logo"',front)
         self.assertIn('Coop',front)
         for p in ids:
             self.assertIn(q.roster()[p]['name'],front)

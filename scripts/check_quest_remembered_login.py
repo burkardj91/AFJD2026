@@ -19,6 +19,8 @@ with tempfile.TemporaryDirectory() as folder:
     source = str(Path(__file__).resolve().parents[1] / 'network_quest_mockup.py')
 
     def browser_component(**args):
+        if 'action' not in args:
+            return None  # camera component has no stored scan
         assert args['action'] == 'read'
         return {'request_id': args['request_id'], 'token': saved}
 
@@ -28,16 +30,16 @@ with tempfile.TemporaryDirectory() as folder:
         app.run()
         assert not app.exception, [e.message for e in app.exception]
         assert app.session_state['person_v2'] == 'p-8hd2v7'
-        assert app.session_state['scan_notice']['quests'] == []
+        assert app.session_state['scan_notice']['quests'] == ['Detailhandel']
         assert 'p-3nm9q4' in q.people('p-8hd2v7')
-        assert not any(t.label == 'Private activation code' for t in app.text_input)
+        assert not any(t.label == 'Persönlicher Zugangscode' for t in app.text_input)
 
         logins.revoke(saved)
         denied = AppTest.from_file(source, default_timeout=20)
         denied.query_params['badge'] = 'p-6wx5t1'
         denied.run()
         assert not denied.exception
-        assert any(t.label == 'Private activation code' for t in denied.text_input)
+        assert any(t.label == 'Persönlicher Zugangscode' for t in denied.text_input)
         assert denied.query_params['badge'] == ['p-6wx5t1']
         assert ('p-8hd2v7', 'p-6wx5t1') not in q.pending
     print('PASS: missing cookie headers -> browser restore -> original badge processed; revoked cookie denied')

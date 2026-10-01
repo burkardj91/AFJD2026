@@ -7,14 +7,15 @@ from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timezone
 
 CLUSTERS = {'Agriculture': 'Agriculture & Primary Production', 'Food Production': 'Food Production & Processing', 'FoodTech & Innovation': 'Ingredients, FoodTech & Innovation', 'Retail': 'Retail & Market', 'Services & Ecosystem': 'Services, Education & Ecosystem'}
-CHALLENGES = ("Food Process & Engineering", "Vernetzen", "Landwirtschaft", "SVIAL", "Future Food Apéro", "SVIAL-Mentoring")
+CLUSTER_LABELS = {"Agriculture":"Landwirtschaft & Primärproduktion", "Food Production":"Lebensmittelproduktion", "FoodTech & Innovation":"Lebensmitteltechnologie & Innovation", "Retail":"Detailhandel", "Services & Ecosystem":"Dienstleistungen & Bildung"}
+CHALLENGES = ("Lebensmittelproduktion", "Vernetzen", "Landwirtschaft", "Detailhandel", "Future Food Apéro", "SVIAL-Mentoring")
 QUEST_DESCRIPTIONS = dict(zip(CHALLENGES, (
-    "Besuche ein Unternehmen aus dem Bereich Food Process & Engineering",
+    "Besuche ein Unternehmen aus dem Bereich Lebensmittelproduktion",
     "Vernetze dich mit drei anderen Teilnehmer:innen",
-    "Tausche dich mit zwei Vertreter:innen der Landwirtschaft/Primärsektors aus",
-    "Tausch dich mit einer Person des SVIAL aus",
+    "Tausche dich mit zwei Vertreter:innen der Landwirtschaft / des Primärsektors aus",
+    "Tausche dich mit einer Person aus dem Bereich Detailhandel aus",
     "Entdecke den Future Food Apéro Bereich",
-    "Tausche dich mit Rosie vom SVIAL-Mentoring aus",
+    "Tausche dich mit dem SVIAL-Mentoring aus",
 )))
 EXHIBITORS = [(2, 'mooh Genossenschaft', 'Agriculture', 'ag-7v2x', ''), (3, 'FoodTechScout AG', 'Services & Ecosystem', 'se-campus', 'Prominente Tischplatzierung'), (4, 'Coop', 'Retail', 'in-3p9d', ''), (5, 'IMPAG AG', 'FoodTech & Innovation', 'fu-6k2s', ''), (6, 'Nestlé Suisse S.A., Fabrik Konolfingen', 'Food Production', 'fo-8b4q', 'Prominente Tischplatzierung'), (7, 'Syngenta Agro AG', 'Agriculture', 'ag-soil', ''), (8, 'Pacovis AG', 'FoodTech & Innovation', 'ex-08', ''), (9, 'Strickhof', 'Services & Ecosystem', 'ex-09', ''), (10, 'EggField – Field Food AG', 'FoodTech & Innovation', 'ex-10', ''), (11, 'Lidl Schweiz', 'Retail', 're-lidl', 'Prominente Tischplatzierung'), (12, 'fenaco Genossenschaft', 'Agriculture', 'ag-farm', ''), (13, 'Aviforum', 'Agriculture', 'ex-13', ''), (14, 'Schweizer Bauernverband', 'Services & Ecosystem', 'ex-14', ''), (15, 'Max Schwarz AG', 'Agriculture', 'ex-15', 'Prominente Tischplatzierung'), (16, 'Trinova AG', 'FoodTech & Innovation', 'ex-16', ''), (17, 'Emmi Schweiz AG', 'Food Production', 'fo-dairy', 'Platz für Kühlschrank mit Emmi Caffè Latte'), (18, 'Kanton Thurgau – Arenenberg & Landwirtschaftsamt', 'Services & Ecosystem', 'ex-18', '1× zusätzlicher Ausstellertisch & zusätzlich Platz für Glücksrad'), (19, 'Bio-inspecta', 'Services & Ecosystem', 'ex-19', ''), (20, 'Delica AG', 'Food Production', 'fo-bowl', 'Prominente Tischplatzierung'), (21, 'treuland (Treuhandverband Landwirtschaft Schweiz)', 'Services & Ecosystem', 'ex-21', ''), (22, 'Migros Industrie AG', 'Retail', 'ex-migros', 'Prominente Tischplatzierung'), (23, 'Gebr. Meier Gemüsekulturen AG', 'Agriculture', 'ex-23', ''), (24, 'Ernst Sutter AG', 'Food Production', 'ex-24', ''), (25, 'Centravo Holding AG', 'FoodTech & Innovation', 'ex-25', '1× zusätzlicher Ausstellertisch, prominente Tischplatzierung'), (26, 'SQTS – Swiss Quality Testing Services', 'Services & Ecosystem', 'ex-26', '')]
 ORGANISATIONS = {token:(str(number),name,cluster,"Besuche den Stand und entdecke das Unternehmen.") for number,name,cluster,token,note in EXHIBITORS}
@@ -53,17 +54,17 @@ DEFAULT_AFFILIATIONS = {"p-3nm9q4":"re-lidl","p-6wx5t1":"re-lidl","p-ag-one":"ag
 CARDS = {
     "r-7mn4b2": ("NC-001", "Gratismitgliedschaft SVIAL · bis 31.12.2027", "membership"),
     "r-9qs3z6": ("NC-002", "Gratismitgliedschaft SVIAL · bis 31.12.2027", "membership"),
-    "r-2kh8w5": ("NC-003", "The next event is on us", "event"),
-    "r-4dk9s1": ("NC-004", "The next event is on us", "event"),
+    "r-2kh8w5": ("NC-003", "Dein nächster SVIAL-Event geht auf uns", "event"),
+    "r-4dk9s1": ("NC-004", "Dein nächster SVIAL-Event geht auf uns", "event"),
     "r-5xa2v7": ("NC-005", "Gratismitgliedschaft SVIAL · bis 31.12.2027", "membership"),
-    "r-8zb6n4": ("NC-006", "The next event is on us", "event"),
+    "r-8zb6n4": ("NC-006", "Dein nächster SVIAL-Event geht auf uns", "event"),
 }
-for kind,total,label in [("membership",50,"Gratismitgliedschaft SVIAL · bis 31.12.2027"),("event",20,"The next event is on us"),("gift",60,"Small Agro-Food Gift"),("sfr",5,"SFR prize · details to be confirmed")]:
+for kind,total,label in [("membership",50,"Gratismitgliedschaft SVIAL · bis 31.12.2027"),("event",20,"Dein nächster SVIAL-Event geht auf uns"),("gift",60,"Kleines Agro-Food-Geschenk"),("sfr",5,"SFR-Preis · Details werden noch bestätigt")]:
     existing=sum(row[2]==kind for row in CARDS.values())
     for number in range(existing+1,total+1):
         CARDS[f"r-{kind}-{number:03}"]=(f"{kind.upper()}-{number:03}",label,kind)
 # Pending quantities are not silently added to the drawable inventory.
-PENDING_PRIZES = {"gift":"Small Agro-Food Gift", "food":"Future Food Surprise", "sfr":"SFR event · details pending"}
+PENDING_PRIZES = {"gift":"Kleines Agro-Food-Geschenk", "food":"Future Food Surprise", "sfr":"SFR-Event · Details folgen"}
 
 
 def payload(kind, token):
@@ -82,15 +83,15 @@ def parse_payload(value, roster=None):
             return "station", station
         claim = params.get("claim", [""])[0]
         if claim not in CARDS:
-            raise ValueError("This link does not contain a valid reward card.")
+            raise ValueError("Dieser Link enthält keine gültige Gewinnkarte.")
         return "reward", claim
     parts = value.split(":")
     if len(parts) != 4 or parts[:2] != ["afjd", "2026"]:
-        raise ValueError("This is not a valid AFJD 2026 QR code.")
+        raise ValueError("Dies ist kein gültiger AFJD-2026-QR-Code.")
     kind, token = parts[2:]
     catalog = {"person": roster, "station": STATIONS, "reward": CARDS}.get(kind, {})
     if token not in catalog:
-        raise ValueError("This QR code is not recognised for this event.")
+        raise ValueError("Dieser QR-Code gehört nicht zu dieser Veranstaltung.")
     return kind, token
 
 @dataclass
@@ -106,18 +107,18 @@ class Quest:
     def import_registrations(self, staff_id, rows):
         from quest_registration import plan_import
         if staff_id != "ADMIN-01":
-            raise ValueError("Administrator account required.")
+            raise ValueError("Ein Administrator-Zugang ist erforderlich.")
         plan = plan_import(rows, self.registrations)
         if any(r["action"] == "Review" for r in plan):
-            raise ValueError("Resolve the flagged rows before importing. Nothing was saved.")
+            raise ValueError("Korrigiere die markierten Zeilen vor dem Import. Es wurde nichts gespeichert.")
         for row in plan:
             person = row.get("person")
             if person and row["annotation"] != self.registrations[person].get("annotation", ""):
                 if any(person in edge for edge in self.connections):
-                    raise ValueError("An annotation cannot change after this person has been scanned. Reset activity first.")
+                    raise ValueError("Die Annotation kann nach einem Scan nicht geändert werden. Setze zuerst die Aktivitäten zurück.")
         saved = []
         for row in plan:
-            data = {k:row[k] for k in ("name", "email", "source_id", "annotation")}
+            data = {k:row[k] for k in ("name", "email", "source_id", "annotation", "first_name", "last_name", "affiliation")}
             person = row.get("person")
             annotation_changed = not person or data["annotation"] != self.registrations[person].get("annotation", "")
             if not person:
@@ -138,7 +139,7 @@ class Quest:
             saved.append(person)
         return saved
 
-    catalog_version: int = field(default_factory=lambda:2)
+    catalog_version: int = field(default_factory=lambda:3)
     active: set = field(default_factory=set)
     visits: dict = field(default_factory=dict)
     connections: set = field(default_factory=set)
@@ -161,14 +162,14 @@ class Quest:
 
     def configure_raffle(self, staff_id, deadline, winners=3, minimum=1):
         if staff_id != "ADMIN-01":
-            raise ValueError("Administrator account required.")
+            raise ValueError("Ein Administrator-Zugang ist erforderlich.")
         target = datetime.fromisoformat(deadline)
         if target.tzinfo is None or target <= datetime.now(timezone.utc):
-            raise ValueError("Choose a future date and time with a timezone.")
+            raise ValueError("Wähle ein zukünftiges Datum mit Uhrzeit und Zeitzone.")
         if winners not in {3,5} or minimum not in range(1,7):
-            raise ValueError("Choose 3 or 5 winners and 1–6 completed quests.")
+            raise ValueError("Wähle 3 oder 5 Gewinner:innen und 1–6 erfüllte Quests.")
         if self.raffle.get("status") == "completed":
-            raise ValueError("This draw is finished. Reset the rehearsal to start a new draw.")
+            raise ValueError("Diese Verlosung ist abgeschlossen. Setze die Demo für eine neue Verlosung zurück.")
         self.raffle = {"deadline":target.isoformat(), "count":winners, "minimum":minimum, "status":"scheduled", "staff":staff_id}
 
     def resolve_raffle(self, now=None):
@@ -195,25 +196,25 @@ class Quest:
 
     def collect_gift(self, staff_id, card):
         if staff_id not in {"STAFF-01","STAFF-02"} or card not in self.assignments or CARDS[card][2] != "gift":
-            raise ValueError("Staff can only mark an assigned physical gift as collected.")
+            raise ValueError("Das Standteam kann nur zugeordnete Sachgeschenke als abgeholt markieren.")
         self.collected.setdefault(card,{"staff":staff_id,"at":datetime.now(timezone.utc).isoformat()})
 
     def annotate_company(self, staff_id, person, company):
         if staff_id != "ADMIN-01" or person not in self.roster():
-            raise ValueError("An administrator must select a valid person.")
+            raise ValueError("Die Administration muss eine gültige Person auswählen.")
         if company and company not in ORGANISATIONS:
-            raise ValueError("Unknown organisation.")
+            raise ValueError("Unbekannte Organisation.")
         if any(person in contacts for contacts in self.company_contacts.values()):
-            raise ValueError("This person has already been scanned. Reset activity before changing their company.")
+            raise ValueError("Diese Person wurde bereits gescannt. Setze die Aktivitäten zurück, bevor du die Firma änderst.")
         if company: self.affiliations[person]=company
         else: self.affiliations.pop(person,None)
 
     def schedule_recaps(self, staff_id, deadline):
         if staff_id != "ADMIN-01":
-            raise ValueError("Administrator account required.")
+            raise ValueError("Ein Administrator-Zugang ist erforderlich.")
         target=datetime.fromisoformat(deadline)
         if target.tzinfo is None or target <= datetime.now(timezone.utc):
-            raise ValueError("Choose a future recap time.")
+            raise ValueError("Wähle eine zukünftige Uhrzeit für die Zusammenfassung.")
         self.recap_deadline=deadline
 
     def queue_due_recaps(self, now=None):
@@ -221,13 +222,13 @@ class Quest:
             return
         for person in self.recap & self.active:
             key="recap:"+person
-            self.outbox.setdefault(key,{"kind":"recap","person":person,"status":"Queued — mail service not configured","draft":recap_draft(self,person).decode("utf-8")})
+            self.outbox.setdefault(key,{"kind":"recap","person":person,"status":"Wartet · E-Mail-Dienst nicht eingerichtet","draft":recap_draft(self,person).decode("utf-8")})
 
     def reset_demo(self, staff_id, confirmation, keep_profiles=True):
         if staff_id != "ADMIN-01":
-            raise ValueError("Administrator account required to reset the event.")
+            raise ValueError("Zum Zurücksetzen ist ein Administrator-Zugang erforderlich.")
         if confirmation != "RESET":
-            raise ValueError("Type RESET to confirm.")
+            raise ValueError("Gib zur Bestätigung RESET ein.")
         fresh = Quest()
         fresh.registrations = dict(self.registrations)
         fresh.affiliations = dict(self.affiliations)
@@ -254,11 +255,11 @@ class Quest:
         allowed = {"name", "email", "address", "study_programme", "organisation", "date_of_birth", "sector", "linkedin"}
         clean = {k: str(v).strip() for k, v in details.items() if k in allowed}
         if not clean.get("name"):
-            raise ValueError("Please enter your name.")
+            raise ValueError("Gib deinen Namen ein.")
         if not re.fullmatch(r"[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+", clean.get("email", "")):
-            raise ValueError("Please enter a valid email address.")
+            raise ValueError("Gib eine gültige E-Mail-Adresse ein.")
         if clean.get("linkedin") and not re.fullmatch(r"https://(?:www\.)?linkedin\.com/[^\s]*", clean["linkedin"]):
-            raise ValueError("Use a LinkedIn profile link starting with https://www.linkedin.com/.")
+            raise ValueError("Verwende einen LinkedIn-Profillink mit https://www.linkedin.com/.")
         self.profiles[person] = clean
 
     def demo_login(self, code, private_code=None):
@@ -274,27 +275,27 @@ class Quest:
             return "participant", self.activate_badge(code, private_code)
         person = next((p for p,secret in self.activation_codes().items() if secrets.compare_digest(secret,code)), None)
         if person is None:
-            raise ValueError("Enter a valid private activation code. For Lea, use LEA-7K4M-26.")
+            raise ValueError("Gib einen gültigen persönlichen Zugangscode ein. Für Lea: LEA-7K4M-26.")
         self.active.add(person)
         return "participant", person
 
     def activate_badge(self, badge, private_code):
         if not badge.strip():
-            raise ValueError("Enter your personal login ID.")
+            raise ValueError("Gib deine persönliche Zugangskennung ein.")
         if not private_code.strip():
-            raise ValueError("Enter the private activation code supplied with your login ID.")
+            raise ValueError("Gib den zu deiner Zugangskennung gehörenden persönlichen Zugangscode ein.")
         person = next((p for p,r in self.roster().items() if badge.strip().upper() in {r["id"], r["code"], p.upper()}), None)
         if person is None or not secrets.compare_digest(self.activation_codes()[person], private_code.strip().upper()):
-            raise ValueError("The login ID and private activation code do not match. Use both values from the same test-person row.")
+            raise ValueError("Zugangskennung und persönlicher Code passen nicht zusammen. Verwende die Werte derselben Testperson.")
         self.active.add(person)
         return person
 
     def simulate_completion(self, person, all_six=False):
-        """Rehearsal shortcut: use normal scan rules and fictional confirmations."""
+        """Demo · Scans simulieren: use normal scan rules and fictional confirmations."""
         self.require_active(person)
         for station in ["fo-8b4q", "future-apero"]:
             self.scan(person, payload("station", station))
-        for other in ["p-svial", "p-rosie"]:
+        for other in ["p-3nm9q4", "p-rosie"]:
             if other != person:
                 self.scan(person, payload("person", other))
         if all_six or len(self.completed(person)) < 4:
@@ -305,13 +306,13 @@ class Quest:
     def activate(self, code):
         person = next((p for p, r in self.roster().items() if r["code"] == code.strip().upper()), None)
         if not person:
-            raise ValueError("Check your private activation code and try again.")
+            raise ValueError("Prüfe deinen persönlichen Zugangscode und versuche es erneut.")
         self.active.add(person)
         return person
 
     def require_active(self, person):
         if person not in self.active:
-            raise ValueError("Activate your Network Pass first.")
+            raise ValueError("Aktiviere zuerst deinen Netzwerkpass.")
 
     def people(self, person):
         return {b if a == person else a for a, b in self.connections if person in (a, b)}
@@ -322,15 +323,16 @@ class Quest:
         result = set()
         if any(ORGANISATIONS.get(t, (None,None,None))[2] == "Food Production" for t in visits):
             result.add(CHALLENGES[0])
-        if len([p for p in contacts if p not in self.affiliations]) >= 3:
+        if len(contacts) >= 3:
             result.add(CHALLENGES[1])
         if len([p for p in contacts if ORGANISATIONS.get(self.affiliations.get(p), (None,None,None))[2] == "Agriculture"]) >= 2:
             result.add(CHALLENGES[2])
-        if any(self.affiliations.get(p) == "sv-5w8j" for p in contacts):
+        if any(ORGANISATIONS.get(self.affiliations.get(p), (None,None,None))[2] == "Retail" for p in contacts):
             result.add(CHALLENGES[3])
         if "future-apero" in visits:
             result.add(CHALLENGES[4])
-        if "p-rosie" in contacts or any(self.registrations.get(p, {}).get("annotation", "").strip().casefold() in {"rosie", "svial-mentoring", "rosie vom svial-mentoring"} for p in contacts):
+        from quest_registration import MENTORING_ANNOTATIONS
+        if "p-rosie" in contacts or any(self.registrations.get(p, {}).get("annotation", "").strip().casefold() in MENTORING_ANNOTATIONS for p in contacts):
             result.add(CHALLENGES[5])
         return result
 
@@ -343,17 +345,17 @@ class Quest:
         kind, token = parse_payload(value, self.roster())
         if kind == "reward":
             if self.assignments.get(token) != person:
-                raise ValueError("Ask SVIAL staff to assign this card to your pass first.")
+                raise ValueError("Bitte das SVIAL-Team, diese Karte zuerst deinem Pass zuzuordnen.")
             return "reward", token
         if kind == "station":
             visited = self.visits.setdefault(person, set())
             if token in visited:
-                return "message", "You have already visited this station."
+                return "message", "Du hast diese Station bereits besucht."
             visited.add(token)
             self.refresh(person)
             return "message", f"Besuch gespeichert: {STATIONS[token][0]}."
         if token == person:
-            raise ValueError("This is your own badge.")
+            raise ValueError("Das ist dein eigener Badge.")
         company=self.affiliations.get(token)
         if company:
             self.company_contacts.setdefault(person,set()).add(token)
@@ -361,7 +363,7 @@ class Quest:
             self.refresh(person)
         edge = tuple(sorted((person, token)))
         if edge in self.connections:
-            return "message", "You are already connected."
+            return "message", "Ihr seid bereits verbunden."
         self.pending.discard((person, token))
         self.pending.discard((token, person))
         for p in edge:
@@ -379,7 +381,7 @@ class Quest:
             self.pending.discard((sender, recipient))
             return
         if (sender, recipient) not in self.pending:
-            raise ValueError("This connection request is no longer available.")
+            raise ValueError("Diese Kontaktanfrage ist nicht mehr verfügbar.")
         self.pending.remove((sender, recipient))
         if edge not in self.connections:
             for p in edge:
@@ -394,61 +396,61 @@ class Quest:
 
     def assign(self, person, card, *, staff=False):
         if not staff:
-            raise ValueError("Only the staff workflow can assign cards.")
+            raise ValueError("Nur das Standteam kann Karten zuordnen.")
         self.require_active(person)
         if card not in CARDS:
-            raise ValueError("Unknown reward card.")
+            raise ValueError("Unbekannte Gewinnkarte.")
         if person not in self.unlocked:
-            raise ValueError("Four challenges must be completed first.")
+            raise ValueError("Zuerst müssen vier Quests erfüllt sein.")
         if card in self.assignments or person in self.assignments.values():
-            raise ValueError("A card has already been assigned. Duplicate collection is blocked.")
+            raise ValueError("Eine Karte wurde bereits zugeordnet. Eine doppelte Vergabe ist gesperrt.")
         self.assignments[card] = person
 
     def submit(self, person, card, details, consent):
         self.require_active(person)
         if self.assignments.get(card) != person:
-            raise ValueError("This card is not assigned to you.")
+            raise ValueError("Diese Karte ist dir nicht zugeordnet.")
         if CARDS[card][2] in {"gift","sfr"}:
-            raise ValueError("This prize is handled at the desk, not through a membership application.")
+            raise ValueError("Dieser Preis wird direkt am Stand eingelöst.")
         if card in self.applications:
-            raise ValueError("This claim has already been recorded.")
+            raise ValueError("Dieser Antrag wurde bereits gespeichert.")
         if not consent:
-            raise ValueError("Please confirm your application and the transfer to SVIAL.")
+            raise ValueError("Bestätige deinen Antrag und die Übermittlung an SVIAL.")
         if not self.profile(person)["name"].strip():
-            raise ValueError("A name is required to claim this prize.")
+            raise ValueError("Für diesen Preis ist ein Name erforderlich.")
         if CARDS[card][2] == "membership":
-            for key,label in [("address","Postal address"),("organisation","Ausbildungsstätte"),("study_programme","Study programme"),("date_of_birth","Date of birth")]:
+            for key,label in [("address","Postadresse"),("organisation","Ausbildungsstätte"),("study_programme","Studiengang"),("date_of_birth","Geburtsdatum")]:
                 if not details.get(key, "").strip():
-                    raise ValueError(label+" is required for the free membership.")
+                    raise ValueError(label+" ist für die Gratismitgliedschaft erforderlich.")
             try:
                 born=datetime.fromisoformat(details["date_of_birth"]).date()
                 if born > datetime.now().date() or born.year < 1900: raise ValueError()
             except ValueError:
-                raise ValueError("Enter a valid date of birth.")
-        self.applications[card] = {"person": person, "identity": {k:self.profile(person)[k] for k in ["name", "email"]}, "details": dict(details), "status": "Prepared — not emailed"}
+                raise ValueError("Gib ein gültiges Geburtsdatum ein.")
+        self.applications[card] = {"person": person, "identity": {k:self.profile(person)[k] for k in ["name", "email"]}, "details": dict(details), "status": "Vorbereitet · nicht versendet"}
 
-        self.outbox["claim:"+card]={"kind":"claim","person":person,"status":"Queued — mail service not configured","draft":email_draft(self,card,"svial@svial.ch").decode("utf-8")}
+        self.outbox["claim:"+card]={"kind":"claim","person":person,"status":"Wartet · E-Mail-Dienst nicht eingerichtet","draft":email_draft(self,card,"svial@svial.ch").decode("utf-8")}
 
     def approve_draw(self, person, staff_id):
         if staff_id not in {"STAFF-01", "STAFF-02"}:
-            raise ValueError("Administrator account required.")
+            raise ValueError("Ein Administrator-Zugang ist erforderlich.")
         self.require_active(person)
         if len(self.completed(person)) < 4:
-            raise ValueError("Four challenges must be completed first.")
+            raise ValueError("Zuerst müssen vier Quests erfüllt sein.")
         self.draw_approvals.setdefault(person, {"staff":staff_id, "at":datetime.now(timezone.utc).isoformat()})
 
     def draw(self, person, staff_id):
         if staff_id not in {"STAFF-01", "STAFF-02"}:
-            raise ValueError("Administrator account required.")
+            raise ValueError("Ein Administrator-Zugang ist erforderlich.")
         self.require_active(person)
         existing = next((c for c,p in self.assignments.items() if p == person), None)
         if existing:
             return existing
         if person not in self.draw_approvals:
-            raise ValueError("Staff must validate this participant and unlock the draw first.")
+            raise ValueError("Das Standteam muss die Person zuerst prüfen und die Ziehung freischalten.")
         available = [c for c in CARDS if c not in self.assignments]
         if not available:
-            raise ValueError("All demo prizes have been drawn.")
+            raise ValueError("Alle Demo-Preise wurden gezogen.")
         card = secrets.choice(available)
         self.assign(person, card, staff=True)
         self.digital_cards.add(card)
@@ -473,20 +475,20 @@ class Quest:
 
 def email_draft(quest, card, recipient):
     if not re.fullmatch(r"[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+", recipient):
-        raise ValueError("Enter a valid receiving email address in Rehearsal controls.")
+        raise ValueError("Gib in den Demo-Einstellungen eine gültige Empfangsadresse ein.")
     application = quest.applications[card]
     person = application.get("identity", quest.profile(application["person"]))
     msg = EmailMessage()
     msg["To"] = "svial@svial.ch"
     msg["Cc"] = "svial@svial.ch"
-    msg["Subject"] = f"[REHEARSAL] Gratismitgliedschaft AFJD {person['name']}" if CARDS[card][2]=="membership" else f"[REHEARSAL] {CARDS[card][1]} · {person['name']}"
+    msg["Subject"] = f"[DEMO] Gratismitgliedschaft AFJD {person['name']}" if CARDS[card][2]=="membership" else f"[DEMO] {CARDS[card][1]} · {person['name']}"
     msg["X-Unsent"] = "1"
-    body = ["REHEARSAL — fictional information only; not sent by the application.", "",
-            f"Benefit: {CARDS[card][1]}", f"Name: {person['name']}", f"Email: {person['email']}"]
-    if CARDS[card][2]=="membership": body.append("Membership valid until 31.12.2027.")
-    body.append("Intended participant CC after delivery is configured: "+person["email"])
-    body.extend(f"{key}: {value}" for key, value in application["details"].items())
-    body.append("Participant confirmed the claim and transfer to SVIAL.")
+    body = ["DEMO · Nur fiktive Angaben; nicht von der App versendet.", "",
+            f"Gewinn: {CARDS[card][1]}", f"Name: {person['name']}", f"E-Mail: {person['email']}"]
+    if CARDS[card][2]=="membership": body.append("Mitgliedschaft gültig bis 31.12.2027.")
+    body.append("Persönliche Kopie nach Einrichtung des Versands an: "+person["email"])
+    body.extend(f"{dict(address='Postadresse',organisation='Ausbildungsstätte',study_programme='Studiengang',date_of_birth='Geburtsdatum').get(key,key)}: {value}" for key, value in application["details"].items())
+    body.append("Die Person hat den Antrag und die Übermittlung an SVIAL bestätigt.")
     msg.set_content("\n".join(body))
     return msg.as_bytes()
 
@@ -495,21 +497,21 @@ def recap_draft(quest, person):
     """Safe rehearsal recap. Delivery is never performed here."""
     quest.require_active(person)
     if person not in quest.recap:
-        raise ValueError("Please opt into the recap first.")
+        raise ValueError("Stimme zuerst dem Erhalt der Zusammenfassung zu.")
     msg = EmailMessage()
     msg["To"] = "svial@svial.ch"
-    msg["Subject"] = "[REHEARSAL] Network recap — " + quest.profile(person)["name"]
+    msg["Subject"] = "[DEMO] Deine Netzwerk-Zusammenfassung · " + quest.profile(person)["name"]
     msg["X-Unsent"] = "1"
-    lines = ["REHEARSAL — not sent. Test delivery is routed only to svial@svial.ch.", "", "Your organisation visits:"]
+    lines = ["DEMO · Nicht versendet. Testempfänger ist ausschliesslich svial@svial.ch.", "", "Deine besuchten Unternehmen:"]
     for token in sorted(quest.visits.get(person, set())):
         org = ORGANISATIONS[token]
-        lines.append(f"{org[1]} ({org[0]}) | {org[2]} | Task: {org[3]}")
-    lines.append("\nCompany representatives scanned:")
+        lines.append(f"{org[1]} ({org[0]}) | {CLUSTER_LABELS[org[2]]} | Aufgabe: {org[3]}")
+    lines.append("\nGespeicherte Unternehmenskontakte:")
     for contact in sorted(quest.company_contacts.get(person,set())):
         company=quest.affiliations.get(contact)
         if company: lines.append((quest.profile(contact)["name"] if contact in quest.sharing else quest.roster()[contact]["id"])+" · "+ORGANISATIONS[company][1])
-    lines.extend(["", "Completed challenges: " + ", ".join(sorted(quest.completed(person))), "", "Confirmed conversations:"])
+    lines.extend(["", "Erfüllte Quests: " + ", ".join(sorted(quest.completed(person))), "", "Gespeicherte Kontakte:"])
     for other in sorted(quest.people(person)):
-        lines.append(quest.profile(other)["name"] + " — " + quest.profile(other)["email"] if other in quest.sharing else "Confirmed participant — contact details not shared")
+        lines.append(quest.profile(other)["name"] + " — " + quest.profile(other)["email"] if other in quest.sharing else "Kontakt gespeichert · Kontaktdaten nicht freigegeben")
     msg.set_content("\n".join(lines))
     return msg.as_bytes()

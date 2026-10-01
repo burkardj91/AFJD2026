@@ -76,7 +76,7 @@ button[kind=secondary],button[kind=tertiary]{background:var(--surface)!important
 .st-key-card-selection [data-testid=stHorizontalBlock]{flex-wrap:nowrap!important;gap:16px!important}
 .st-key-card-selection [data-testid=stColumn]{min-width:0!important;flex:1 1 0!important;width:0!important}
 [class*="st-key-draw-choice-"] button{position:relative;display:flex;align-items:flex-end;justify-content:center;height:260px;min-height:260px;border:1px solid #b7c9bd!important;border-radius:8px!important;background-color:#f8f7f1!important;background-repeat:no-repeat!important;background-size:68px auto!important;background-position:center 28px!important;color:#173e2a!important;padding:0 8px 22px!important;box-shadow:0 5px 10px #001e1110!important;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s}
-[class*="st-key-draw-choice-"] button:before{content:"NETWORK\A CARD";white-space:pre;position:absolute;top:125px;left:0;right:0;font:22px/1.2 Georgia,serif;letter-spacing:.08em;color:#234732;pointer-events:none}
+[class*="st-key-draw-choice-"] button:before{content:"NETZWERK\A KARTE";white-space:pre;position:absolute;top:125px;left:0;right:0;font:22px/1.2 Georgia,serif;letter-spacing:.08em;color:#234732;pointer-events:none}
 [class*="st-key-draw-choice-"] button:hover{transform:translateY(-7px);border-color:#009641!important;box-shadow:0 12px 20px #001e1120!important}
 [class*="st-key-draw-choice-"] button:focus-visible{outline:3px solid #ef8281;outline-offset:4px}
 [class*="st-key-draw-choice-"] button p{font-size:12px!important;font-weight:500!important;color:#315941!important;letter-spacing:.03em}
@@ -103,3 +103,11 @@ button[kind=secondary],button[kind=tertiary]{background:var(--surface)!important
 @media(max-width:420px){.journey-intro{gap:12px}.journey-intro>img{width:72px;height:72px}.journey-intro h2{font-size:23px!important}.journey-step span{font-size:10px}.celebration h2{font-size:27px!important}}
 
 .identity-heading{display:flex;align-items:center;gap:18px}.identity-heading>img{width:88px;height:88px;flex:none}.animal-rank{color:var(--accent);font-size:15px}.identity-heading .name{margin:0 0 4px!important}@media(max-width:600px){.identity-heading>img{width:72px;height:72px}.identity-heading .name{font-size:24px!important}}
+/* Quest trail: open choice of stops, with a quiet visual connection. */
+.quest-map{margin:1rem 0 2rem}.quest-map-hint{color:var(--muted);font-size:.95rem}.quest-trail{list-style:none;padding:0!important;margin:1.5rem 0!important;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;position:relative}.quest-stop{display:flex;gap:14px;align-items:flex-start;padding:22px 18px;border:1px solid var(--line);border-radius:20px 20px 20px 5px;background:var(--surface);min-width:0;position:relative;transition:transform .2s,border-color .2s}.quest-stop:nth-child(even){border-radius:20px 20px 5px 20px;transform:translateY(10px)}.quest-stop-icon{display:grid;place-items:center;flex:0 0 44px;height:44px;border-radius:50%;background:var(--soft);color:var(--accent);font-size:25px}.quest-stop-state{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.quest-stop h3{font-size:1.05rem!important;margin:5px 0 8px!important;padding:0!important}.quest-stop p{font-size:.9rem;line-height:1.5;margin:0}.quest-stop.is-complete{border-color:#009641;background:var(--soft)}.quest-stop.is-complete .quest-stop-icon{background:#009641;color:white}.quest-stop.is-complete .quest-stop-state{color:var(--accent)}
+@media(max-width:600px){.quest-trail{grid-template-columns:1fr;gap:12px}.quest-stop:nth-child(even){transform:none}.quest-stop{padding:17px 15px}.quest-stop-icon{flex-basis:38px;height:38px}}
+@media(prefers-reduced-motion:reduce){.quest-stop{transition:none}}
+
+/* Override Streamlit markdown list spacing for the quest trail. */
+[data-testid="stMarkdownContainer"] .quest-trail .quest-stop{padding:22px 18px!important;margin:0!important}
+@media(max-width:600px){[data-testid="stMarkdownContainer"] .quest-trail .quest-stop{padding:17px 15px!important}}

@@ -10,4 +10,4 @@ def logo_uri():
     return "data:image/png;base64," + base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
 
 def masthead():
-    return '<div class="masthead"><img class="brand-logo" src="'+logo_uri()+'" alt="SVIAL ASIAT"><div class="event-label"><strong>Agro-Food Job Dating</strong><span>Network Quest · 2026</span></div></div>'
+    return '<div class="masthead"><img class="brand-logo" src="'+logo_uri()+'" alt="SVIAL ASIAT"><div class="event-label"><strong>Agro-Food Job Dating</strong><span>Netzwerk-Quest · 2026</span></div></div>'

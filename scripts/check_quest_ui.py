@@ -21,35 +21,35 @@ with tempfile.TemporaryDirectory() as folder:
     app.query_params['claim']=card
     app.run()
     def click(label):
-        if label == "Enter demo":
-            next(c for c in app.checkbox if c.label.startswith("Keep me signed in")).uncheck()
+        if label == "Anmelden":
+            next(c for c in app.checkbox if c.label.startswith("Auf diesem Handy")).uncheck()
         next(b for b in app.button if b.label==label).click().run()
         privacy = [b for b in app.button if b.label == "Datenschutzauswahl speichern"]
-        if privacy and label == "Enter demo":
+        if privacy and label == "Anmelden":
             privacy[0].click().run()
         assert not app.exception, [e.message for e in app.exception]
-    next(t for t in app.text_input if t.label=='Private activation code').input('DEMO-264')
-    next(t for t in app.text_input if t.label=='Private activation code').input('LEA-7K4M-26')
-    click('Enter demo')
+    next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('DEMO-264')
+    next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('LEA-7K4M-26')
+    click('Anmelden')
     assert app.session_state['claim_v2']==card
-    assert any(t.label=='Full name' and t.value=='Lea Meier' for t in app.text_input)
-    next(r for r in app.radio if r.label=='Background').set_value('Black').run()
-    assert app.session_state['appearance_theme']=='Black'
-    app.select_slider[0].set_value('Extra large').run()
-    assert app.session_state['appearance_size']=='Extra large'
-    next(t for t in app.text_input if t.label=='University / employer').input('Demo University')
-    click('Save my profile')
+    assert any(t.label=='Vollständiger Name' and t.value=='Lea Meier' for t in app.text_input)
+    next(r for r in app.radio if r.label=='Hintergrund').set_value('Schwarz').run()
+    assert app.session_state['appearance_theme']=='Schwarz'
+    app.select_slider[0].set_value('Sehr gross').run()
+    assert app.session_state['appearance_size']=='Sehr gross'
+    next(t for t in app.text_input if t.label=='Ausbildungsstätte / Arbeitgeber').input('Demo University')
+    click('Mein Profil speichern')
     assert state.profile(person)['organisation']=='Demo University'
-    click('Change demo login')
+    click('Demo-Konto wechseln')
     app.query_params['claim']=card
-    next(t for t in app.text_input if t.label=='Private activation code').input('DEMO-137')
-    next(t for t in app.text_input if t.label=='Private activation code').input('ALEX-9P2R-26')
-    click('Enter demo')
-    assert app.error and 'assign this card' in app.error[0].value
+    next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('DEMO-137')
+    next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('ALEX-9P2R-26')
+    click('Anmelden')
+    assert app.error and 'zuzuordnen' in app.error[0].value
     assert 'claim_v2' not in app.session_state
-    click('Change demo login')
-    next(t for t in app.text_input if t.label=='Private activation code').input('SCREEN-01')
-    click('Enter demo')
+    click('Demo-Konto wechseln')
+    next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('SCREEN-01')
+    click('Anmelden')
     visible=' '.join(m.value for m in app.markdown)
     assert 'Lea Meier' not in visible and 'AFJD-0264' not in visible
     print('PASS: owner claim link; wrong-owner denial; theme and size; saved profile; anonymous live screen')

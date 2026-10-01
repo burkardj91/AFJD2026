@@ -70,6 +70,18 @@ class SharedQuest:
         for sender, target in list(state.pending):
             state.connections.add(tuple(sorted((sender, target))))
         state.pending.clear()
+        if state.catalog_version < 3:
+            from quest_registration import MENTORING_ANNOTATIONS
+            for person, row in state.registrations.items():
+                if row.get("annotation", "").strip().casefold() in MENTORING_ANNOTATIONS:
+                    state.affiliations[person] = "sv-5w8j"
+            # Re-evaluate stored scans against the published quests. Already
+            # assigned prizes remain reserved; obsolete approvals do not.
+            state.unlocked = set(state.assignments.values())
+            for person in state.active:
+                state.refresh(person)
+            state.draw_approvals = {p:v for p,v in state.draw_approvals.items() if p in state.unlocked}
+            state.catalog_version = 3
         return state
 
     def __getattr__(self, name):
