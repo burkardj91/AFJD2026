@@ -116,8 +116,8 @@ if not role:
     if st.query_params.get("badge"):
         st.info("Dies ist ein öffentlicher Badge-Link. Melde dich mit deinem eigenen Zugangscode an. Durch Scannen übernimmst du keinen fremden Badge.")
     st.markdown(masthead(), unsafe_allow_html=True)
-    st.title("Schön, dass du dabei bist!")
-    st.markdown("Entdecke die Kraft deines Netzwerks. **Am 8. Oktober 2026 ab 17 Uhr** erhältst du am Welcome Desk deinen persönlichen Zugangscode. Lerne Menschen kennen, entdecke die Agro-Food-Branche und schalte mit deinen Quests tolle Gewinne frei.")
+    from quest_landing import welcome_html, POSTER
+    st.markdown(welcome_html(), unsafe_allow_html=True)
     with st.form("demo_login"):
         code = st.text_input("Persönlicher Zugangscode", type="password", placeholder="Dein Code vom Welcome Desk", help="Dein privater Zugangscode gehört zu deinem persönlichen Pass.")
         if st.form_submit_button("Anmelden", type="primary", use_container_width=True):
@@ -135,6 +135,11 @@ if not role:
             except ValueError as error:
                 st.error(str(error))
     st.caption("Du bleibst auf diesem Gerät automatisch vier Stunden angemeldet. Bewahre deinen privaten Zugangscode sicher auf.")
+    with st.expander("So funktioniert die Netzwerk-Quest"):
+        st.markdown("1. **Anmelden:** Gib deinen privaten Code vom Welcome Desk ein.\n2. **Vernetzen:** Scanne Badges und Stände, sammle Kontakte und erfülle Quests.\n3. **Gewinnen:** Nach vier erfüllten Quests wartet deine Netzwerkkarte am SVIAL-Stand auf dich.")
+        st.caption("Dein Name und deine Institution sind für deine Kontakte sichtbar. Über die Freigabe deiner E-Mail-Adresse entscheidest du beim ersten Einstieg.")
+    with st.expander("Veranstaltungsplakat ansehen"):
+        st.image(str(POSTER), width="stretch")
     st.stop()
 
 if role in {"staff", "admin"}:
