@@ -24,6 +24,12 @@ st.set_page_config(page_title="SVIAL · Netzwerk-Quest", page_icon=Image.open(LO
 st.markdown("<style>"+Path(__file__).with_name("quest_theme.css").read_text(encoding="utf-8")+"</style>", unsafe_allow_html=True)
 s = st.session_state
 q = SharedQuest()
+from quest_mail_worker import ensure_worker
+try:
+    email_config = dict(st.secrets.get("email", {}))
+except FileNotFoundError:
+    email_config = {}
+ensure_worker(q.path, email_config)
 DEMO_ROSTER = ROSTER
 ROSTER = q.roster()
 ACTIVATION_CODES = q.activation_codes()
@@ -112,13 +118,12 @@ if not role:
     st.write("Öffne dein Profil und deinen digitalen Badge mit deinem persönlichen Zugangscode.")
     with st.form("demo_login"):
         code = st.text_input("Persönlicher Zugangscode", type="password", placeholder="LEA-7K4M-26", help="Dein Code gehört zu deinem Profil. Team-Zugänge: ADMIN-01, STAFF-01, STAFF-02 oder SCREEN-01.")
-        remember = st.checkbox("Auf diesem Handy 12 Stunden angemeldet bleiben", value=True, help="Für dein eigenes Handy. Zum Testen verschiedener Konten in mehreren Tabs ausschalten. Team- und Bildschirm-Zugänge werden nicht gespeichert.")
         if st.form_submit_button("Anmelden", type="primary", use_container_width=True):
             try:
                 role, person = q.demo_login(code)
                 s.demo_role_v3, s.person_v2 = role, person
                 s.staff_login = code.strip().upper() if role in {"staff", "admin"} else None
-                if remember and role == "participant":
+                if role == "participant":
                     old_token = st.context.cookies.get(COOKIE_NAME)
                     logins.revoke(old_token)
                     token = logins.issue(code)
@@ -127,7 +132,7 @@ if not role:
                 st.rerun()
             except ValueError as error:
                 st.error(str(error))
-    st.caption("Fiktive Testkonten. Zum Testen verschiedener Personen in mehreren Tabs die gespeicherte Anmeldung ausschalten. Der Fortschritt wird gemeinsam gespeichert und automatisch aktualisiert.")
+    st.caption("Fiktive Testkonten. Du bleibst automatisch vier Stunden angemeldet. Für getrennte Testpersonen verschiedene Browserprofile verwenden. Der Fortschritt wird gemeinsam gespeichert und automatisch aktualisiert.")
     with st.expander("Fiktive Zugangsdaten · nur zum Testen"):
         st.table([{"Name":r["name"], "Badge-ID":r["id"], "Persönlicher Testcode":ACTIVATION_CODES[p]} for p,r in DEMO_ROSTER.items()])
     st.subheader("Veranstaltungsteam")
@@ -626,10 +631,11 @@ elif view == "Veranstaltung verwalten":
                 st.success("Firmenzuordnung gespeichert.")
             except ValueError as error: st.error(str(error))
     with st.expander("Zusammenfassung · Zeitplan & E-Mail-Warteschlange"):
-        st.caption("Dieser Zeitplan erstellt Entwürfe auf dem App-Server. Der Versand erfolgt oben unter E-Mail-Versand per Klick. Demo-Empfänger: svial@svial.ch.")
+        st.caption("Automatischer Versand zum gespeicherten Zeitpunkt, wenn email.enabled und email.auto_send aktiviert sind. Die App muss auf einem laufenden Server bleiben. Der Testmodus leitet alle Nachrichten an die Testadresse um.")
         with st.form("recap-schedule"):
-            recap_day=st.date_input("Datum der Zusammenfassung", value=datetime.now(ZoneInfo("Europe/Zurich")).date())
-            recap_time=st.time_input("Uhrzeit der Zusammenfassung · Europe/Zurich",value=time(21,0))
+            scheduled_recap = datetime.fromisoformat(q.recap_deadline).astimezone(ZoneInfo("Europe/Zurich"))
+            recap_day=st.date_input("Datum der Zusammenfassung", value=scheduled_recap.date())
+            recap_time=st.time_input("Uhrzeit der Zusammenfassung · Europe/Zurich",value=scheduled_recap.time())
             if st.form_submit_button("Zusammenfassungen planen"):
                 try:
                     q.schedule_recaps(s.staff_login,datetime.combine(recap_day,recap_time,tzinfo=ZoneInfo("Europe/Zurich")).isoformat())

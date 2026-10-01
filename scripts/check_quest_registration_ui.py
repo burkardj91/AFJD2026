@@ -27,6 +27,13 @@ with tempfile.TemporaryDirectory() as folder:
     assert len(app.get('download_button'))==5
     click('Person anlegen')
     assert len(q.registrations)==1 and app.error
+    token=next(iter(q.registrations));before=q.registrations[token]
+    next(x for x in app.selectbox if x.label=='Badge-ID oder Name').select(token).run()
+    for label,value in [('Tatsächlicher Vorname','Sara'),('Tatsächlicher Nachname','Rossi'),('Persönliche E-Mail','sara@example.test')]:
+        next(t for t in app.text_input if t.label==label).input(value)
+    click('Badge aktualisieren')
+    assert q.profile(token)['name']=='Sara Rossi'
+    assert q.registrations[token]['id']==before['id'] and q.registrations[token]['code']==before['code']
     click('Demo-Konto wechseln')
     os.environ['QUEST_STAFF_PASSWORD']='fictional-booth-password-for-test'
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('STAFF-01')

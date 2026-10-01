@@ -95,6 +95,12 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
                                 E.SubElement(properties,'{'+W+'}sz').set('{'+W+'}val','20')
                                 E.SubElement(run,'{'+W+'}br')
                                 E.SubElement(run,'{'+W+'}t').text=person['code']
+                                if person.get('provisional_name'):
+                                    labelrun=E.SubElement(paragraph,'{'+W+'}r')
+                                    props=E.SubElement(labelrun,'{'+W+'}rPr')
+                                    E.SubElement(props,'{'+W+'}sz').set('{'+W+'}val','16')
+                                    E.SubElement(labelrun,'{'+W+'}br')
+                                    E.SubElement(labelrun,'{'+W+'}t').text=person['provisional_name']
                     else:
                         # The QR contains the only visible logo; remove every template logo.
                         for drawing in list(cell.findall('.//w:drawing',NS)):
@@ -112,6 +118,7 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
                         last = person.get('last_name')
                         if first is None or last is None:
                             first, _, last = person['name'].partition(' ')
+                        if person.get('blank_badge'): first, last = '\u00a0', '\u00a0'
                         values={'Vorname':first,'Nachname':last,'Institution':person.get('affiliation','')}
                         for text in cell.findall('.//w:t',NS):
                             if text.text in values:text.text=values[text.text]
