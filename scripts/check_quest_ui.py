@@ -39,9 +39,9 @@ with tempfile.TemporaryDirectory() as folder:
     assert app.session_state['appearance_theme']=='Schwarz'
     app.select_slider[0].set_value('Sehr gross').run()
     assert app.session_state['appearance_size']=='Sehr gross'
-    next(t for t in app.text_input if t.label=='Ausbildungsstätte / Arbeitgeber').input('Demo University')
+    next(t for t in app.text_input if t.label=='Dein vollständiger Name').input('Lea Test')
     click('Mein Profil speichern')
-    assert state.profile(person)['organisation']=='Demo University'
+    assert state.profile(person)['name']=='Lea Test'
     click('Demo-Konto wechseln')
     app.query_params['claim']=card
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('DEMO-137')

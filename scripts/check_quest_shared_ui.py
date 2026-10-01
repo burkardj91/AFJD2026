@@ -47,19 +47,17 @@ with tempfile.TemporaryDirectory() as directory:
     lea.run()
     assert not lea.exception
     card=next(iter(staff.session_state['quest_v2'].assignments))
-    lea.text_input(key='claimtext').input('http://127.0.0.1:8503/?claim='+card)
-    next(b for b in lea.button if b.key=='FormSubmitter:claimform-Code lesen').click().run()
+    button(lea,'Mitgliedschaft im Profil einlösen').click().run()
     assert any(t.label=='Vollständiger Name' and t.value=='Lea Meier' for t in lea.text_input)
     assert not any(t.key=='claimtext' for t in lea.text_input)
     for t in lea.text_area:
-        if t.label=='Postadresse': t.input('Fictional street 1, 8000 Zurich')
-    for field in lea.text_input:
-        if field.label=='Ausbildungsstätte (Pflicht für die Mitgliedschaft)': field.input('Demo School')
-        if field.label=='Studiengang (Pflicht für die Mitgliedschaft)': field.input('Food Science')
+        if t.label=='Postadresse (Pflicht)': t.input('Fictional street 1, 8000 Zurich')
+    next(x for x in lea.selectbox if x.label=='Abschluss (Pflicht)').select('HAFL')
+    next(x for x in lea.selectbox if x.label=='Studiengang (Pflicht)').select('Agrarwissenschaften')
     from datetime import date
     next(d for d in lea.date_input if d.label=='Geburtsdatum (Pflicht für die Mitgliedschaft)').set_value(date(2000,1,1))
     next(c for c in lea.checkbox if c.label.startswith('Ich bestätige meinen Antrag')).check()
-    button(lea,'Meinen Antrag vorbereiten').click().run()
+    button(lea,'Anmeldung absenden').click().run()
     staff.run()
     assert not staff.exception and not lea.exception
     assert len(staff.session_state['quest_v2'].applications)==1

@@ -50,9 +50,13 @@ for token,name,badge,code in [
     ACTIVATION_CODES[token] = code
 DEFAULT_AFFILIATIONS = {"p-3nm9q4":"re-lidl","p-6wx5t1":"re-lidl","p-ag-one":"ag-7v2x","p-ag-two":"ag-soil","p-svial":"sv-5w8j","p-rosie":"sv-5w8j"}
 
+LEGACY_ACTIVATION_CODES = dict(ACTIVATION_CODES)
+for _token, _code in zip(ROSTER, ["AFJD-LM-264", "AFJD-AK-137", "AFJD-NF-189", "AFJD-MB-310", "AFJD-JW-421", "AFJD-SR-532", "AFJD-MV-001", "AFJD-SV-002", "AFJD-ST-003", "AFJD-RM-004"]):
+    ACTIVATION_CODES[_token] = _code
+
 # Fictional participants always route to the event team's test mailbox.
 for _demo in ROSTER.values():
-    _demo["email"] = "svial@svial.ch"
+    _demo["email"] = "j.burkard@svial.ch"
 
 # Keep the original six QR tokens valid when expanding the inventory.
 CARDS = {
@@ -109,7 +113,7 @@ class Quest:
         return {**ACTIVATION_CODES, **{p:r["code"] for p,r in self.registrations.items()}}
 
     def import_registrations(self, staff_id, rows):
-        from quest_registration import plan_import
+        from quest_registration import plan_import, short_access_code
         if staff_id != "ADMIN-01":
             raise ValueError("Ein Administrator-Zugang ist erforderlich.")
         plan = plan_import(rows, self.registrations)
@@ -130,7 +134,7 @@ class Quest:
                 used = {r["id"] for r in self.roster().values()}
                 number = 1
                 while f"AFJD-{number:04}" in used: number += 1
-                data.update(id=f"AFJD-{number:04}", code=secrets.token_hex(12).upper())
+                data.update(id=f"AFJD-{number:04}", code=short_access_code(data["first_name"], data["last_name"], set(self.activation_codes().values())))
                 self.registrations[person] = data
             else:
                 self.registrations[person].update(data)
@@ -143,15 +147,19 @@ class Quest:
             saved.append(person)
         return saved
 
-    def correct_registration(self, staff_id, person, first, last, email, affiliation=""):
+    def correct_registration(self, staff_id, person, first, last, email, affiliation="", renew_code=False):
         if staff_id != "ADMIN-01" or person not in self.registrations:
             raise ValueError("Wähle als Administrator eine importierte Person.")
         first, last, email = first.strip(), last.strip(), email.strip()
         if not first or not last or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
             raise ValueError("Vorname, Nachname und eine gültige E-Mail sind erforderlich.")
         data = dict(first_name=first, last_name=last, name=first+" "+last, email=email, affiliation=affiliation.strip())
+        if renew_code:
+            from quest_registration import short_access_code
+            data["code"] = short_access_code(first, last, set(self.activation_codes().values()))
+            data["auth_version"] = self.registrations[person].get("auth_version", 0)+1
         self.registrations[person].update(data, blank_badge=False, identity_pending=False, identity_corrected=True)
-        self.profiles.setdefault(person, {}).update(data)
+        self.profiles.setdefault(person, {}).update({k:v for k,v in data.items() if k not in {"code", "auth_version"}})
         self.privacy_reviewed.discard(person)
         self.sharing.discard(person)
         self.recap.discard(person)
@@ -169,6 +177,15 @@ class Quest:
         # Snapshot current sharing choices at dispatch; claim transaction prevents
         # concurrent workers from submitting the same recap twice.
         mail.update(draft=recap_draft(self,person).decode("utf-8"), attempted=True, status="Versand läuft · bei Unterbruch vor Wiederholung prüfen")
+        return mail["draft"]
+
+    def claim_application_delivery(self, key):
+        mail = self.outbox.get(key)
+        if not mail or mail.get("kind") not in {"claim", "confirmation"} or not mail.get("ready") or mail.get("attempted"):
+            return None
+        if mail.get("card") not in self.applications:
+            return None
+        mail.update(attempted=True, status="Versand läuft · bei Unterbruch vor Wiederholung prüfen")
         return mail["draft"]
 
     def mark_recap_delivery(self, key, status):
@@ -288,7 +305,7 @@ class Quest:
     def profile(self, person):
         profile = {**self.roster()[person], **self.profiles.get(person, {})}
         if person in ROSTER:
-            profile["email"] = "svial@svial.ch"
+            profile["email"] = "j.burkard@svial.ch"
         return profile
 
     def update_profile(self, person, details):
@@ -306,6 +323,10 @@ class Quest:
     def demo_login(self, code, private_code=None):
         """Public rehearsal credentials only, not production authentication."""
         code = code.strip().upper()
+        for legacy_person, legacy_code in LEGACY_ACTIVATION_CODES.items():
+            if private_code is None and code == legacy_code:
+                code = ACTIVATION_CODES[legacy_person]
+                break
         if code == "ADMIN-01":
             return "admin", None
         if code in {"STAFF-01", "STAFF-02"}:
@@ -316,7 +337,7 @@ class Quest:
             return "participant", self.activate_badge(code, private_code)
         person = next((p for p,secret in self.activation_codes().items() if secrets.compare_digest(secret,code)), None)
         if person is None:
-            raise ValueError("Gib einen gültigen persönlichen Zugangscode ein. Für Lea: LEA-7K4M-26.")
+            raise ValueError("Gib deinen gültigen persönlichen Zugangscode vom Welcome Desk ein.")
         self.active.add(person)
         return "participant", person
 
@@ -326,7 +347,7 @@ class Quest:
         if not private_code.strip():
             raise ValueError("Gib den zu deiner Zugangskennung gehörenden persönlichen Zugangscode ein.")
         person = next((p for p,r in self.roster().items() if badge.strip().upper() in {r["id"], r["code"], p.upper()}), None)
-        if person is None or not secrets.compare_digest(self.activation_codes()[person], private_code.strip().upper()):
+        if person is None or private_code.strip().upper() not in {self.activation_codes()[person], LEGACY_ACTIVATION_CODES.get(person)}:
             raise ValueError("Zugangskennung und persönlicher Code passen nicht zusammen. Verwende die Werte derselben Testperson.")
         self.active.add(person)
         return person
@@ -460,17 +481,24 @@ class Quest:
         if not self.profile(person)["name"].strip():
             raise ValueError("Für diesen Preis ist ein Name erforderlich.")
         if CARDS[card][2] == "membership":
-            for key,label in [("address","Postadresse"),("organisation","Ausbildungsstätte"),("study_programme","Studiengang"),("date_of_birth","Geburtsdatum")]:
+            for key,label in [("address","Postadresse"),("qualification","Abschluss"),("study_programme","Studiengang"),("date_of_birth","Geburtsdatum")]:
                 if not details.get(key, "").strip():
                     raise ValueError(label+" ist für die Gratismitgliedschaft erforderlich.")
+            if details["qualification"] not in {"HAFL", "ETHZ", "HES-SO", "ZHAW", "Andere"}:
+                raise ValueError("Wähle einen Abschluss aus der Liste.")
+            if details["study_programme"] not in {"Agrarwissenschaften", "Lebensmittelwissenschaften", "Andere"}:
+                raise ValueError("Wähle einen Studiengang aus der Liste.")
             try:
                 born=datetime.fromisoformat(details["date_of_birth"]).date()
                 if born > datetime.now().date() or born.year < 1900: raise ValueError()
             except ValueError:
                 raise ValueError("Gib ein gültiges Geburtsdatum ein.")
-        self.applications[card] = {"person": person, "identity": {k:self.profile(person)[k] for k in ["name", "email"]}, "details": dict(details), "status": "Vorbereitet · nicht versendet"}
+        self.applications[card] = {"person": person, "identity": {k:self.profile(person)[k] for k in ["name", "email"]}, "details": {k:details[k] for k in ("qualification", "study_programme", "address", "date_of_birth") if k in details} if CARDS[card][2] == "membership" else {}, "status": "Anmeldung gespeichert"}
 
-        self.outbox["claim:"+card]={"kind":"claim","person":person,"status":"Wartet auf geplanten Versand","draft":email_draft(self,card,"svial@svial.ch").decode("utf-8")}
+        self.outbox["claim:"+card]={"kind":"claim","person":person,"card":card,"ready":True,"status":"Wartet auf Versand","draft":email_draft(self,card,"svial@svial.ch").decode("utf-8")}
+        if CARDS[card][2] == "membership":
+            from quest_membership import confirmation_draft
+            self.outbox["confirmation:"+card]={"kind":"confirmation","person":person,"card":card,"ready":True,"status":"Wartet auf Versand","draft":confirmation_draft(self.applications[card]).decode("utf-8")}
 
     def approve_draw(self, person, staff_id):
         if staff_id not in {"STAFF-01", "STAFF-02"}:
@@ -516,22 +544,9 @@ class Quest:
 
 def email_draft(quest, card, recipient):
     if not re.fullmatch(r"[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+", recipient):
-        raise ValueError("Gib in den Demo-Einstellungen eine gültige Empfangsadresse ein.")
-    application = quest.applications[card]
-    person = application.get("identity", quest.profile(application["person"]))
-    msg = EmailMessage()
-    msg["To"] = "svial@svial.ch"
-    msg["Cc"] = "svial@svial.ch"
-    msg["Subject"] = f"[DEMO] Gratismitgliedschaft AFJD {person['name']}" if CARDS[card][2]=="membership" else f"[DEMO] {CARDS[card][1]} · {person['name']}"
-    msg["X-Unsent"] = "1"
-    body = ["DEMO · Nur fiktive Angaben; nicht von der App versendet.", "",
-            f"Gewinn: {CARDS[card][1]}", f"Name: {person['name']}", f"E-Mail: {person['email']}"]
-    if CARDS[card][2]=="membership": body.append("Mitgliedschaft gültig bis 31.12.2027.")
-    body.append("Persönliche Kopie nach Einrichtung des Versands an: "+person["email"])
-    body.extend(f"{dict(address='Postadresse',organisation='Ausbildungsstätte',study_programme='Studiengang',date_of_birth='Geburtsdatum').get(key,key)}: {value}" for key, value in application["details"].items())
-    body.append("Die Person hat den Antrag und die Übermittlung an SVIAL bestätigt.")
-    msg.set_content("\n".join(body))
-    return msg.as_bytes()
+        raise ValueError("Ungültige Empfangsadresse.")
+    from quest_membership import application_draft
+    return application_draft(quest.applications[card], CARDS[card])
 
 
 FEEDBACK_URL = "https://docs.google.com/forms/d/e/1FAIpQLScBYUkCh6fJjwD40zLrUGenNcFqBXJRKZf5vWWDc9hsi4FVHw/viewform?usp=header"

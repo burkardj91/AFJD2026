@@ -12,9 +12,9 @@ def dispatch_due(q, config):
         return
     q.queue_due_recaps()
     for key, entry in q.outbox.items():
-        if entry.get("kind") != "recap" or entry.get("attempted"):
+        if entry.get("attempted"):
             continue
-        draft = q.claim_recap_delivery(key)
+        draft = q.claim_recap_delivery(key) if entry.get("kind") == "recap" else q.claim_application_delivery(key)
         if draft is None:
             continue
         try:

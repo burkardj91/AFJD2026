@@ -34,7 +34,7 @@ def prepare_message(draft, config, force_test=False):
     if mode not in {"test", "live"}:
         raise ValueError('email.mode muss "test" oder "live" sein.')
     test = force_test or mode == "test"
-    recipient = address(config.get("test_recipient", "svial@svial.ch") if test else str(msg["To"] or ""))
+    recipient = address(config.get("test_recipient", "j.burkard@svial.ch") if test else str(msg["To"] or ""))
     sender = address(config.get("sender", ""))
     for key in ["To", "Cc", "Bcc", "From", "Reply-To", "X-Unsent"]:
         if key in msg: del msg[key]
@@ -100,7 +100,7 @@ def mail_admin(q, staff_id):
         try: config = dict(st.secrets.get("email", {}))
         except FileNotFoundError: config = {}
         mode = config.get("mode", "test")
-        test_recipient = config.get("test_recipient", "svial@svial.ch")
+        test_recipient = config.get("test_recipient", "j.burkard@svial.ch")
         st.caption("Testmodus: alle Nachrichten gehen ausschliesslich an die Testadresse. Im Live-Modus erhält jede Person ihre eigene Kontakt-Mail; test_recipient wird dafür ignoriert. Einzeltests erfolgen per Klick. Geplante Zusammenfassungen werden automatisch versendet, solange der Server läuft und auto_send nicht deaktiviert ist.")
         st.write("Modus: **" + ("Live" if mode == "live" else "Test") + "** · Testadresse: " + str(test_recipient))
         if not config.get("enabled"):

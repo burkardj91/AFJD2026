@@ -144,6 +144,22 @@ def mock_eventfrog_xlsx(count=10):
     sheet.append(['Ticket-ID','Vorname','Nachname','E-Mail','Affiliation','Annotation'])
     annotations=['','Coop','Lidl','SVIAL','','Mentor','mooh Genossenschaft','Emmi Schweiz AG','','SVIAL','Strickhof','']
     for i,(first,last,affiliation) in enumerate(names[:count]):
-        sheet.append([f'BADGE-MOCK-{i+1:02}',first,last,f'badge-mock-{i+1:02}@example.test',affiliation,annotations[i]])
+        sheet.append([f'BADGE-MOCK-{i+1:02}',first,last,'j.burkard@svial.ch',affiliation,annotations[i]])
     for col,width in [('A',23),('B',18),('C',18),('D',34),('E',22),('F',29)]:sheet.column_dimensions[col].width=width
     stream=BytesIO();book.save(stream);return stream.getvalue()
+
+
+def short_access_code(first, last, used):
+    import secrets
+    import unicodedata
+    def initial(text):
+        letters=''.join(c for c in unicodedata.normalize('NFKD',text).upper() if c.isascii() and c.isalpha())
+        return letters[:1] or 'X'
+    prefix='AFJD-'+initial(first)+initial(last)+'-'
+    available=[prefix+str(n).zfill(3) for n in range(1000) if prefix+str(n).zfill(3) not in used]
+    if not available: raise ValueError('Für diese Initialen sind alle kurzen Codes vergeben. Bitte einen anderen Zugangscode verwenden.')
+    return secrets.choice(available)
+
+
+def reserve_rows():
+    return [dict(name=f'John Doe {i:02}', first_name='John', last_name=f'Doe {i:02}', email='j.burkard@svial.ch',source_id=f'reserve:{i:02}',blank_badge=True) for i in range(1,21)]
