@@ -20,10 +20,11 @@ with tempfile.TemporaryDirectory() as folder:
     app=login('LEA-7K4M-26')
     assert not app.tabs
     assert all(c.value for c in app.checkbox)
-    next(c for c in app.checkbox if c.label.startswith('Meinen Namen')).uncheck()
+    next(c for c in app.checkbox if c.label.startswith('Meine E-Mail')).uncheck()
     next(c for c in app.checkbox if c.label == 'Zusammenfassung per E-Mail erhalten').uncheck()
     next(b for b in app.button if b.label=='Datenschutzauswahl speichern').click().run()
     assert not app.exception
+    assert app.tabs[0].label == "Mein Pass"
     q=SharedQuest()
     assert 'p-8hd2v7' in q.privacy_reviewed
     assert not q.sharing and not q.recap
@@ -31,7 +32,7 @@ with tempfile.TemporaryDirectory() as folder:
     assert returned.tabs
     privacy=next(e for e in returned.expander if e.label=='Datenschutz · Du entscheidest')
     assert not privacy.proto.expanded
-    next(c for c in returned.checkbox if c.label.startswith('Meinen Namen')).check()
+    next(c for c in returned.checkbox if c.label.startswith('Meine E-Mail')).check()
     next(b for b in returned.button if b.label=='Datenschutzauswahl speichern').click().run()
     assert 'p-8hd2v7' in q.sharing
     staff=login('STAFF-01')

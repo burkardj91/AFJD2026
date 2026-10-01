@@ -50,6 +50,10 @@ for token,name,badge,code in [
     ACTIVATION_CODES[token] = code
 DEFAULT_AFFILIATIONS = {"p-3nm9q4":"re-lidl","p-6wx5t1":"re-lidl","p-ag-one":"ag-7v2x","p-ag-two":"ag-soil","p-svial":"sv-5w8j","p-rosie":"sv-5w8j"}
 
+# Fictional participants always route to the event team's test mailbox.
+for _demo in ROSTER.values():
+    _demo["email"] = "svial@svial.ch"
+
 # Keep the original six QR tokens valid when expanding the inventory.
 CARDS = {
     "r-7mn4b2": ("NC-001", "Gratismitgliedschaft SVIAL · bis 31.12.2027", "membership"),
@@ -248,7 +252,10 @@ class Quest:
         self.pending.discard((sender, recipient))
 
     def profile(self, person):
-        return {**self.roster()[person], **self.profiles.get(person, {})}
+        profile = {**self.roster()[person], **self.profiles.get(person, {})}
+        if person in ROSTER:
+            profile["email"] = "svial@svial.ch"
+        return profile
 
     def update_profile(self, person, details):
         self.require_active(person)
@@ -505,16 +512,14 @@ def contact_rows(quest, person):
         company = quest.affiliations.get(other)
         if company:
             represented.add(company)
-        if other in quest.sharing:
-            # Keep the Eventfrog split unless the participant edited their name.
-            if profile.get("first_name") and profile["name"] == quest.roster()[other]["name"]:
-                first, last = profile["first_name"], profile.get("last_name", "")
-            else:
-                first, _, last = profile["name"].partition(" ")
-            affiliation = ORGANISATIONS[company][1] if company else profile.get("affiliation", "") or profile.get("organisation", "")
-            rows.append({"Vorname":first, "Nachname":last, "Institution / Zugehörigkeit":affiliation, "E-Mail":profile["email"]})
+        # Names identify a connection; only the email address is optional.
+        if profile.get("first_name") and profile["name"] == quest.roster()[other]["name"]:
+            first, last = profile["first_name"], profile.get("last_name", "")
         else:
-            rows.append({"Vorname":"Nicht freigegeben", "Nachname":"", "Institution / Zugehörigkeit":ORGANISATIONS[company][1] if company else "", "E-Mail":"Nicht freigegeben"})
+            first, _, last = profile["name"].partition(" ")
+        affiliation = ORGANISATIONS[company][1] if company else profile.get("affiliation", "") or profile.get("organisation", "")
+        rows.append({"Vorname":first, "Nachname":last, "Institution / Zugehörigkeit":affiliation,
+                     "E-Mail":profile["email"] if other in quest.sharing else "Nicht freigegeben"})
     # A stand-only scan has no personal email or invented contact name.
     for station in sorted(quest.visits.get(person, set()) - represented):
         rows.append({"Vorname":"—", "Nachname":"—", "Institution / Zugehörigkeit":ORGANISATIONS[station][1], "E-Mail":"—"})

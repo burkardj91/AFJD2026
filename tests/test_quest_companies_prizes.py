@@ -53,4 +53,5 @@ class CompanyPrizeTests(unittest.TestCase):
         q.queue_due_recaps(deadline);q.queue_due_recaps(deadline)
         self.assertEqual(list(q.outbox),['recap:'+p])
         self.assertIn('Lidl',q.outbox['recap:'+p]['draft'])
-        self.assertNotIn('Alex Keller',q.outbox['recap:'+p]['draft'])
+        self.assertIn('Alex',q.outbox['recap:'+p]['draft'])
+        self.assertEqual(__import__('quest_core').contact_rows(q,p)[0]['E-Mail'],'Nicht freigegeben')

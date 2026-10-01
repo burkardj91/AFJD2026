@@ -31,7 +31,8 @@ class EventRulesTests(unittest.TestCase):
         self.assertIn('Landwirtschaft',q.completed(p))
         self.assertEqual(len(q.public_network()['visits']),1)
         q.set_preferences(p,False,True)
-        self.assertNotIn(b'Alex Keller',recap_draft(q,p))
+        self.assertIn('Alex',str(__import__('quest_core').contact_rows(q,p)))
+        self.assertTrue(all(row['E-Mail']=='Nicht freigegeben' for row in __import__('quest_core').contact_rows(q,p)))
 
     def test_exhibitor_ids_and_large_graph(self):
         self.assertEqual({r[0] for r in EXHIBITORS},set(range(2,27)))
