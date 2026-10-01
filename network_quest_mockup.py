@@ -34,14 +34,16 @@ DEMO_ROSTER = ROSTER
 ROSTER = q.roster()
 ACTIVATION_CODES = q.activation_codes()
 if s.get("reset_epoch", q.reset_epoch) != q.reset_epoch:
+    team = {k:s[k] for k in ("demo_role_v3", "staff_login", "registration_admin") if k in s} if s.get("demo_role_v3") in {"admin", "staff", "screen"} else {}
     s.clear()
+    s.update(team)
     st.query_params.clear()
     s.reset_notice = True
     s.skip_browser_restore = True
 s.reset_epoch = q.reset_epoch
 s.quest_v2 = q
 if s.pop("reset_notice", False):
-    st.success("Die Demo wurde zurückgesetzt. Melde dich erneut an.")
+    st.success("Veranstaltungsdaten wurden zurückgesetzt. Teilnehmende müssen sich erneut anmelden.")
 logins = BrowserLogins(q)
 cookie_writer = components.declare_component("afjd_login_cookie", path=str(Path(__file__).with_name("login_cookie")))
 
@@ -140,7 +142,7 @@ if role in {"staff", "admin"}:
     protect_staff(q, role)
 
 st.markdown(masthead(), unsafe_allow_html=True)
-allowed_views = {"participant":["Mein Pass"], "staff":["SVIAL-Team"], "admin":["Registration", "Veranstaltung verwalten", "QR-Druckvorlagen"], "screen":["Live-Netzwerk"]}[role]
+allowed_views = {"participant":["Mein Pass"], "staff":["SVIAL-Team"], "admin":["Registration", "Veranstaltung verwalten", "Personen & Aktivitäten"], "screen":["Live-Netzwerk"]}[role]
 if role in {"staff", "admin"}:
     view = st.radio("Arbeitsbereich", allowed_views, key="workspace-"+role, horizontal=True)
 else:
@@ -633,23 +635,8 @@ elif view == "SVIAL-Team":
         st.table([{"ID":ORGANISATIONS[t][0],"Firma":ORGANISATIONS[t][1],"Gruppe":CLUSTER_LABELS[ORGANISATIONS[t][2]],"Bemerkungen":note} for t,note in EXHIBITOR_NOTES.items()])
 elif view == "Veranstaltung verwalten":
     st.title("Veranstaltung verwalten")
-    with st.expander("Testzugänge & Team-Zugänge", expanded=False):
-        st.caption("Vertraulich behandeln. Diese Übersicht ist nur im geschützten Admin-Bereich sichtbar.")
-        st.table([{"Name":r["name"], "Badge-ID":r["id"], "Zugangscode":ACTIVATION_CODES[p], "E-Mail":q.profile(p)["email"]} for p,r in ROSTER.items()])
-        st.table([{"Kennung":"ADMIN-01", "Passwort":"QUEST_ADMIN_PASSWORD in Secrets"}, {"Kennung":"STAFF-01 / STAFF-02", "Passwort":"QUEST_STAFF_PASSWORD in Secrets"}, {"Kennung":"SCREEN-01", "Passwort":"Kein Passwort · anonyme Leinwand"}])
-        st.caption("Mia-Test: AFJD-MB-310. Mit ihrem zugeordneten Mitgliedschafts-QR oder über Mein Pass → Mitgliedschaft im Profil einlösen öffnet sich das Formular.")
-
     from quest_mail import mail_admin
     mail_admin(q, s.staff_login)
-    with st.expander("Firmenzuordnung · Demo-Datenbank"):
-        st.caption("Alex Keller und Noah Frei vertreten in der Demo Lidl. Die Firmenzuordnung wird administrativ verwaltet, unabhängig vom bearbeitbaren Profiltext.")
-        contact=st.selectbox("Person zuordnen",list(ROSTER),format_func=lambda p:ROSTER[p]["name"])
-        company=st.selectbox("Vertretene Organisation",[None,*ORGANISATIONS],format_func=lambda c:ORGANISATIONS[c][1] if c else "Teilnehmer:in ohne Firmenzuordnung")
-        if st.button("Firmenzuordnung speichern"):
-            try:
-                q.annotate_company(s.staff_login,contact,company)
-                st.success("Firmenzuordnung gespeichert.")
-            except ValueError as error: st.error(str(error))
     with st.expander("Zusammenfassung · Zeitplan & E-Mail-Warteschlange"):
         st.caption("Automatischer Versand zum gespeicherten Zeitpunkt, wenn email.enabled und email.auto_send aktiviert sind. Die App muss auf einem laufenden Server bleiben. Der Testmodus leitet alle Nachrichten an die Testadresse um.")
         with st.form("recap-schedule"):
@@ -681,18 +668,28 @@ elif view == "Veranstaltung verwalten":
         if q.raffle:
             st.write("Geplant: "+q.raffle["deadline"]+" · "+str(q.raffle["count"])+" Gewinner:innen · mindestens "+str(q.raffle["minimum"])+" Quests")
         st.caption("Sind weniger Personen berechtigt, gewinnen alle Berechtigten. Niemand gewinnt doppelt. Eine abgeschlossene Verlosung lässt sich erst nach dem Zurücksetzen erneut durchführen.")
-    with st.expander("Administration · Demo zurücksetzen"):
+    with st.expander("Administration · Daten zurücksetzen"):
         st.warning("Löscht Besuche, Kontakte, Anfragen, Quest-Fortschritt, Karten, Anträge und Datenschutzauswahl ALLER Personen. Der Preisbestand wird aufgefüllt, geöffnete Tabs werden abgemeldet. Heruntergeladene Dateien bleiben bestehen.")
         st.caption("Nur für die Administration. Anmeldungen und Zugangscodes bleiben beim Zurücksetzen erhalten.")
         with st.form("reset-rehearsal"):
             keep_profiles = st.checkbox("Bearbeitete Profile behalten", value=True)
             confirmation = st.text_input("Zum Zurücksetzen RESET eingeben")
-            if st.form_submit_button("Alle Demo-Aktivitäten zurücksetzen"):
+            if st.form_submit_button("Alle Aktivitäten zurücksetzen"):
                 try:
                     q.reset_demo(s.staff_login, confirmation, keep_profiles)
                     st.rerun()
                 except ValueError as error:
                     st.error(str(error))
+    with st.expander("Importe und Veranstaltung vollständig zurücksetzen"):
+        st.warning("Löscht alle importierten Personen, Nachmeldungen, Reserve-Badges, Profile und sämtliche Teilnehmeraktivitäten – auch die der Beispielpersonen. Karten, Anträge, Warteschlange und Verlosung werden zurückgesetzt. Der Zusammenfassungszeitpunkt wird auf den 8. Oktober 2026 um 21 Uhr zurückgesetzt.")
+        st.caption("Team-Zugänge und Secrets (Passwörter, Mailkonfiguration) bleiben erhalten. Beispielpersonen bleiben zum Testen verfügbar. Bereits versendete E-Mails und heruntergeladene Druckdateien werden nicht zurückgerufen. Ein bereits laufender Mailversand kann noch abgeschlossen werden.")
+        with st.form("reset-imports"):
+            confirmation = st.text_input("Zum Löschen IMPORTE LÖSCHEN eingeben")
+            if st.form_submit_button("Importe und Veranstaltungsdaten löschen"):
+                try:
+                    q.reset_imports(s.staff_login, confirmation)
+                    st.rerun()
+                except ValueError as error: st.error(str(error))
     st.caption("Administration · Veranstaltungseinstellungen")
 elif view == "Live-Netzwerk":
     st.markdown('<style>.block-container{max-width:none!important;padding:8px 16px 0!important}.masthead{display:none}h1{font-size:24px!important}[data-testid="stIFrame"]{height:calc(100dvh - 220px)!important;min-height:480px;width:100%!important}</style>', unsafe_allow_html=True)
@@ -715,26 +712,10 @@ elif view == "Live-Netzwerk":
     live_presentation()
     st.caption("Anonyme Verbindungen aus dieser Demo. Aktualisiert sich automatisch über alle Tabs.")
 
-else:
-    st.title("QR-Druckvorlagen")
-    st.write("Drucke oder zeige diese Codes, um fiktive Badges, Stationen und Karten zu scannen.")
-    with st.expander("Allgemeiner Veranstaltungs-QR · öffnet die Anmeldung", expanded=True):
-        st.image(qr_png(public_base_url()+"/"), width=230, caption="Ein gemeinsamer QR-Code zur Anmeldung. Enthält keine persönlichen Zugangsdaten.")
-        st.download_button("Veranstaltungs-QR herunterladen",qr_png(public_base_url()+"/"),file_name="AFJD-event-login.png",mime="image/png")
-    kind = st.selectbox("QR-Typ",["person","station","reward"], format_func=lambda v:{"person":"Person","station":"Stand","reward":"Gewinnkarte"}[v])
-    catalog = {"person":ROSTER,"station":STATIONS,"reward":CARDS}[kind]
-    token = st.selectbox("Code auswählen",list(catalog),format_func=lambda t:ROSTER[t]["name"] if kind == "person" else catalog[t][0])
-    show_qr(kind,token,ROSTER[token]["name"] if kind == "person" else catalog[token][0])
-    st.code(payload(kind,token),language=None)
-    if kind == "person":
-        printed=q.profile(token)
-        from quest_registration import print_documents
-        badge_html, slip_html = print_documents({token:{**printed, "code":ACTIVATION_CODES[token]}}, [token], public_base_url())
-        st.download_button("Badge-Vorderseite herunterladen",badge_html,file_name=printed["id"]+"-badge.html",mime="text/html")
-        st.download_button("Separaten privaten Zugangszettel herunterladen",slip_html,file_name=printed["id"]+"-private-slip.html",mime="text/html")
-        st.caption("Herunterladen, im Browser öffnen und bei 100 % drucken. Den privaten Zettel hinter dem öffentlichen Badge im Halter aufbewahren.")
-    st.caption("Enthalten ist nur eine veranstaltungsspezifische Kennung. Demo-Kennungen und Zugangscodes müssen vor dem Echtbetrieb ersetzt werden.")
-    st.table([{"Organisations-ID":v[0],"Organisation":v[1],"Bereich":CLUSTER_LABELS[v[2]],"Aufgabe":v[3]} for v in ORGANISATIONS.values()])
+elif view == "Personen & Aktivitäten":
+    from quest_registration_ui import people_page
+    people_page(q, s.staff_login)
+
 st.divider()
 st.caption("SVIAL · Dein Netzwerk im Schweizer Agro-Food-System")
 if view != "Live-Netzwerk":
