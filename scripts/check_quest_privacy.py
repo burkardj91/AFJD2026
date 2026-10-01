@@ -12,9 +12,9 @@ with tempfile.TemporaryDirectory() as folder:
     source=str(Path(__file__).resolve().parents[1]/'network_quest_mockup.py')
     def login(code):
         app=AppTest.from_file(source,default_timeout=20).run()
-        next(t for t in app.text_input if t.label=='Private activation code').input(code)
-        next(c for c in app.checkbox if c.label.startswith('Keep me signed in')).uncheck()
-        next(b for b in app.button if b.label=='Enter demo').click().run()
+        next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input(code)
+        next(c for c in app.checkbox if c.label.startswith('Auf diesem Handy')).uncheck()
+        next(b for b in app.button if b.label=='Anmelden').click().run()
         assert not app.exception
         return app
     app=login('LEA-7K4M-26')
@@ -32,10 +32,10 @@ with tempfile.TemporaryDirectory() as folder:
     next(b for b in returned.button if b.label=='Datenschutzauswahl speichern').click().run()
     assert 'p-8hd2v7' in q.sharing
     staff=login('STAFF-01')
-    picker=next(x for x in staff.selectbox if x.label=='Participant name or badge ID')
+    picker=next(x for x in staff.selectbox if x.label=='Name oder Badge-ID')
     assert not picker.options
     q.simulate_completion('p-8hd2v7')
     staff.run()
-    picker=next(x for x in staff.selectbox if x.label=='Participant name or badge ID')
+    picker=next(x for x in staff.selectbox if x.label=='Name oder Badge-ID')
     assert len(picker.options)==1 and 'Lea Meier' in picker.options[0]
     print('PASS: privacy first visit only, collapsed profile editor, unlocked-only staff picker')

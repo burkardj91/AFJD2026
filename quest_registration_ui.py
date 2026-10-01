@@ -20,92 +20,92 @@ def protect_staff(q, role="admin"):
     if role == "staff" and not password and not q.registrations:
         return
     def return_to_login():
-        if st.button("Return to login", key="protected-return-login"):
+        if st.button("Zurück zur Anmeldung", key="protected-return-login"):
             for key in ("demo_role_v3", "person_v2", "staff_login", "registration_admin"):
                 st.session_state.pop(key, None)
             st.rerun()
     if len(password) < 16:
-        st.error(f"Configure {setting} with at least 16 characters to access this account.")
+        st.error(f"Konfiguriere {setting} mit mindestens 16 Zeichen für diesen Zugang.")
         return_to_login()
         st.stop()
     fingerprint = role + hashlib.sha256(password.encode()).hexdigest()
     if st.session_state.get("registration_admin") == fingerprint:
         return
-    st.subheader("Administrator access" if role == "admin" else "Booth staff access")
+    st.subheader("Administrator-Zugang" if role == "admin" else "Zugang für das Standteam")
     with st.form("admin-access"):
-        supplied = st.text_input("Administrator password" if role == "admin" else "Staff password", type="password")
-        submitted = st.form_submit_button("Unlock staff tools")
+        supplied = st.text_input("Administrator-Passwort" if role == "admin" else "Team-Passwort", type="password")
+        submitted = st.form_submit_button("Arbeitsbereich öffnen")
     if submitted:
         if secrets.compare_digest(supplied, password):
             st.session_state.registration_admin = fingerprint
             st.rerun()
-        else: st.error("Incorrect password.")
+        else: st.error("Falsches Passwort.")
     return_to_login()
     st.stop()
 
 
 def registration_page(q, staff_id, base_url):
     st.title("Registration")
-    st.caption("Eventfrog import · late arrivals · badge printing")
-    st.warning("Rehearsal storage and staff authentication: use fictional data until persistent hosting and protected staff access are configured.")
+    st.caption("Eventfrog-Import · Nachmeldungen · Badge-Druck")
+    st.warning("Demo: Verwende fiktive Daten, bis dauerhafte Speicherung und geschützte Team-Zugänge eingerichtet sind.")
     if len(admin_password()) < 16:
-        st.info('Set QUEST_ADMIN_PASSWORD (at least 16 characters) in Streamlit Secrets or the server environment, then sign in again. This protects administrator tools, imports and private slips.')
+        st.info('Hinterlege QUEST_ADMIN_PASSWORD (mindestens 16 Zeichen) in Streamlit Secrets oder der Serverumgebung und melde dich erneut an. Das schützt Verwaltung, Importe und private Zugangszettel.')
         return
-    upload_tab, new_tab, print_tab = st.tabs(["Import Excel", "Late registration", "Print badges"])
+    upload_tab, new_tab, print_tab = st.tabs(["Excel importieren", "Nachmeldung", "Badges drucken"])
     with upload_tab:
-        st.write("The header may appear below the Eventfrog event title and notices. Names, email, ticket reference, optional Affiliation (or Institution) and Annotation are saved. Affiliation is printed; Annotation controls quest mapping. The preview shows the internal mapping. Other columns are ignored.")
+        st.write("Die Spaltenüberschriften dürfen unter dem Eventfrog-Titel und den Hinweisen stehen. Gespeichert werden Name, E-Mail, Ticketreferenz sowie optional Institution und Annotation. Die Institution erscheint auf dem Badge; Annotation steuert die Quest-Zuordnung. Andere Spalten werden ignoriert.")
         from quest_registration import mock_eventfrog_xlsx
-        st.download_button("Download fictional Eventfrog sample · 10 people", mock_eventfrog_xlsx(), "AFJD-fictional-sample.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        uploaded = st.file_uploader("Eventfrog export (.xlsx)", type=["xlsx"])
+        st.download_button("Eventfrog-Testdatei · 10 Personen herunterladen", mock_eventfrog_xlsx(), "AFJD-fictional-sample.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        uploaded = st.file_uploader("Eventfrog-Export (.xlsx)", type=["xlsx"])
         if uploaded:
             try:
                 rows = read_eventfrog(uploaded.getvalue())
                 plan = plan_import(rows, q.registrations)
-                st.dataframe([{k:r[k] for k in ("row","name","email","affiliation","annotation","mapping","action","reason")} for r in plan], hide_index=True)
+                st.dataframe([{ {"row":"Zeile","name":"Name","email":"E-Mail","affiliation":"Institution","annotation":"Annotation","mapping":"Zuordnung","action":"Aktion","reason":"Hinweis"}[k]: ({"New":"Neu","Update":"Aktualisieren","Review":"Prüfen"}.get(r[k],r[k]) if k == "action" else r[k]) for k in ("row","name","email","affiliation","annotation","mapping","action","reason")} for r in plan], hide_index=True)
                 problems = any(r["action"] == "Review" for r in plan)
-                st.caption("Updates preserve badge IDs, access codes, participant-edited profiles and progress. Resolve Review rows in your spreadsheet and upload it again.")
-                if st.button("Confirm import", disabled=not plan or problems, type="primary"):
+                st.caption("Aktualisierungen behalten Badge-IDs, Zugangscodes, bearbeitete Profile und Fortschritte. Korrigiere markierte Zeilen in Excel und lade die Datei erneut hoch.")
+                if st.button("Import bestätigen", disabled=not plan or problems, type="primary"):
                     ids = q.import_registrations(staff_id, rows)
                     st.session_state.registration_print = ids
-                    st.success(f"Saved {len(ids)} participants. Open Print badges for badges and separate access slips.")
+                    st.success(f"Gespeichert: {len(ids)} Personen. Unter Badges drucken findest du Badges und private Zugangszettel.")
             except Exception as error:
                 if isinstance(error, ValueError): st.error(str(error))
-                else: st.error("This workbook could not be read. Export a valid .xlsx file and try again.")
+                else: st.error("Die Datei konnte nicht gelesen werden. Exportiere eine gültige .xlsx-Datei und versuche es erneut.")
     with new_tab:
         with st.form("late-registration"):
             first = st.text_input("Vorname")
             last = st.text_input("Nachname")
             email = st.text_input("E-Mail")
-            affiliation = st.text_input("Affiliation / Institution", help="Optional visible text on the badge; leave empty if not applicable.")
-            annotation = st.text_input("Annotation", help="Internal mapping: company name, Mentor, SVIAL or Rosie. Separate from printed affiliation.")
-            submitted = st.form_submit_button("Create participant", type="primary")
+            affiliation = st.text_input("Zugehörigkeit / Institution", help="Freiwilliger Text auf dem Badge; bei Bedarf leer lassen.")
+            annotation = st.text_input("Annotation", help="Interne Zuordnung: Firmenname, Mentor, SVIAL oder Rosie. Unabhängig von der aufgedruckten Institution.")
+            submitted = st.form_submit_button("Person anlegen", type="primary")
         if submitted:
             rows = [{"name":first.strip()+" "+last.strip(), "email":email, "first_name":first.strip(), "last_name":last.strip(), "affiliation":affiliation, "annotation":annotation, "invalid_name":not first.strip() or not last.strip()}]
             plan = plan_import(rows, q.registrations)
             if plan[0]["action"] != "New":
-                st.error(plan[0]["reason"] or "This participant already exists. Find their badge under Print badges.")
+                st.error(plan[0]["reason"] or "Diese Person existiert bereits. Ihr Badge liegt unter Badges drucken.")
             else:
                 try:
                     ids = q.import_registrations(staff_id, rows)
                     st.session_state.registration_print = ids
-                    st.success("Participant created. Their login and QR code work immediately. Open Print badges.")
+                    st.success("Person angelegt. Zugang und QR-Code funktionieren sofort. Öffne Badges drucken.")
                 except ValueError as error: st.error(str(error))
     with print_tab:
         roster = q.registrations
-        scope = st.radio("Export scope", ["Last import / registration", "All registered participants", "Choose participants"], horizontal=True)
-        automatic = list(roster) if scope == "All registered participants" else [p for p in st.session_state.get("registration_print",[]) if p in roster]
+        scope = st.radio("Exportumfang", ["Letzter Import / letzte Anmeldung", "Alle angemeldeten Personen", "Personen auswählen"], horizontal=True)
+        automatic = list(roster) if scope == "Alle angemeldeten Personen" else [p for p in st.session_state.get("registration_print",[]) if p in roster]
         selected = automatic
-        if scope == "Choose participants":
-            selected = st.multiselect("Participants", list(roster), default=[p for p in st.session_state.get("registration_print",[]) if p in roster], format_func=lambda p:roster[p]["name"]+" · "+roster[p]["id"])
+        if scope == "Personen auswählen":
+            selected = st.multiselect("Teilnehmende", list(roster), default=[p for p in st.session_state.get("registration_print",[]) if p in roster], format_func=lambda p:roster[p]["name"]+" · "+roster[p]["id"])
         if selected:
             from quest_badges import badge_docx
-            mirror = st.checkbox("Mirror backs for long-edge duplex printing", value=True)
-            st.caption("Word template: A4, 10 badges per sheet. Odd pages are fronts; even pages contain private IDs/passwords. Print at 100%. Test one sheet before printing the full batch.")
-            st.download_button("Download template badges · PRIVATE Word", badge_docx(roster, selected, base_url, mirror), "AFJD-template-badges-PRIVATE.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            mirror = st.checkbox("Rückseiten für Duplexdruck an der langen Kante spiegeln", value=True)
+            st.caption("Word-Vorlage: A4, 10 Badges pro Blatt. Ungerade Seiten sind Vorderseiten; gerade Seiten enthalten private IDs und Passwörter. Bei 100 % drucken. Zuerst ein Blatt testen.")
+            st.download_button("Badge-Vorlage · PRIVATES Word herunterladen", badge_docx(roster, selected, base_url, mirror), "AFJD-template-badges-PRIVATE.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
             badges, slips = print_documents(roster, selected, base_url)
-            st.download_button("Download complete batch · PRIVATE ZIP", batch_archive(roster, selected, base_url, mirror), "AFJD-registration-batch-PRIVATE.zip", "application/zip")
-            st.download_button("Download public badges", badges, "AFJD-badges.html", "text/html")
-            st.download_button("Download separate PRIVATE login slips", slips, "AFJD-private-slips.html", "text/html")
-            st.caption("Open each downloaded document in a browser and print at 100%. Never distribute private slips as public badges.")
+            st.download_button("Gesamten Stapel · PRIVATES ZIP herunterladen", batch_archive(roster, selected, base_url, mirror), "AFJD-registration-batch-PRIVATE.zip", "application/zip")
+            st.download_button("Öffentliche Badges herunterladen", badges, "AFJD-badges.html", "text/html")
+            st.download_button("Separate PRIVATE Zugangszettel herunterladen", slips, "AFJD-private-slips.html", "text/html")
+            st.caption("HTML-Dateien im Browser öffnen und bei 100 % drucken. Private Zugangszettel nie als öffentliche Badges verteilen.")
         else:
-            st.info("Import an Excel file or register a late arrival, then select participants to print.")
+            st.info("Importiere eine Excel-Datei oder erfasse eine Nachmeldung. Wähle anschliessend die Personen für den Druck.")

@@ -58,12 +58,13 @@ class QuestTests(unittest.TestCase):
             self.q.update_profile(self.lea, {"name":"Lea", "email":"bad"})
         for station in ["ag-soil", "ag-farm", "fo-bowl", "fo-dairy"]:
             self.q.scan(self.lea, payload("station", station))
-        self.assertEqual(self.q.completed(self.lea), {"Food Process & Engineering"})
+        self.assertEqual(self.q.completed(self.lea), {"Lebensmittelproduktion"})
         self.assertEqual(len(self.q.public_network()["visits"]), 4)
         self.assertTrue(all(0 <= target < len(STATIONS) for _,target in self.q.public_network()["visits"]))
 
     def test_confirmation_deduplication_and_bonus(self):
         self.unlock(self.lea)
+        self.alex = self.q.activate("DEMO-189")
         self.q.scan(self.lea, payload("person", self.alex))
         self.assertIn(self.alex, self.q.people(self.lea))
         self.q.scan(self.alex, payload("person", self.lea))
@@ -118,9 +119,9 @@ class QuestTests(unittest.TestCase):
         self.unlock(self.lea)
         counts = self.q.public_counts()
         self.assertTrue(all(type(v) is int for v in counts.values()))
-        self.assertEqual(counts["visits"], 3)
+        self.assertEqual(counts["visits"], 4)
         network = self.q.public_network()
-        self.assertEqual(len(network["visits"]), 3)
+        self.assertEqual(len(network["visits"]), 4)
         for p, profile in ROSTER.items():
             for private in [p, profile["name"], profile["email"], profile["id"]]:
                 self.assertNotIn(private, str(network))

@@ -25,7 +25,7 @@ class BrowserLogins:
     def issue(self, code):
         role, person = self.quest.demo_login(code)
         if role != "participant":
-            raise ValueError("Only participant logins can be remembered.")
+            raise ValueError("Nur persönliche Teilnehmenden-Zugänge können gespeichert werden.")
         token = secrets.token_urlsafe(32)
         with self.quest.connect() as db:
             db.execute("BEGIN IMMEDIATE")

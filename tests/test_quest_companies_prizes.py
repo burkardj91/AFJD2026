@@ -17,7 +17,7 @@ class CompanyPrizeTests(unittest.TestCase):
         q=Quest(); p=q.activate('DEMO-264'); a=q.activate('DEMO-137'); b=q.activate('DEMO-189')
         for contact in [a,b,a]:
             q.scan(p,payload('person',contact))
-        self.assertEqual(q.completed(p),set())
+        self.assertEqual(q.completed(p),{"Detailhandel"})
         self.assertEqual(q.company_contacts[p],{a,b})
         self.assertEqual(q.visits[p],{'re-lidl'})
         graph=q.public_network()

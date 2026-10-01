@@ -3,12 +3,24 @@ import base64
 from html import escape
 
 STAGES = [
-    ("Curious chick", "Every connection starts with a hello.", "chick"),
-    ("Busy bee", "You have found your first connection.", "bee"),
-    ("Exploring rabbit", "New perspectives are opening up.", "rabbit"),
-    ("Connected fox", "One more quest to reach the summit.", "fox"),
-    ("Alpine goat", "Summit reached. Your Network Card is ready.", "goat"),
+    ("Curious chick", "Jede Verbindung beginnt mit einem Hallo.", "chick"),
+    ("Busy bee", "Deine erste Quest ist geschafft.", "bee"),
+    ("Exploring rabbit", "Neue Perspektiven eröffnen sich.", "rabbit"),
+    ("Connected fox", "Noch eine Quest bis zum Gipfel.", "fox"),
+    ("Alpine goat", "Gipfel erreicht. Deine Netzwerkkarte wartet auf dich.", "goat"),
 ]
+
+def quest_map_html(challenges, descriptions, completed):
+    """An unordered, accessible trail: every open quest remains available."""
+    titles = {"Lebensmittelproduktion": "Lebensmittel entdecken", "Vernetzen": "Menschen kennenlernen",
+              "Landwirtschaft": "Landwirtschaft entdecken", "Detailhandel": "Detailhandel begegnen",
+              "Future Food Apéro": "Zukunft kosten", "SVIAL-Mentoring": "Mentoring entdecken"}
+    icons = ["◈", "↔", "❧", "✦", "◉", "◇"]
+    cards = []
+    for i, quest in enumerate(challenges):
+        done = quest in completed
+        cards.append('<li class="quest-stop '+('is-complete' if done else '')+'"><span class="quest-stop-icon" aria-hidden="true">'+('✓' if done else icons[i % len(icons)])+'</span><div><span class="quest-stop-state">'+('Geschafft' if done else 'Noch entdecken')+'</span><h3>'+escape(titles.get(quest, quest))+'</h3><p>'+escape(descriptions[quest])+'</p></div></li>')
+    return '<section class="quest-map" aria-label="Deine Quests"><p class="quest-map-hint">Dein Weg, deine Reihenfolge. Vier verschiedene Quests öffnen deine Belohnung.</p><ol class="quest-trail">'+''.join(cards)+'</ol></section>'
 
 def animal_image(kind):
     shapes = {
@@ -26,8 +38,8 @@ def journey_html(count):
     index = min(max(count, 0), 4)
     title, description, animal = STAGES[index]
     steps = ''.join('<div class="journey-step '+('reached' if i <= index else '')+'" '+('aria-current="step"' if i == index else '')+'><img src="'+animal_image(a)+'" alt="'+escape(t)+'"><span>'+escape(t)+'</span></div>' for i,(t,_,a) in enumerate(STAGES))
-    return '<section class="journey"><div class="journey-intro"><img src="'+animal_image(animal)+'" alt="'+title+' illustration"><div><span class="card-kicker">YOUR AGRO-FOOD JOURNEY</span><h2>'+title+'</h2><p>'+description+'</p></div></div><div class="journey-trail" aria-label="Five stages; each completed quest advances one stage">'+steps+'</div><p class="journey-help">'+('Visit the SVIAL desk to draw your card. Keep exploring the remaining quests if you like.' if index == 4 else 'Complete one new quest to reach the next animal. Reach Alpine goat after four different quests to unlock your card.')+'</p></section>'
+    return '<section class="journey"><div class="journey-intro"><img src="'+animal_image(animal)+'" alt="'+title+' – Illustration"><div><span class="card-kicker">DEINE AGRO-FOOD-REISE</span><h2>'+title+'</h2><p>'+description+'</p></div></div><div class="journey-trail" aria-label="Fünf Stufen; jede erfüllte Quest führt eine Stufe weiter">'+steps+'</div><p class="journey-help">'+('Besuche den SVIAL-Stand für deine Kartenziehung. Entdecke danach gerne die übrigen Quests.' if index == 4 else 'Jede neue Quest führt zum nächsten Tier. Mit vier verschiedenen Quests erreichst du Alpine goat und schaltest deine Karte frei.')+'</p></section>'
 
 def celebration_html(title, subtitle, animal=False):
     pieces = ''.join('<i style="--x:'+str((i*29)%100)+'%;--delay:'+str((i%7)*.09)+'s;--turn:'+str(i*37)+'deg;background:'+('#009641' if i%2 else '#ef8281')+'"></i>' for i in range(30))
-    return '<div class="celebration"><div class="celebration-confetti" aria-hidden="true">'+pieces+'</div>'+('<img class="summit-animal" src="'+animal_image('goat')+'" alt="Alpine goat">' if animal else '<div class="prize-star" aria-hidden="true">✦</div>')+'<span class="card-kicker">A MOMENT TO CELEBRATE</span><h2>'+escape(title)+'</h2><p>'+escape(subtitle)+'</p></div>'
+    return '<div class="celebration"><div class="celebration-confetti" aria-hidden="true">'+pieces+'</div>'+('<img class="summit-animal" src="'+animal_image('goat')+'" alt="Alpine goat">' if animal else '<div class="prize-star" aria-hidden="true">✦</div>')+'<span class="card-kicker">EIN MOMENT ZUM FEIERN</span><h2>'+escape(title)+'</h2><p>'+escape(subtitle)+'</p></div>'

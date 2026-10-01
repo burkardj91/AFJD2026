@@ -35,12 +35,12 @@ def qr_image(value):
             stream = BytesIO()
             image.save(stream, format='PNG')
             return stream.getvalue()
-    raise ValueError("Could not produce a readable branded QR. Please retry with a shorter public app URL.")
+    raise ValueError("Kein lesbarer QR-Code mit Logo erzeugt. Versuche eine kürzere öffentliche App-Adresse.")
 
 
 def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image):
     if not people:
-        raise ValueError('Select at least one participant.')
+        raise ValueError('Wähle mindestens eine Person.')
     with ZipFile(TEMPLATE) as source:
         parts = {name:source.read(name) for name in source.namelist()}
     root = E.fromstring(parts['word/document.xml'])

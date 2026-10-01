@@ -71,7 +71,7 @@ class RegistrationTests(unittest.TestCase):
             with self.assertRaises(ValueError):q.configure_raffle(staff,'2099-10-08T19:30:00+02:00')
         ids=q.import_registrations('ADMIN-01',rows)
         self.assertEqual(q.affiliations[ids[0]],'in-3p9d')
-        self.assertNotIn(ids[1],q.affiliations)
+        self.assertEqual(q.affiliations[ids[1]],"sv-5w8j")
         self.assertEqual(annotation_mapping('Unknown sponsor')['company'],None)
         q.demo_login('LEA-7K4M-26');q.scan('p-8hd2v7',payload('person',ids[2]))
         self.assertIn('SVIAL-Mentoring',q.completed('p-8hd2v7'))
