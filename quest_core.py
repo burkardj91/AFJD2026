@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 
 CLUSTERS = {'Agriculture': 'Agriculture & Primary Production', 'Food Production': 'Food Production & Processing', 'FoodTech & Innovation': 'Ingredients, FoodTech & Innovation', 'Retail': 'Retail & Market', 'Services & Ecosystem': 'Services, Education & Ecosystem'}
 CLUSTER_LABELS = {"Agriculture":"Landwirtschaft & Primärproduktion", "Food Production":"Lebensmittelproduktion", "FoodTech & Innovation":"Lebensmitteltechnologie & Innovation", "Retail":"Detailhandel", "Services & Ecosystem":"Dienstleistungen & Bildung"}
+CLUSTERS["Future Food Apéro"] = "Future Food Apéro"
+CLUSTER_LABELS["Future Food Apéro"] = "Future Food Apéro"
 CHALLENGES = ("Lebensmittelproduktion", "Vernetzen", "Landwirtschaft", "Detailhandel", "Future Food Apéro", "SVIAL-Mentoring")
 QUEST_DESCRIPTIONS = dict(zip(CHALLENGES, (
     "Besuche ein Unternehmen aus dem Bereich Lebensmittelproduktion",
@@ -21,7 +23,9 @@ EXHIBITORS = [(2, 'mooh Genossenschaft', 'Agriculture', 'ag-7v2x', ''), (3, 'Foo
 ORGANISATIONS = {token:(str(number),name,cluster,"Besuche den Stand und entdecke das Unternehmen.") for number,name,cluster,token,note in EXHIBITORS}
 EXHIBITOR_NOTES = {token:note for _,_,_,token,note in EXHIBITORS}
 ORGANISATIONS["sv-5w8j"] = ("SVIAL", "SVIAL", "Services & Ecosystem", "Tausche dich mit einer Person des SVIAL aus.")
-ORGANISATIONS["future-apero"] = ("APERO", "Future Food Apéro", "FoodTech & Innovation", "Entdecke den Future Food Apéro Bereich.")
+ORGANISATIONS["future-apero"] = ("APERO", "Future Food Apéro", "Future Food Apéro", "Entdecke den Future Food Apéro Bereich.")
+for token, name in [("yumame", "Yumame"), ("catchfree", "Catchfree"), ("luya", "Luya")]:
+    ORGANISATIONS[token] = (token.upper(), name, "Future Food Apéro", "Entdecke den Future Food Apéro Bereich.")
 STATIONS = {token:(row[1],row[2],row[3]) for token,row in ORGANISATIONS.items()}
 
 ROSTER = {
@@ -105,6 +109,7 @@ def parse_payload(value, roster=None):
 @dataclass
 class Quest:
     registrations: dict = field(default_factory=dict)
+    annotations: dict = field(default_factory=dict)
 
     def roster(self):
         return {**ROSTER, **self.registrations}
@@ -141,6 +146,7 @@ class Quest:
                 # Preserve participant-edited profile details and all event activity.
             from quest_registration import annotation_mapping
             if annotation_changed:
+                self.annotations[person] = data["annotation"]
                 mapping = annotation_mapping(data["annotation"])
                 if mapping["company"]: self.affiliations[person] = mapping["company"]
                 else: self.affiliations.pop(person, None)
@@ -237,7 +243,7 @@ class Quest:
         draw.update(status="completed", eligible=eligible, winners=winners, resolved_at=instant.isoformat())
 
     def public_raffle(self):
-        return {k:self.raffle[k] for k in ["deadline","count","minimum","status"] if k in self.raffle} | {
+        return {k:self.raffle[k] for k in ["deadline","count","minimum","status","resolved_at"] if k in self.raffle} | {
             "winner_badges":[self.roster()[p]["id"] for p in self.raffle.get("winners",[])],
             "eligible_count":len(self.raffle.get("eligible",[])) if self.raffle.get("status")=="completed" else sum(len(self.completed(p)) >= self.raffle.get("minimum",1) for p in self.active)}
 
@@ -287,10 +293,52 @@ class Quest:
         fresh = Quest()
         fresh.registrations = dict(self.registrations)
         fresh.affiliations = dict(self.affiliations)
+        fresh.annotations = dict(self.annotations)
         if keep_profiles:
             fresh.profiles = dict(self.profiles)
         fresh.reset_epoch = self.reset_epoch + 1
         self.__dict__.update(fresh.__dict__)
+
+    def reset_imports(self, staff_id, confirmation):
+        if staff_id != "ADMIN-01" or confirmation != "IMPORTE LÖSCHEN":
+            raise ValueError("Bestätige als Administrator mit IMPORTE LÖSCHEN.")
+        fresh = Quest()
+        fresh.reset_epoch = self.reset_epoch + 1
+        self.__dict__.update(fresh.__dict__)
+
+    def set_annotation(self, staff_id, person, annotation):
+        from quest_registration import annotation_mapping
+        if staff_id != "ADMIN-01" or person not in self.roster():
+            raise ValueError("Wähle als Administrator eine gültige Person.")
+        current = self.annotations.get(person, self.registrations.get(person, {}).get("annotation", ""))
+        mapping = annotation_mapping(annotation)
+        if annotation and not mapping["company"]:
+            raise ValueError("Wähle eine bekannte Institution oder Mentoring.")
+        if current != annotation and any(person in edge for edge in self.connections):
+            raise ValueError("Diese Person hat bereits Kontakte. Setze zuerst die Aktivitäten zurück, damit keine Quests rückwirkend verändert werden.")
+        self.annotate_company(staff_id, person, mapping["company"])
+        self.annotations[person] = annotation
+        if person in self.registrations:
+            self.registrations[person]["annotation"] = annotation
+
+    def admin_people(self, staff_id):
+        if staff_id != "ADMIN-01":
+            raise ValueError("Ein Administrator-Zugang ist erforderlich.")
+        codes = self.activation_codes()
+        rows = []
+        for person, entry in self.roster().items():
+            profile = self.profile(person)
+            company = ORGANISATIONS.get(self.affiliations.get(person))
+            rows.append({"Person":person, "Badge-ID":entry["id"], "Name":profile["name"],
+                "E-Mail":profile["email"], "Zugangscode":codes[person],
+                "Institution":entry.get("affiliation", ""),
+                "Zuordnung":self.annotations.get(person, entry.get("annotation")) or (company[1] if company else ""),
+                "Quelle":("Reserve" if entry.get("source_id", "").startswith("reserve:") else "Registration") if person in self.registrations else "Beispielperson",
+                "Name noch offen":bool(entry.get("identity_pending")),
+                "Pass aktiviert":person in self.active, "Datenschutz bestätigt":person in self.privacy_reviewed,
+                "Kontakte":len(self.people(person)), "Standbesuche":len(self.visits.get(person,set())),
+                "Quests":len(self.completed(person)), "Karte freigeschaltet":person in self.unlocked})
+        return rows
 
     def set_preferences(self, person, shared, recap):
         self.require_active(person)
@@ -391,10 +439,10 @@ class Quest:
             result.add(CHALLENGES[2])
         if any(ORGANISATIONS.get(self.affiliations.get(p), (None,None,None))[2] == "Retail" for p in contacts):
             result.add(CHALLENGES[3])
-        if "future-apero" in visits:
+        if any(ORGANISATIONS.get(t, (None,None,None))[2] == "Future Food Apéro" for t in visits):
             result.add(CHALLENGES[4])
         from quest_registration import MENTORING_ANNOTATIONS
-        if "p-rosie" in contacts or any(self.registrations.get(p, {}).get("annotation", "").strip().casefold() in MENTORING_ANNOTATIONS for p in contacts):
+        if any(self.annotations.get(p, self.registrations.get(p, {}).get("annotation", "Mentoring" if p == "p-rosie" else "")).strip().casefold() in MENTORING_ANNOTATIONS for p in contacts):
             result.add(CHALLENGES[5])
         return result
 

@@ -13,7 +13,7 @@ def participant_positions(count):
 
 
 def network_html(network, counts, show_companies=False):
-    centres = [(170,155),(800,125),(1430,155),(230,680),(1370,680)]
+    centres = [(170,155),(800,125),(1430,155),(230,680),(1370,680),(800,735)]
     organisations = network['organisations']
     groups = list(CLUSTERS)
     positions = {}
@@ -24,14 +24,15 @@ def network_html(network, counts, show_companies=False):
             dx,dy = (65*math.cos(angle), 65*math.sin(angle)) if len(members)>1 else (0,0)
             positions[index] = (x+dx,y+dy)
     people=participant_positions(network['people'])
-    svg=['<svg viewBox="0 0 1600 850" role="img" aria-label="Fünf Bereiche mit Unternehmen und anonymen Kontakten">']
+    svg=['<svg viewBox="0 0 1600 850" role="img" aria-label="Sechs Bereiche mit Unternehmen und anonymen Kontakten">']
     for label,(x,y) in zip(groups,centres):
         svg.append(f'<circle cx="{x}" cy="{y}" r="98" fill="#f1f6f2" stroke="#dce7df"/><text x="{x}" y="{y-112}" text-anchor="middle" class="cluster">{escape(CLUSTER_LABELS[label])}</text>')
     svial=next(i for i,o in enumerate(organisations) if o['connector'])
     if not show_companies:
-        positions[svial]=(centres[-1][0],centres[-1][1]+58)
+        positions[svial]=(centres[groups.index("Services & Ecosystem")][0],centres[groups.index("Services & Ecosystem")][1]+58)
     sx,sy=positions[svial]
-    for x,y in centres[:-1]:
+    for group,(x,y) in zip(groups,centres):
+        if group == "Services & Ecosystem": continue
         svg.append(f'<path d="M{sx} {sy} Q800 445 {x} {y}" class="structural"/>')
     for a,b in network['connections']:
         x,y=people[a];u,v=people[b]

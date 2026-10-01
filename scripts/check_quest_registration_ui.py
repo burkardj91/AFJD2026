@@ -34,6 +34,14 @@ with tempfile.TemporaryDirectory() as folder:
     click('Badge aktualisieren')
     assert q.profile(token)['name']=='Sara Rossi'
     assert q.registrations[token]['id']==before['id'] and q.registrations[token]['code']==before['code']
+    next(r for r in app.radio if r.label=='Arbeitsbereich').set_value('Personen & Aktivitäten').run()
+    assert not app.exception
+    assert len(app.dataframe[0].value)==11
+    assert 'Zugangscode' in app.dataframe[0].value.columns
+    next(r for r in app.radio if r.label=='Arbeitsbereich').set_value('Veranstaltung verwalten').run()
+    next(t for t in app.text_input if t.label=='Zum Löschen IMPORTE LÖSCHEN eingeben').input('IMPORTE LÖSCHEN')
+    click('Importe und Veranstaltungsdaten löschen')
+    assert not q.registrations and app.session_state['demo_role_v3']=='admin'
     click('Demo-Konto wechseln')
     os.environ['QUEST_STAFF_PASSWORD']='fictional-booth-password-for-test'
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('STAFF-01')
@@ -41,5 +49,5 @@ with tempfile.TemporaryDirectory() as folder:
     next(t for t in app.text_input if t.label=='Team-Passwort').input(os.environ['QUEST_STAFF_PASSWORD'])
     click('Arbeitsbereich öffnen')
     assert next(r for r in app.radio if r.label=='Arbeitsbereich').options == ['SVIAL-Team']
-    assert not any(b.label in {'Import bestätigen','Alle Demo-Aktivitäten zurücksetzen','Hauptverlosung planen'} for b in app.button)
+    assert not any(b.label in {'Import bestätigen','Alle Aktivitäten zurücksetzen','Hauptverlosung planen'} for b in app.button)
     print('PASS: staff password gate, late arrival, badge/private-slip downloads, duplicate prevention')

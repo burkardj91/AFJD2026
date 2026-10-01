@@ -18,3 +18,10 @@ nodes.back.onclick();assert.equal(nodes.show.className,'');assert.equal(nodes.ri
 update(-7200,'completed');assert.equal(nodes.show.className,'');
 assert(html.indexOf('<div id="ribbon"')>html.indexOf('</section></div>'));
 console.log('PASS: footer countdown, five-minute takeover, final colour, persistent winners and manual return');
+
+function empty(elapsed){events.message({source:parent,data:{type:'streamlit:render',args:{server_now:Date.parse(deadline)/1000+elapsed,epoch:1,html:'',draw:{deadline,resolved_at:deadline,status:'completed',winner_badges:[]}}}})}
+empty(0);assert.equal(nodes.show.className,'active winners');
+empty(59);assert.equal(nodes.show.className,'active winners');
+empty(60);assert.equal(nodes.show.className,'');
+empty(90);assert.equal(nodes.show.className,'');
+console.log('PASS: empty draw returns to network after 60 seconds, including on reconnect');

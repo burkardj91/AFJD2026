@@ -5,7 +5,7 @@ from html import escape
 import base64
 import qrcode
 
-MENTORING_ANNOTATIONS = {"rosie", "svial-mentoring", "svial mentoring", "rosie vom svial-mentoring", "mentor", "mentors", "mentorin", "mentor:in", "mentoren"}
+MENTORING_ANNOTATIONS = {"mentoring","rosie", "svial-mentoring", "svial mentoring", "rosie vom svial-mentoring", "mentor", "mentors", "mentorin", "mentor:in", "mentoren"}
 
 
 def read_eventfrog(content):

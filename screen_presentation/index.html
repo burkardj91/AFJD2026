@@ -20,6 +20,8 @@ function render(){
  const overlay=el('show');
  if(draw.status==='completed'){
    el('ribbon').hidden=true;
+   const emptyExpired=!(draw.winner_badges||[]).length && now*1000-Date.parse(draw.resolved_at||draw.deadline)>=60000;
+   if(emptyExpired) dismissed=key;
    if(resultKey!==key){resultKey=key;el('badges').replaceChildren();for(const badge of draw.winner_badges||[]){const b=document.createElement('b');b.textContent=badge;el('badges').append(b);}el('confetti').replaceChildren();if((draw.winner_badges||[]).length){for(let i=0;i<36;i++){const c=document.createElement('i');c.style.left=((i*29)%100)+'%';c.style.animationDelay=((i%9)*.1)+'s';el('confetti').append(c);}tone(523,.3);tone(659,.3,.2);tone(784,.6,.4);}}
    overlay.className=dismissed===key?'':'active winners';el('eyebrow').textContent='Die Ziehung ist abgeschlossen';el('count').textContent='';el('title').textContent=(draw.winner_badges||[]).length?'Herzlichen Glückwunsch!':'Keine berechtigten Teilnehmenden';el('sub').textContent=(draw.winner_badges||[]).length?'Kommt mit eurem Badge zum SVIAL-Stand.':'Bis zum Ziehungszeitpunkt wurde keine Teilnahmebedingung erfüllt.';el('back').hidden=false;return;
  }

@@ -77,12 +77,13 @@ with tempfile.TemporaryDirectory() as directory:
     presentation = next(c for c in screen.get('component_instance') if c.proto.component_name.endswith('afjd_screen'))
     assert json.loads(presentation.proto.json_args)['draw']['status'] == 'scheduled'
     next(t for t in staff.text_input if t.label=='Zum Zurücksetzen RESET eingeben').input('RESET')
-    button(staff,'Alle Demo-Aktivitäten zurücksetzen').click().run()
+    button(staff,'Alle Aktivitäten zurücksetzen').click().run()
     assert not staff.exception
-    assert any(t.label=='Persönlicher Zugangscode' for t in staff.text_input)
+    assert staff.session_state['demo_role_v3'] == 'admin'
+    assert any(r.label=='Arbeitsbereich' for r in staff.radio)
     lea.run()
     assert not lea.exception
     assert any(t.label=='Persönlicher Zugangscode' for t in lea.text_input)
     assert not lea.session_state['quest_v2'].visits
     assert 'claim_v2' not in lea.session_state
-    print('PASS: confirmed admin reset clears activity and signs out staff and participant tabs')
+    print('PASS: confirmed admin reset clears activity and keeps team access and signs out participant tabs')
