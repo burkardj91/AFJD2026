@@ -111,3 +111,5 @@ button[kind=secondary],button[kind=tertiary]{background:var(--surface)!important
 /* Override Streamlit markdown list spacing for the quest trail. */
 [data-testid="stMarkdownContainer"] .quest-trail .quest-stop{padding:22px 18px!important;margin:0!important}
 @media(max-width:600px){[data-testid="stMarkdownContainer"] .quest-trail .quest-stop{padding:17px 15px!important}}
+
+.personal-badge-qr{float:right;width:180px;height:180px;margin:0 0 12px 18px;background:white;border-radius:8px}.pass:after{content:"";display:block;clear:both}@media(max-width:600px){.personal-badge-qr{width:140px;height:140px;margin-left:8px}.pass .identity-heading{display:block}.pass .identity-heading>img{width:48px;height:48px}.pass .name{font-size:20px}}

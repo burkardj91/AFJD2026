@@ -19,6 +19,9 @@ with tempfile.TemporaryDirectory() as folder:
         return app
     app=login('LEA-7K4M-26')
     assert not app.tabs
+    assert all(c.value for c in app.checkbox)
+    next(c for c in app.checkbox if c.label.startswith('Meinen Namen')).uncheck()
+    next(c for c in app.checkbox if c.label == 'Zusammenfassung per E-Mail erhalten').uncheck()
     next(b for b in app.button if b.label=='Datenschutzauswahl speichern').click().run()
     assert not app.exception
     q=SharedQuest()

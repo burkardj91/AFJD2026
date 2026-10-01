@@ -17,7 +17,7 @@ import numpy as np
 import qrcode
 import streamlit as st
 import streamlit.components.v1 as components
-from quest_core import Quest, QUEST_DESCRIPTIONS, EXHIBITOR_NOTES, ROSTER, ACTIVATION_CODES, STATIONS, CARDS, CHALLENGES, CLUSTERS, CLUSTER_LABELS, ORGANISATIONS, payload, parse_payload, email_draft, recap_draft
+from quest_core import Quest, QUEST_DESCRIPTIONS, EXHIBITOR_NOTES, ROSTER, ACTIVATION_CODES, STATIONS, CARDS, CHALLENGES, CLUSTERS, CLUSTER_LABELS, ORGANISATIONS, payload, parse_payload, email_draft, recap_draft, contact_rows
 
 st.set_page_config(page_title="SVIAL · Netzwerk-Quest", page_icon=Image.open(LOGO_PATH), layout="centered", initial_sidebar_state="collapsed")
 
@@ -172,6 +172,11 @@ def public_base_url():
     return (value or "https://afjd2026.streamlit.app/").rstrip("/")
 
 @st.cache_data
+def branded_qr(value):
+    from quest_badges import qr_image
+    return qr_image(value)
+
+@st.cache_data
 def qr_png(value):
     buf = BytesIO()
     qrcode.make(value, box_size=8, border=4).save(buf, format="PNG")
@@ -185,19 +190,9 @@ def show_qr(kind, token, caption):
     st.image(data, width=230, caption=caption)
     st.download_button("QR-Code herunterladen", data, file_name=f"{kind}-{token}.png", mime="image/png", key=f"qr-{kind}-{token}")
 
-scan_component = components.declare_component("afjd_camera", path=str(Path(__file__).with_name("camera_scan")))
-
-def live_scanner(key):
-    result = scan_component(key=key, default=None)
-    if isinstance(result, dict) and isinstance(result.get("value"), str) and result.get("event"):
-        if s.get(key+"-consumed") != result["event"]:
-            s[key+"-consumed"] = result["event"]
-            return result["value"][:2048]
-    return None
-
-def scanner(key, label):
+def scanner(key, label, camera_first=False):
     st.write(label)
-    mode = st.radio("Lesemethode", ["Code eingeben", "Kamerafoto", "QR-Bild"], horizontal=True, key=key+"mode")
+    mode = st.radio("Lesemethode", (["Kamerafoto", "QR-Bild", "Code eingeben"] if camera_first else ["Code eingeben", "Kamerafoto", "QR-Bild"]), horizontal=True, key=key+"mode")
     value = None
     if mode == "Code eingeben":
         with st.form(key+"form"):
@@ -205,7 +200,7 @@ def scanner(key, label):
             if st.form_submit_button("Code lesen", type="primary"):
                 value = code
     else:
-        st.caption("Fotos werden zur Auswertung an den App-Server übertragen und nicht dauerhaft gespeichert. Für den direkten Kamera-Scan oben bleiben die Bilder auf deinem Gerät.")
+        st.caption("Fotos werden zur Auswertung an den App-Server übertragen und nicht dauerhaft gespeichert. Alternativ kannst du den QR-Code mit der normalen Kamera-App öffnen.")
         data = st.camera_input("QR-Code fotografieren", key=key+"camera") if mode == "Kamerafoto" else st.file_uploader("QR-Bild", type=["png", "jpg", "jpeg"], key=key+"upload")
         if data and st.button("QR-Bild lesen", key=key+"decode", type="primary"):
             if data.size > 8 * 1024 * 1024:
@@ -294,10 +289,10 @@ def record_scan(participant, value):
     return result
 
 def privacy_form(participant, location):
-    st.caption("Scans speichern Verbindungen sofort. Name und E-Mail werden nur geteilt, wenn du dies einschaltest. Die öffentliche Leinwand zeigt keine persönlichen Daten.")
+    st.caption("Scans speichern Verbindungen sofort. Name, Institution und E-Mail werden geteilt, wenn du zustimmst. Du kannst die vorausgewählte Freigabe ausschalten. Adresse, Geburtsdatum und Angaben aus einem Gewinnantrag werden nicht geteilt. Die öffentliche Leinwand zeigt keine persönlichen Daten.")
     with st.form("privacy-"+location+"-"+participant):
-        shared = st.checkbox("Meinen Namen und meine E-Mail mit meinen Verbindungen teilen", value=participant in q.sharing)
-        recap = st.checkbox("Zusammenfassung per E-Mail erhalten", value=participant in q.recap)
+        shared = st.checkbox("Meinen Namen, meine Institution und meine E-Mail mit meinen Kontakten teilen", value=(participant not in q.privacy_reviewed or participant in q.sharing))
+        recap = st.checkbox("Zusammenfassung per E-Mail erhalten", value=(participant not in q.privacy_reviewed or participant in q.recap))
         if st.form_submit_button("Datenschutzauswahl speichern", type="primary"):
             q.set_preferences(participant, shared, recap)
             st.rerun()
@@ -425,7 +420,8 @@ if view == "Mein Pass":
             reward_popup(person)
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
-        st.markdown(f'<div class="pass"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Netzwerkkarte freigeschaltet" if person in q.unlocked else "Entdecke die Veranstaltung"}</span></div></div>', unsafe_allow_html=True)
+        personal_qr = base64.b64encode(branded_qr(public_base_url()+"/?badge="+person)).decode("ascii")
+        st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Netzwerkkarte freigeschaltet" if person in q.unlocked else "Entdecke die Veranstaltung"}</span></div></div>', unsafe_allow_html=True)
         tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Mein Pass" if s.pop("claim_from_link", False) else ("Profil" if person not in q.profiles else "Mein Pass"))
         with tabs[0]:
             with st.expander("Demo · Freischaltung testen", expanded=False):
@@ -460,7 +456,8 @@ if view == "Mein Pass":
         with tabs[1]:
             st.subheader("Badge oder Stand scannen")
             st.write("Scans speichern Kontakte sofort – ohne Bestätigung. Passende Personen oder Stände erfüllen deine Quests; die Freigabe von Name und E-Mail bleibt freiwillig.")
-            value = live_scanner("participant-live")
+            st.write("Scanne direkt hier mit einem Kamerafoto oder nutze die normale Kamera-App deines Handys und öffne den erkannten Link. Bleibe dafür im selben Browser angemeldet. QR-Bild und Code-Eingabe sind Alternativen, falls das Scannen nicht klappt.")
+            value = scanner("participant", "QR-Code erfassen", camera_first=True)
             if value:
                 result = try_action(lambda:record_scan(person,value))
                 if result:
@@ -468,20 +465,6 @@ if view == "Mein Pass":
                         s.claim_v2 = result[1]
                         s.claim_from_link = True
                     st.rerun()
-            with st.expander("Meinen QR-Code zeigen", expanded=False):
-                st.subheader("Mein persönlicher QR-Code")
-                st.caption("Lass deinen digitalen Badge scannen, um dich zu vernetzen. Das Team erkennt damit deinen Pass. Dein persönlicher Zugangscode ist nie enthalten.")
-                show_qr("person", person, profile["name"]+" · "+profile["id"])
-            with st.expander("Hilfe beim Scannen", expanded=False):
-                st.write("Tippe auf Kamera starten und erlaube den Kamerazugriff. Halte den gesamten QR-Code ins Bild. Alternativ kannst du die Handykamera verwenden oder hier ein Foto hochladen.")
-                value = scanner("participant","Code per Foto oder Eingabe lesen")
-                if value:
-                    result = try_action(lambda:record_scan(person,value))
-                    if result:
-                        if result[0] == "reward":
-                            s.claim_v2 = result[1]
-                            s.claim_from_link = True
-                        st.rerun()
             if s.get("flash_v2"):
                 st.success(s.pop("flash_v2"))
             with st.expander("Demo-Katalog · Standbesuch simulieren", expanded=False):
@@ -514,25 +497,11 @@ if view == "Mein Pass":
             st.caption(f"{len(q.people(person))} Verbindungen · sofort gespeichert")
             if not q.people(person):
                 st.write("Deine gescannten Verbindungen erscheinen hier.")
-            for other in sorted(q.people(person)):
-                if other in q.sharing:
-                    st.write("**"+q.profile(other)["name"]+"**")
-                    st.write(q.profile(other)["email"])
-                else:
-                    st.write("**Teilnehmer:in · "+ROSTER[other]["id"]+"**")
-                    st.caption("Verbunden · Kontaktdaten nicht freigegeben")
-            if q.company_contacts.get(person):
-                st.subheader("Gespeicherte Unternehmenskontakte")
-                for contact in sorted(q.company_contacts[person]):
-                    company=q.affiliations[contact]
-                    st.write((q.profile(contact)["name"] if contact in q.sharing else ROSTER[contact]["id"])+" · "+ORGANISATIONS[company][1])
-                st.caption("Jede Person bleibt als Kontakt gespeichert. Auf der Leinwand zählt jedes Unternehmen einmal pro Verbindung. Für die Landwirtschaftsquest zählen zwei unterschiedliche Vertreter:innen; für Vernetzen drei unterschiedliche Personen.")
-            waiting = sum(a == person for a,_ in q.pending)
-            if waiting:
-                st.caption(f"{waiting} Kontaktanfragen warten auf Bestätigung.")
+            rows = contact_rows(q, person)
+            if rows:
+                st.dataframe(rows, hide_index=True, width="stretch")
+            st.caption("Institution / Zugehörigkeit zeigt die Firma oder Organisation. Stand-Scans ohne persönliche Angaben erscheinen mit einem Strich. Nicht freigegebene Angaben bleiben ausgeblendet.")
             st.subheader("Deine Zusammenfassung")
-            for token in sorted(q.visits.get(person,set())):
-                st.write("✓ "+STATIONS[token][0])
             recap_opt = st.checkbox("Meine Zusammenfassung vorbereiten", value=person in q.recap, key="recap-summary-"+person)
             if st.button("Auswahl speichern"):
                 q.set_preferences(person, person in q.sharing, recap_opt)
@@ -543,8 +512,8 @@ if view == "Mein Pass":
                 with st.expander("Zusammenfassung ansehen"):
                     from email import policy
                     from email.parser import BytesParser
-                    st.text(BytesParser(policy=policy.default).parsebytes(draft).get_content())
-            st.caption("Demo-Empfänger: svial@svial.ch. Der E-Mail-Versand ist deaktiviert.")
+                    st.html(BytesParser(policy=policy.default).parsebytes(draft).get_body(preferencelist=("html",)).get_content())
+            st.caption("Der Entwurf ist an deine Profil-E-Mail adressiert. Der E-Mail-Versand ist noch nicht eingerichtet.")
         with tabs[3]:
             with st.expander("Datenschutz · Du entscheidest", expanded=False):
                 privacy_form(person, "profile")
