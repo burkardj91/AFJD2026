@@ -76,8 +76,8 @@ with tempfile.TemporaryDirectory() as directory:
     import json
     presentation = next(c for c in screen.get('component_instance') if c.proto.component_name.endswith('afjd_screen'))
     assert json.loads(presentation.proto.json_args)['draw']['status'] == 'scheduled'
-    next(t for t in staff.text_input if t.label=='Zum Zurücksetzen RESET eingeben').input('RESET')
-    button(staff,'Alle Aktivitäten zurücksetzen').click().run()
+    next(t for t in staff.text_input if t.label=='Zum Löschen IMPORTE LÖSCHEN eingeben').input('IMPORTE LÖSCHEN')
+    button(staff,'Importe und Veranstaltungsdaten löschen').click().run()
     assert not staff.exception
     assert staff.session_state['demo_role_v3'] == 'admin'
     assert any(r.label=='Arbeitsbereich' for r in staff.radio)

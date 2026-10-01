@@ -668,21 +668,9 @@ elif view == "Veranstaltung verwalten":
         if q.raffle:
             st.write("Geplant: "+q.raffle["deadline"]+" · "+str(q.raffle["count"])+" Gewinner:innen · mindestens "+str(q.raffle["minimum"])+" Quests")
         st.caption("Sind weniger Personen berechtigt, gewinnen alle Berechtigten. Niemand gewinnt doppelt. Eine abgeschlossene Verlosung lässt sich erst nach dem Zurücksetzen erneut durchführen.")
-    with st.expander("Administration · Daten zurücksetzen"):
-        st.warning("Löscht Besuche, Kontakte, Anfragen, Quest-Fortschritt, Karten, Anträge und Datenschutzauswahl ALLER Personen. Der Preisbestand wird aufgefüllt, geöffnete Tabs werden abgemeldet. Heruntergeladene Dateien bleiben bestehen.")
-        st.caption("Nur für die Administration. Anmeldungen und Zugangscodes bleiben beim Zurücksetzen erhalten.")
-        with st.form("reset-rehearsal"):
-            keep_profiles = st.checkbox("Bearbeitete Profile behalten", value=True)
-            confirmation = st.text_input("Zum Zurücksetzen RESET eingeben")
-            if st.form_submit_button("Alle Aktivitäten zurücksetzen"):
-                try:
-                    q.reset_demo(s.staff_login, confirmation, keep_profiles)
-                    st.rerun()
-                except ValueError as error:
-                    st.error(str(error))
-    with st.expander("Importe und Veranstaltung vollständig zurücksetzen"):
-        st.warning("Löscht alle importierten Personen, Nachmeldungen, Reserve-Badges, Profile und sämtliche Teilnehmeraktivitäten – auch die der Beispielpersonen. Karten, Anträge, Warteschlange und Verlosung werden zurückgesetzt. Der Zusammenfassungszeitpunkt wird auf den 8. Oktober 2026 um 21 Uhr zurückgesetzt.")
-        st.caption("Team-Zugänge und Secrets (Passwörter, Mailkonfiguration) bleiben erhalten. Beispielpersonen bleiben zum Testen verfügbar. Bereits versendete E-Mails und heruntergeladene Druckdateien werden nicht zurückgerufen. Ein bereits laufender Mailversand kann noch abgeschlossen werden.")
+    with st.expander("Administration · Alle Importe löschen"):
+        st.warning("Löscht alle importierten Personen, Nachmeldungen und Reserve-Badges samt persönlichen Zugangscodes, QR-Zuordnungen, Profilen und sämtlichen Teilnehmeraktivitäten – auch die der Beispielpersonen. Karten, Anträge, Warteschlange und Verlosung werden zurückgesetzt. Der Zusammenfassungszeitpunkt wird auf den 8. Oktober 2026 um 21 Uhr zurückgesetzt.")
+        st.caption("Alte persönliche Zugangscodes und QR-Codes der gelöschten Personen funktionieren danach nicht mehr. Team-Zugänge und Secrets (Passwörter, Mailkonfiguration) bleiben erhalten. Beispielpersonen bleiben zum Testen verfügbar. Bereits versendete E-Mails und heruntergeladene Druckdateien werden nicht zurückgerufen. Ein bereits laufender Mailversand kann noch abgeschlossen werden.")
         with st.form("reset-imports"):
             confirmation = st.text_input("Zum Löschen IMPORTE LÖSCHEN eingeben")
             if st.form_submit_button("Importe und Veranstaltungsdaten löschen"):
