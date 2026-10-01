@@ -116,7 +116,7 @@ if not role:
     if st.query_params.get("badge"):
         st.info("Dies ist ein öffentlicher Badge-Link. Melde dich mit deinem eigenen Zugangscode an. Durch Scannen übernimmst du keinen fremden Badge.")
     st.markdown(masthead(), unsafe_allow_html=True)
-    from quest_landing import welcome_html, POSTER
+    from quest_landing import welcome_html
     st.markdown(welcome_html(), unsafe_allow_html=True)
     with st.form("demo_login"):
         code = st.text_input("Persönlicher Zugangscode", type="password", placeholder="Dein Code vom Welcome Desk", help="Dein privater Zugangscode gehört zu deinem persönlichen Pass.")
@@ -138,8 +138,6 @@ if not role:
     with st.expander("So funktioniert die Netzwerk-Quest"):
         st.markdown("1. **Anmelden:** Gib deinen privaten Code vom Welcome Desk ein.\n2. **Vernetzen:** Scanne Badges und Stände, sammle Kontakte und erfülle Quests.\n3. **Gewinnen:** Nach vier erfüllten Quests wartet deine Netzwerkkarte am SVIAL-Stand auf dich.")
         st.caption("Dein Name und deine Institution sind für deine Kontakte sichtbar. Über die Freigabe deiner E-Mail-Adresse entscheidest du beim ersten Einstieg.")
-    with st.expander("Veranstaltungsplakat ansehen"):
-        st.image(str(POSTER), width="stretch")
     st.stop()
 
 if role in {"staff", "admin"}:
