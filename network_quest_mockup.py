@@ -237,8 +237,11 @@ def member_form(p, card):
     if CARDS[card][2] == "sfr":
         st.info("Dein SFR-Preis ist reserviert. Besprich die Einlösung mit dem SVIAL-Team; die Details werden noch geklärt.")
         return
+    if CARDS[card][2] == "event":
+        from quest_membership import EVENT_NOTE
+        st.write(EVENT_NOTE)
     if card in q.applications:
-        st.success("Vielen Dank für deine Anmeldung!")
+        st.success("Dein Eventgewinn ist bestätigt!" if CARDS[card][2] == "event" else "Vielen Dank für deine Anmeldung!")
         from quest_membership import MEMBERSHIP_NOTE
         if CARDS[card][2] == "membership": st.write(MEMBERSHIP_NOTE)
         st.write("Deine Anmeldung geht an svial@svial.ch. Die persönliche Bestätigung geht an "+q.profile(p)["email"]+".")
@@ -277,7 +280,7 @@ def member_form(p, card):
             dob = st.date_input("Geburtsdatum (Pflicht für die Mitgliedschaft)", value=date.fromisoformat(saved["date_of_birth"]) if saved.get("date_of_birth") else None, min_value=date(1900,1,1), max_value=date.today())
             details["date_of_birth"] = dob.isoformat() if dob else ""
         else:
-            st.caption("Für diesen Preis ist nur dein vorausgefüllter Name nötig.")
+            st.caption("Bestätige deinen Namen und die E-Mail-Adresse für deine Gewinnbestätigung. Es werden keine weiteren Profilangaben benötigt.")
         if CARDS[card][2] == "membership":
             from quest_membership import MEMBERSHIP_NOTE
             st.write(MEMBERSHIP_NOTE)
@@ -285,7 +288,7 @@ def member_form(p, card):
         if email_config.get("mode", "test") == "test":
             st.caption("Versandtest: Nachrichten werden an "+str(email_config.get("test_recipient", "j.burkard@svial.ch"))+" umgeleitet.")
         consent = st.checkbox("Ich bestätige meinen Antrag und stimme der Übermittlung dieser Angaben an SVIAL sowie einer Kopie an meine E-Mail-Adresse zur Bearbeitung zu.")
-        if st.form_submit_button("Anmeldung absenden", type="primary"):
+        if st.form_submit_button("Eventgewinn bestätigen" if CARDS[card][2] == "event" else "Anmeldung absenden", type="primary"):
             try:
                 q.submit(p, card, details, consent)
                 st.rerun()
@@ -368,7 +371,7 @@ def claim_link(card):
 def card_reveal(participant, card):
     st.markdown(celebration_html("Dieser Gewinn gehört dir!", "Eine neue Verbindung. Eine kleine Überraschung. Ein Moment, der bleibt."), unsafe_allow_html=True)
     benefit = {"membership":"Du gehörst dazu.", "event":"Wir laden dich ein.", "gift":"Eine kleine Freude für dich.", "sfr":"Entdecke etwas Neues."}[CARDS[card][2]]
-    wording = {"membership":"Deine Gratismitgliedschaft beim SVIAL bis zum 31. Dezember 2027.","event":"Dein nächster SVIAL-Event geht auf uns.","gift":"Ein kleines Dankeschön. Hole dein Geschenk am Stand ab.","sfr":"Dein Preis ist reserviert. Frage das Team nach den SFR-Details."}[CARDS[card][2]]
+    wording = {"membership":"Deine Gratismitgliedschaft beim SVIAL bis zum 31. Dezember 2027.","event":"Dein nächster SVIAL-Event geht auf uns. Wähle deinen Event aus und melde dich bei uns – wir organisieren deine Gratis-Teilnahme.","gift":"Ein kleines Dankeschön. Hole dein Geschenk am Stand ab.","sfr":"Dein Preis ist reserviert. Frage das Team nach den SFR-Details."}[CARDS[card][2]]
     qr = "data:image/png;base64," + base64.b64encode(qr_png(claim_link(card))).decode("ascii")
     st.markdown('<div class="reveal-stage"><div class="turning-card"><div class="card-back"><img src="'+logo_uri()+'" alt="SVIAL"><span>Verbindungen, die wachsen.</span></div><div class="card-front"><img src="'+logo_uri()+'" alt="SVIAL"><span class="card-kicker">DEINE NETZWERKKARTE</span><h2>'+escape(benefit)+'</h2><p>'+wording+'</p><img class="claim-qr" src="'+qr+'" alt="Zum Einlösen deiner Karte scannen"><small>Scannen. Angaben prüfen. Gewinn einlösen.</small><div class="card-owner">'+escape(q.profile(participant)["name"])+' · '+CARDS[card][0]+'</div></div></div></div>', unsafe_allow_html=True)
     st.caption("Scanne diesen QR-Code mit deinem Handy und melde dich mit deinem eigenen Code an. Die Karte bleibt für dich reserviert.")
@@ -595,6 +598,16 @@ elif view == "SVIAL-Team":
                 elif st.button("Geschenk als abgeholt markieren"):
                     q.collect_gift(s.staff_login,existing)
                     st.rerun()
+            with st.expander("Gewinn zurücklegen & neu ziehen"):
+                st.caption("Die Karte geht zurück in den Vorrat. Die Person darf erneut ziehen. Bereits bestätigte Anmeldungen und abgeholte Geschenke können nicht zurückgenommen werden.")
+                reason = st.selectbox("Grund für den Austausch", ["Bereits SVIAL-Mitglied", "Anderer Gewinn gewünscht"], key="return-reason-"+existing)
+                confirmed = st.checkbox("Gewinn zurücklegen und neue Ziehung freigeben", key="return-confirm-"+existing)
+                if st.button("Gewinn zurücklegen", disabled=not confirmed or existing in q.applications or existing in q.collected):
+                    try:
+                        q.return_prize(p, existing, s.staff_login, reason)
+                        s.pop("reveal_card", None)
+                        st.rerun()
+                    except ValueError as error: st.error(str(error))
             if st.button("Karte und Einlöse-QR zeigen", use_container_width=True):
                 s.reveal_card = (p, existing)
                 st.rerun()
@@ -622,7 +635,7 @@ elif view == "SVIAL-Team":
     if s.get("reveal_card"):
         card_reveal(*s.reveal_card)
     with st.expander("Anträge & E-Mail-Entwürfe"):
-        st.caption("Demo · Versand deaktiviert. Empfänger und Kopie gehen in den Entwürfen an SVIAL; die spätere persönliche Kopie ist im Text vermerkt.")
+        st.caption("Bestätigte Anträge gehen an SVIAL; Mitgliedschafts- und Eventbestätigungen zusätzlich an die Person. Der tatsächliche Versand richtet sich nach der Mailkonfiguration; im Testmodus werden Empfänger umgeleitet.")
         if not q.applications:
             st.write("Noch keine Anträge.")
         for card,application in q.applications.items():
@@ -650,7 +663,7 @@ elif view == "Veranstaltung verwalten":
                 except ValueError as error: st.error(str(error))
         for key,mail in q.outbox.items():
             st.caption(mail["status"])
-            st.download_button("Herunterladen: "+{"recap":"Zusammenfassung","claim":"Antrag","confirmation":"Mitgliedschaftsbestätigung"}.get(mail["kind"],mail["kind"])+" · "+q.profile(mail["person"])["name"],mail["draft"],file_name=key.replace(":","-")+".eml",mime="message/rfc822",key="queue-"+key)
+            st.download_button("Herunterladen: "+{"recap":"Zusammenfassung","claim":"Antrag","confirmation":"Gewinnbestätigung"}.get(mail["kind"],mail["kind"])+" · "+q.profile(mail["person"])["name"],mail["draft"],file_name=key.replace(":","-")+".eml",mime="message/rfc822",key="queue-"+key)
     with st.expander("Hauptverlosung · Countdown"):
         st.caption("Gleiche Chance pro berechtigter Person. Gewinner:innen erscheinen nur mit Badge-ID. Dies ist eine fiktive Testverlosung.")
         with st.form("schedule-raffle"):
