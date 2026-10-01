@@ -213,6 +213,8 @@ class Quest:
     profiles: dict = field(default_factory=dict)
     digital_cards: set = field(default_factory=set)
     draw_log: list = field(default_factory=list)
+    return_log: list = field(default_factory=list)
+    draw_exclusions: dict = field(default_factory=dict)
     draw_approvals: dict = field(default_factory=dict)
 
     reset_epoch: int = field(default_factory=int)
@@ -329,7 +331,12 @@ class Quest:
         for person, entry in self.roster().items():
             profile = self.profile(person)
             company = ORGANISATIONS.get(self.affiliations.get(person))
-            rows.append({"Person":person, "Badge-ID":entry["id"], "Name":profile["name"],
+            card = next((c for c, owner in self.assignments.items() if owner == person), None)
+            status = "Noch kein Gewinn"
+            if card:
+                status = "Abgeholt" if card in self.collected else "Bestätigt" if card in self.applications else "Reserviert"
+            rows.append({"Gewinn":CARDS[card][1] if card else "", "Gewinnreferenz":CARDS[card][0] if card else "", "Gewinnstatus":status,
+                "Bestätigung per E-Mail":self.outbox.get("confirmation:"+str(card), {}).get("status", ""), "Person":person, "Badge-ID":entry["id"], "Name":profile["name"],
                 "E-Mail":profile["email"], "Zugangscode":codes[person],
                 "Institution":entry.get("affiliation", ""),
                 "Zuordnung":self.annotations.get(person, entry.get("annotation")) or (company[1] if company else ""),
@@ -548,6 +555,30 @@ class Quest:
             from quest_membership import confirmation_draft
             self.outbox["confirmation:"+card]={"kind":"confirmation","person":person,"card":card,"ready":True,"status":"Wartet auf Versand","draft":confirmation_draft(self.applications[card]).decode("utf-8")}
 
+        elif CARDS[card][2] == "event":
+            from quest_membership import event_confirmation_draft
+            self.outbox["confirmation:"+card]={"kind":"confirmation","person":person,"card":card,"ready":True,"status":"Wartet auf Versand","draft":event_confirmation_draft(self.applications[card], CARDS[card]).decode("utf-8")}
+
+    def return_prize(self, person, card, staff_id, reason):
+        if staff_id not in {"STAFF-01", "STAFF-02"}:
+            raise ValueError("Nur das Standteam kann einen Gewinn zurücknehmen.")
+        if self.assignments.get(card) != person:
+            raise ValueError("Diese Karte ist der Person nicht mehr zugeordnet. Aktualisiere die Ansicht.")
+        if card in self.applications or card in self.collected or any(m.get("card") == card for m in self.outbox.values()):
+            raise ValueError("Der Gewinn wurde bereits bestätigt oder abgeholt und kann nicht zurückgelegt werden.")
+        if reason not in {"Bereits SVIAL-Mitglied", "Anderer Gewinn gewünscht"}:
+            raise ValueError("Wähle einen Grund für den Austausch.")
+        excluded = set(self.draw_exclusions.get(person, set())) | {card}
+        if reason == "Bereits SVIAL-Mitglied":
+            excluded.update(c for c, row in CARDS.items() if row[2] == "membership")
+        if not any(c not in self.assignments and c not in excluded for c in CARDS):
+            raise ValueError("Es ist kein anderer passender Gewinn verfügbar. Die bisherige Karte bleibt reserviert.")
+        self.draw_exclusions[person] = excluded
+        del self.assignments[card]
+        self.digital_cards.discard(card)
+        self.draw_approvals[person] = {"staff":staff_id,"at":datetime.now(timezone.utc).isoformat()}
+        self.return_log.append({"person":person,"card":card,"staff":staff_id,"reason":reason,"at":datetime.now(timezone.utc).isoformat()})
+
     def approve_draw(self, person, staff_id):
         if staff_id not in {"STAFF-01", "STAFF-02"}:
             raise ValueError("Ein Administrator-Zugang ist erforderlich.")
@@ -565,9 +596,9 @@ class Quest:
             return existing
         if person not in self.draw_approvals:
             raise ValueError("Das Standteam muss die Person zuerst prüfen und die Ziehung freischalten.")
-        available = [c for c in CARDS if c not in self.assignments]
+        available = [c for c in CARDS if c not in self.assignments and c not in self.draw_exclusions.get(person, set())]
         if not available:
-            raise ValueError("Alle Demo-Preise wurden gezogen.")
+            raise ValueError("Für diese Person ist kein passender Gewinn mehr verfügbar.")
         card = secrets.choice(available)
         self.assign(person, card, staff=True)
         self.digital_cards.add(card)
