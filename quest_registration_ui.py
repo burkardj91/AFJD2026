@@ -82,7 +82,7 @@ def registration_page(q, staff_id, base_url):
     if len(admin_password()) < 16:
         st.info('Hinterlege QUEST_ADMIN_PASSWORD (mindestens 16 Zeichen) in Streamlit Secrets oder der Serverumgebung und melde dich erneut an. Das schützt Verwaltung, Importe und private Zugangszettel.')
         return
-    upload_tab, new_tab, print_tab, correct_tab, mapping_tab = st.tabs(["Excel importieren", "Nachmeldung", "Badges drucken", "Badge korrigieren", "Firmen & Zuordnung"])
+    upload_tab, print_tab, correct_tab = st.tabs(["Excel importieren", "Badges & Reserve", "Badge korrigieren"])
     with upload_tab:
         st.write("Die Spaltenüberschriften dürfen unter dem Eventfrog-Titel und den Hinweisen stehen. Gespeichert werden Name, E-Mail, Ticketreferenz sowie optional Institution und Annotation. Die Institution erscheint auf dem Badge; Annotation steuert die Quest-Zuordnung. Mit der optionalen Spalte „Namensschild leer“ (ja) bleibt das Namensfeld vorne leer. Mehrere Tickets mit gleichem Namen erhalten ab dem zweiten Ticket automatisch einen Platzhalter; unterschiedliche Ticket-IDs sind dafür erforderlich. Andere Spalten werden ignoriert.")
         from quest_registration import mock_eventfrog_xlsx
@@ -98,34 +98,35 @@ def registration_page(q, staff_id, base_url):
                 if st.button("Import bestätigen", disabled=not plan or problems, type="primary"):
                     ids = q.import_registrations(staff_id, rows)
                     st.session_state.registration_print = ids
-                    st.success(f"Gespeichert: {len(ids)} Personen. Unter Badges drucken findest du Badges und private Zugangszettel.")
+                    st.success(f"Gespeichert: {len(ids)} Personen. Unter Badges & Reserve findest du Badges und private Zugangszettel.")
             except Exception as error:
                 if isinstance(error, ValueError): st.error(str(error))
                 else: st.error("Die Datei konnte nicht gelesen werden. Exportiere eine gültige .xlsx-Datei und versuche es erneut.")
-    with new_tab:
-        st.caption("Reserve-Badges haben bereits QR-Code, ID und kurzen Zugangscode. Das Namensfeld vorne bleibt leer, bis du die Person unter Badge korrigieren erfasst.")
-        if st.button("20 Reserve-Badges anlegen"):
-            from quest_registration import reserve_rows
-            st.session_state.registration_print = q.import_registrations(staff_id, reserve_rows())
-            st.success("20 Reserve-Badges sind unter Badges drucken verfügbar. Wiederholtes Klicken erzeugt keine weiteren Kopien.")
-        with st.form("late-registration"):
-            first = st.text_input("Vorname")
-            last = st.text_input("Nachname")
-            email = st.text_input("E-Mail")
-            affiliation = institution_select("Zugehörigkeit / Institution", key="new-institution")
-            annotation = st.text_input("Annotation", help="Interne Zuordnung: Firmenname, Mentor, SVIAL oder Rosie. Unabhängig von der aufgedruckten Institution.")
-            submitted = st.form_submit_button("Person anlegen", type="primary")
-        if submitted:
-            rows = [{"name":first.strip()+" "+last.strip(), "email":email, "first_name":first.strip(), "last_name":last.strip(), "affiliation":affiliation, "annotation":annotation, "invalid_name":not first.strip() or not last.strip()}]
-            plan = plan_import(rows, q.registrations)
-            if plan[0]["action"] != "New":
-                st.error(plan[0]["reason"] or "Diese Person existiert bereits. Ihr Badge liegt unter Badges drucken.")
-            else:
-                try:
-                    ids = q.import_registrations(staff_id, rows)
-                    st.session_state.registration_print = ids
-                    st.success("Person angelegt. Zugang und QR-Code funktionieren sofort. Öffne Badges drucken.")
-                except ValueError as error: st.error(str(error))
+    with print_tab:
+        st.subheader("Reserve-Badges · John / Jane Doe")
+        st.caption("Reserve-Badges haben bereits QR-Code, ID und kurzen Zugangscode. Vorne bleibt das Namensfeld leer zum Beschriften. Hinten stehen Platzhaltername, Badge-ID und privater Zugangscode. Erfasse den tatsächlichen Namen später unter Badge korrigieren.")
+        if st.button("20 Reserve-Badges anlegen / nachdrucken"):
+            st.session_state.registration_print = q.prepare_reserves(staff_id)
+            st.success(f"{len(st.session_state.registration_print)} unbenutzte Reserve-Badges für den Druck ausgewählt. Bereits zugeteilte Badges bleiben unverändert; Nachdrucken erzeugt keine neuen Codes.")
+        with st.expander("Einzelne Nachmeldung ohne Reserve-Badge"):
+            with st.form("late-registration"):
+                first = st.text_input("Vorname")
+                last = st.text_input("Nachname")
+                email = st.text_input("E-Mail")
+                affiliation = institution_select("Zugehörigkeit / Institution", key="new-institution")
+                annotation = st.text_input("Annotation", help="Interne Zuordnung: Firmenname, Mentor, SVIAL oder Rosie. Unabhängig von der aufgedruckten Institution.")
+                submitted = st.form_submit_button("Person anlegen", type="primary")
+            if submitted:
+                rows = [{"name":first.strip()+" "+last.strip(), "email":email, "first_name":first.strip(), "last_name":last.strip(), "affiliation":affiliation, "annotation":annotation, "invalid_name":not first.strip() or not last.strip()}]
+                plan = plan_import(rows, q.registrations)
+                if plan[0]["action"] != "New":
+                    st.error(plan[0]["reason"] or "Diese Person existiert bereits. Ihr Badge liegt unter Badges & Reserve.")
+                else:
+                    try:
+                        ids = q.import_registrations(staff_id, rows)
+                        st.session_state.registration_print = ids
+                        st.success("Person angelegt. Zugang und QR-Code funktionieren sofort. Öffne Badges & Reserve.")
+                    except ValueError as error: st.error(str(error))
     with print_tab:
         roster = q.registrations
         scope = st.radio("Exportumfang", ["Letzter Import / letzte Anmeldung", "Alle angemeldeten Personen", "Personen auswählen"], horizontal=True)
@@ -157,27 +158,14 @@ def registration_page(q, staff_id, base_url):
                 last=st.text_input("Tatsächlicher Nachname", value="" if entry.get("identity_pending") else entry.get("last_name", ""))
                 email=st.text_input("Persönliche E-Mail", value="" if entry.get("identity_pending") else entry["email"])
                 affiliation=institution_select("Institution auf dem Badge", entry.get("affiliation", ""), key="badge-institution-"+person)
+                current_annotation = q.annotations.get(person, entry.get("annotation", ""))
+                annotation = institution_select("Quest-Zuordnung", current_annotation, key="badge-annotation-"+person)
+                st.caption("Institution erscheint auf dem Badge. Quest-Zuordnung bestimmt, für welche Aufgabe diese Person zählt; hier kannst du auch Mentoring auswählen. Beides wird zusammen gespeichert.")
                 renew_code=st.checkbox("Neuen kurzen Zugangscode erstellen", value=False, help="Format AFJD-LM-482. Der alte Zugangscode und gespeicherte Anmeldungen werden ungültig. QR-Code und Badge-ID bleiben gleich.")
                 if st.form_submit_button("Badge aktualisieren"):
                     try:
-                        q.correct_registration(staff_id, person, first, last, email, affiliation, renew_code=renew_code)
+                        q.correct_registration(staff_id, person, first, last, email, affiliation, renew_code=renew_code, annotation=annotation)
                         st.success("Gespeichert. ID und QR-Code bleiben unverändert.")
                         st.code(q.registrations[person]["code"], language=None)
                     except ValueError as error: st.error(str(error))
 
-    with mapping_tab:
-        from quest_core import ORGANISATIONS, CLUSTER_LABELS
-        st.caption("Diese interne Zuordnung bestimmt, für welche Quest eine Person zählt. Der aufgedruckte Institutionstext kann unter Badge korrigieren separat angepasst werden. IDs und Zugangscodes bleiben gleich.")
-        roster = q.roster()
-        person = st.selectbox("Person zuordnen", list(roster), index=None, format_func=lambda p, roster=roster:roster[p]["id"]+" · "+roster[p]["name"])
-        if person:
-            current = q.annotations.get(person, q.registrations.get(person, {}).get("annotation", ""))
-            if not current:
-                current = "Mentoring" if person == "p-rosie" else ORGANISATIONS.get(q.affiliations.get(person), ("", ""))[1]
-            annotation = institution_select("Interne Quest-Zuordnung", current, key="annotation-"+person)
-            if st.button("Firmenzuordnung speichern"):
-                try:
-                    q.set_annotation(staff_id, person, annotation)
-                    st.success("Zuordnung gespeichert. Zugangscode und QR-Code bleiben unverändert.")
-                except ValueError as error: st.error(str(error))
-        st.dataframe([{"Institution":row[1], "Gruppe":CLUSTER_LABELS[row[2]], "Kennung":row[0]} for row in ORGANISATIONS.values()], hide_index=True)

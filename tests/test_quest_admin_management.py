@@ -59,3 +59,20 @@ class AdminManagementTests(unittest.TestCase):
         q.scan('p-8hd2v7',payload('person',p))
         self.assertIn('SVIAL-Mentoring',q.completed('p-8hd2v7'))
         self.assertEqual(q.public_raffle()['winner_badges'],[])
+
+    def test_reserve_reprint_preserves_corrected_person_and_credentials(self):
+        q=Quest();ids=q.prepare_reserves('ADMIN-01')
+        self.assertEqual(len(ids),20)
+        self.assertTrue(any(q.registrations[p]['first_name']=='Jane' for p in ids))
+        before=q.activation_codes();p=ids[0]
+        q.correct_registration('ADMIN-01',p,'New','Person','new@example.test','Coop',annotation='Coop')
+        reprint=q.prepare_reserves('ADMIN-01')
+        self.assertEqual(len(reprint),19)
+        self.assertNotIn(p,reprint)
+        self.assertEqual(before,q.activation_codes())
+        self.assertEqual(q.registrations[p]['annotation'],'Coop')
+        self.assertEqual(q.registrations[p]['name'],'New Person')
+        q.demo_login('AFJD-LM-264');q.scan('p-8hd2v7',payload('person',p))
+        with self.assertRaises(ValueError):
+            q.correct_registration('ADMIN-01',p,'Wrong','Change','new@example.test','Luya',annotation='Luya')
+        self.assertEqual(q.registrations[p]['name'],'New Person')

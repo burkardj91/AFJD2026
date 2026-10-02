@@ -31,8 +31,11 @@ with tempfile.TemporaryDirectory() as folder:
     next(x for x in app.selectbox if x.label=='Badge-ID oder Name').select(token).run()
     for label,value in [('Tatsächlicher Vorname','Sara'),('Tatsächlicher Nachname','Rossi'),('Persönliche E-Mail','sara@example.test')]:
         next(t for t in app.text_input if t.label==label).input(value)
+    next(x for x in app.selectbox if x.label=='Quest-Zuordnung').select('Mentoring')
     click('Badge aktualisieren')
     assert q.profile(token)['name']=='Sara Rossi'
+    assert q.registrations[token]['annotation']=='Mentoring'
+    assert [t.label for t in app.tabs]==['Excel importieren','Badges & Reserve','Badge korrigieren']
     assert q.registrations[token]['id']==before['id'] and q.registrations[token]['code']==before['code']
     next(r for r in app.radio if r.label=='Arbeitsbereich').set_value('Personen & Aktivitäten').run()
     assert not app.exception
