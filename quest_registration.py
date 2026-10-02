@@ -162,4 +162,4 @@ def short_access_code(first, last, used):
 
 
 def reserve_rows():
-    return [dict(name=f'John Doe {i:02}', first_name='John', last_name=f'Doe {i:02}', email='j.burkard@svial.ch',source_id=f'reserve:{i:02}',blank_badge=True) for i in range(1,21)]
+    return [dict(name=f'{"John" if i%2 else "Jane"} Doe {i:02}', first_name='John' if i%2 else 'Jane', last_name=f'Doe {i:02}', email='j.burkard@svial.ch',source_id=f'reserve:{i:02}',blank_badge=True) for i in range(1,21)]

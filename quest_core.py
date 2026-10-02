@@ -153,7 +153,17 @@ class Quest:
             saved.append(person)
         return saved
 
-    def correct_registration(self, staff_id, person, first, last, email, affiliation="", renew_code=False):
+    def prepare_reserves(self, staff_id):
+        from quest_registration import reserve_rows
+        if staff_id != "ADMIN-01":
+            raise ValueError("Ein Administrator-Zugang ist erforderlich.")
+        existing = {r.get("source_id") for r in self.registrations.values()}
+        missing = [row for row in reserve_rows() if row["source_id"] not in existing]
+        if missing:
+            self.import_registrations(staff_id, missing)
+        return [p for p,r in self.registrations.items() if r.get("source_id", "").startswith("reserve:") and r.get("identity_pending")]
+
+    def correct_registration(self, staff_id, person, first, last, email, affiliation="", renew_code=False, annotation=None):
         if staff_id != "ADMIN-01" or person not in self.registrations:
             raise ValueError("Wähle als Administrator eine importierte Person.")
         first, last, email = first.strip(), last.strip(), email.strip()
@@ -164,6 +174,8 @@ class Quest:
             from quest_registration import short_access_code
             data["code"] = short_access_code(first, last, set(self.activation_codes().values()))
             data["auth_version"] = self.registrations[person].get("auth_version", 0)+1
+        if annotation is not None and annotation != self.annotations.get(person, self.registrations[person].get("annotation", "")):
+            self.set_annotation(staff_id, person, annotation)
         self.registrations[person].update(data, blank_badge=False, identity_pending=False, identity_corrected=True)
         self.profiles.setdefault(person, {}).update({k:v for k,v in data.items() if k not in {"code", "auth_version"}})
         self.privacy_reviewed.discard(person)
