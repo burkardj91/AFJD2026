@@ -28,6 +28,7 @@ with tempfile.TemporaryDirectory() as directory:
     alex=start('DEMO-137')
     button(lea,'Badge-Scan simulieren').click().run()
     assert lea.session_state['scan_destination']=='Kontakte'
+    assert lea.session_state['scan_generation']==1
     alex.run()
     assert not alex.session_state['quest_v2'].pending
     lea.run()
