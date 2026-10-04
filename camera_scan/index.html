@@ -1,6 +1,7 @@
 <!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{font:16px system-ui;margin:0;color:#173e2c}button{font:inherit;padding:12px 18px;border:1px solid #009641;border-radius:12px;cursor:pointer;background:#009641;color:white}button.secondary{background:white;color:#173e2c}video{width:100%;height:260px;object-fit:cover;border-radius:18px;background:#10291f}#status{font-size:14px;line-height:1.5;margin:12px 0}#stop{display:none}.actions{display:flex;gap:10px}video[hidden]{display:none}</style>
+<style>body{font:16px system-ui;margin:0;color:#173e2c}button{font:inherit;padding:12px 18px;border:1px solid #009641;border-radius:12px;cursor:pointer;background:#009641;color:white}button.secondary{background:white;color:#173e2c}video{width:100%;height:min(60vh,480px);min-height:300px;object-fit:contain;border-radius:18px;background:#10291f}#status{font-size:14px;line-height:1.5;margin:12px 0}#stop{display:none}.actions{display:flex;gap:10px}video[hidden]{display:none}</style>
 <video id="video" playsinline muted hidden></video><p id="status" role="status">Scanne einen Badge oder Stand direkt hier. Die Kamera startet erst nach deiner Zustimmung.</p><div class="actions"><button id="start">Kamera starten</button><button class="secondary" id="stop">Kamera stoppen</button></div>
+<script src="jsQR.js"></script>
 <script>
 const video=document.querySelector('#video'),status=document.querySelector('#status'),start=document.querySelector('#start'),stopButton=document.querySelector('#stop');
 let stream=null,running=false,generation=0;
@@ -11,18 +12,21 @@ stopButton.onclick=()=>{stop();status.textContent='Kamera gestoppt.';height()};
 start.onclick=async()=>{
  stop();const ticket=++generation;start.disabled=true;
  try{
-  if(!navigator.mediaDevices?.getUserMedia)throw new Error('Die Kamera benötigt eine sichere HTTPS-Verbindung. Nutze die Hilfe darunter.');
-  if(!window.BarcodeDetector || !(await BarcodeDetector.getSupportedFormats()).includes('qr_code'))throw new Error('Dein Browser unterstützt den Live-Scanner nicht. Unter Hilfe kannst du ein QR-Foto aufnehmen oder hochladen.');
-  const detector=new BarcodeDetector({formats:['qr_code']});
-  const next=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error('Die Kamera benötigt eine sichere HTTPS-Verbindung. Nutze Kamerafoto oder Badge-ID.');
+  let detector=null;
+  try{if(window.BarcodeDetector && (await BarcodeDetector.getSupportedFormats()).includes('qr_code'))detector=new BarcodeDetector({formats:['qr_code']});}catch(e){}
+  if(!detector && typeof jsQR!=='function')throw new Error('Die QR-Erkennung konnte nicht geladen werden. Lade die Seite neu oder nutze Kamerafoto / Badge-ID.');
+  const canvas=document.createElement('canvas'),context=canvas.getContext('2d',{willReadFrequently:true});
+  function softwareDecode(){const scale=Math.min(1,1400/Math.max(video.videoWidth,video.videoHeight));canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);if(!canvas.width||!canvas.height)return '';context.drawImage(video,0,0,canvas.width,canvas.height);const pixels=context.getImageData(0,0,canvas.width,canvas.height);return jsQR(pixels.data,pixels.width,pixels.height,{inversionAttempts:'attemptBoth'})?.data||'';}
+  const next=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
   if(ticket!==generation){next.getTracks().forEach(t=>t.stop());return}
   stream=next;video.srcObject=stream;video.hidden=false;await video.play();running=true;stopButton.style.display='inline-block';status.textContent='Halte den QR-Code ruhig ins Bild. Kamerabilder bleiben auf deinem Gerät.';height();
   async function frame(){
    if(!running||ticket!==generation)return;
-   try{if(video.readyState>=2){const codes=await detector.detect(video);if(!running||ticket!==generation)return;if(codes.length){const value=codes[0].rawValue;stop();status.textContent='QR-Code erkannt. Wird geprüft …';start.textContent='Nächsten Code scannen';height();send('streamlit:setComponentValue',{value:{value,event:crypto.randomUUID()},dataType:'json'});return}}}catch(e){stop();status.textContent='Das Kamerabild konnte nicht gelesen werden. Versuche es erneut oder nutze die Hilfe.';height();return}
+   try{if(video.readyState>=2){let value='';if(detector){try{value=(await detector.detect(video))[0]?.rawValue||'';}catch(e){detector=null;}}if(!value && typeof jsQR==='function')value=softwareDecode();if(!running||ticket!==generation)return;if(value){stop();status.textContent='QR-Code erkannt. Wird geprüft …';start.textContent='Nächsten Code scannen';height();send('streamlit:setComponentValue',{value:{value,event:crypto.randomUUID()},dataType:'json'});return}}}catch(e){stop();status.textContent='Das Kamerabild konnte nicht gelesen werden. Versuche es erneut oder nutze Kamerafoto / Badge-ID.';height();return}
    setTimeout(frame,180);
   }frame();
- }catch(e){stop();status.textContent=e.name==='NotAllowedError'?'Kamerazugriff nicht erlaubt. Erlaube ihn in den Browser-Einstellungen oder nutze die Hilfe darunter.':e.name==='NotFoundError'?'Keine Kamera gefunden. Nutze die Hilfe darunter.':e.message;height()}
+ }catch(e){stop();status.textContent=e.name==='NotAllowedError'?'Kamerazugriff nicht erlaubt. Erlaube ihn in den Browser-Einstellungen oder nutze Kamerafoto oder Badge-ID.':e.name==='NotFoundError'?'Keine Kamera gefunden. Nutze Kamerafoto oder Badge-ID.':e.message;height()}
 };
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stop()});window.addEventListener('pagehide',stop);
 new IntersectionObserver(entries=>{if(!entries[0].isIntersecting && stream)stop()}).observe(document.body);
