@@ -206,7 +206,7 @@ def scanner(key, label, camera_first=False):
                 return code
     else:
         camera = components.declare_component("afjd_camera_photo", path=str(Path(__file__).with_name("camera_capture")))
-        result = camera(key=key+"photo", default=None)
+        result = camera(key=key+"photo-"+str(s.get("scan_generation", 0)), default=None)
         if isinstance(result, dict) and result.get("event") != s.get(key+"photo-event"):
             s[key+"photo-event"] = result.get("event")
             from quest_scan import decode_photo
@@ -304,6 +304,7 @@ def record_scan(participant, value):
     if kind != "reward":
         s.scan_notice={"message":result[1],"quests":sorted(newly),"remaining":max(0,4-len(q.completed(participant)))}
         s.scan_destination = "Kontakte"
+        s.scan_generation = s.get("scan_generation", 0) + 1
     return result
 
 def privacy_form(participant, location):
