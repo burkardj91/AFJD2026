@@ -39,3 +39,13 @@ class MailTests(unittest.TestCase):
             self.assertNotIn('secret',str(caught.exception))
             self.assertIn('unklar',send_once(self.draft,self.config,path,'ADMIN-01'))
             client.send_message.assert_called_once()
+
+    def test_live_cc_is_in_smtp_envelope_but_force_test_removes_it(self):
+        with tempfile.TemporaryDirectory() as folder, patch('quest_mail.smtplib.SMTP') as smtp:
+            client=smtp.return_value.__enter__.return_value
+            send_once(self.draft,dict(self.config,mode='live'),Path(folder)/'db','ADMIN-01')
+            self.assertEqual(client.send_message.call_args.kwargs['to_addrs'],['person@example.test','extra@example.test'])
+            self.assertEqual(client.send_message.call_args.args[0]['Cc'],'extra@example.test')
+            send_once(self.draft,dict(self.config,mode='live'),Path(folder)/'db','ADMIN-01',force_test=True)
+            self.assertEqual(client.send_message.call_args.kwargs['to_addrs'],['svial@svial.ch'])
+            self.assertIsNone(client.send_message.call_args.args[0]['Cc'])

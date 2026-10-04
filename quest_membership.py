@@ -12,6 +12,7 @@ def application_draft(application, card):
     person=application['identity']
     msg=EmailMessage()
     msg['To']='svial@svial.ch'
+    if card[2]=='event': msg['Cc']=person['email']
     msg['Subject']=f"Gratismitgliedschaft AFJD {person['name']}" if card[2]=='membership' else f"{card[1]} · {person['name']}"
     msg['X-Unsent']='1'
     labels={'qualification':'Abschluss','study_programme':'Studiengang','address':'Postadresse','date_of_birth':'Geburtsdatum'}
@@ -20,7 +21,7 @@ def application_draft(application, card):
     if card[2]=='membership':
         lines += ['', 'Gültig bis 31.12.2027.', MEMBERSHIP_NOTE, 'Die persönliche Bestätigung wird separat an '+person['email']+' versendet.']
     if card[2]=='event':
-        lines += ['', EVENT_NOTE, 'Noch kein konkreter Event gebucht. Die Person meldet sich mit ihrem Eventwunsch bei uns.']
+        lines += ['', 'Gewinnreferenz: '+card[0], EVENT_NOTE, 'Noch kein konkreter Event gebucht. Die Person meldet sich mit ihrem Eventwunsch bei uns.']
     lines += ['', 'Die Person hat die Anmeldung und die Übermittlung dieser Angaben an SVIAL bestätigt.']
     msg.set_content('\n'.join(lines))
     return msg.as_bytes()

@@ -238,7 +238,9 @@ def member_form(p, card):
         st.success("Geschenk abgeholt. Viel Freude damit!" if card in q.collected else "Hole dein Geschenk am SVIAL-Stand ab. Weitere persönliche Angaben sind nicht nötig.")
         return
     if CARDS[card][2] == "sfr":
-        st.info("Dein SFR-Preis ist reserviert. Besprich die Einlösung mit dem SVIAL-Team; die Details werden noch geklärt.")
+        st.info("Dein SFR-Preis: Entdecke die Innovationsgruppen von Swiss Food Research und melde dich direkt kostenlos an.")
+        st.link_button("Innovationsgruppen ansehen & anmelden", SFR_URL)
+        st.image(str(SFR_QR), width=240)
         return
     if CARDS[card][2] == "event":
         from quest_membership import EVENT_NOTE
@@ -247,7 +249,7 @@ def member_form(p, card):
         st.success("Dein Eventgewinn ist bestätigt!" if CARDS[card][2] == "event" else "Vielen Dank für deine Anmeldung!")
         from quest_membership import MEMBERSHIP_NOTE
         if CARDS[card][2] == "membership": st.write(MEMBERSHIP_NOTE)
-        st.write("Deine Anmeldung geht an svial@svial.ch. Die persönliche Bestätigung geht an "+q.profile(p)["email"]+".")
+        st.write("Deine Anmeldung geht an svial@svial.ch. Eine Bestätigung bzw. Kopie geht an "+q.profile(p)["email"]+".")
         for key in ("claim:"+card, "confirmation:"+card):
             if key in q.outbox: st.caption(q.outbox[key]["status"])
         if not email_config.get("enabled"):
@@ -366,6 +368,9 @@ def validation_popup(participant):
         s.pop("validate_person", None)
         st.rerun()
 
+SFR_URL = "https://www.swissfoodresearch.ch/de/agro-food-innovations-services/Innovationsgruppen/"
+SFR_QR = Path(__file__).with_name("assets") / "sfr-innovationsgruppen.png"
+
 def claim_link(card):
     base = public_base_url()
     return base + "/?claim=" + card
@@ -374,13 +379,20 @@ def claim_link(card):
 def card_reveal(participant, card):
     st.markdown(celebration_html("Dieser Gewinn gehört dir!", "Eine neue Verbindung. Eine kleine Überraschung. Ein Moment, der bleibt."), unsafe_allow_html=True)
     benefit = {"membership":"Du gehörst dazu.", "event":"Wir laden dich ein.", "gift":"Eine kleine Freude für dich.", "sfr":"Entdecke etwas Neues."}[CARDS[card][2]]
-    wording = {"membership":"Deine Gratismitgliedschaft beim SVIAL bis zum 31. Dezember 2027.","event":"Dein nächster SVIAL-Event geht auf uns. Wähle deinen Event aus und melde dich bei uns – wir organisieren deine Gratis-Teilnahme.","gift":"Ein kleines Dankeschön. Hole dein Geschenk am Stand ab.","sfr":"Dein Preis ist reserviert. Frage das Team nach den SFR-Details."}[CARDS[card][2]]
-    qr = "data:image/png;base64," + base64.b64encode(qr_png(claim_link(card))).decode("ascii")
-    st.markdown('<div class="reveal-stage"><div class="turning-card"><div class="card-back"><img src="'+logo_uri()+'" alt="SVIAL"><span>Verbindungen, die wachsen.</span></div><div class="card-front"><img src="'+logo_uri()+'" alt="SVIAL"><span class="card-kicker">DEINE NETZWERKKARTE</span><h2>'+escape(benefit)+'</h2><p>'+wording+'</p><img class="claim-qr" src="'+qr+'" alt="Zum Einlösen deiner Karte scannen"><small>Scannen. Angaben prüfen. Gewinn einlösen.</small><div class="card-owner">'+escape(q.profile(participant)["name"])+' · '+CARDS[card][0]+'</div></div></div></div>', unsafe_allow_html=True)
-    st.caption("Scanne diesen QR-Code mit deinem Handy und melde dich mit deinem eigenen Code an. Die Karte bleibt für dich reserviert.")
-    with st.expander("Auf diesem Computer testen"):
-        st.code(claim_link(card), language=None)
-        st.caption("Im Reiter Scan unter Hilfe eingeben oder im Browser der Person öffnen. Für ein anderes Handy ist eine erreichbare HTTPS-Adresse nötig.")
+    wording = {"membership":"Deine Gratismitgliedschaft beim SVIAL bis zum 31. Dezember 2027.","event":"Dein nächster SVIAL-Event geht auf uns. Wähle deinen Event aus und melde dich bei uns – wir organisieren deine Gratis-Teilnahme.","gift":"Ein kleines Dankeschön. Hole dein Geschenk am Stand ab.","sfr":"Entdecke die Innovationsgruppen von Swiss Food Research. Wähle deine IG und melde dich direkt kostenlos an."}[CARDS[card][2]]
+    kind = CARDS[card][2]
+    qr_section = '<small>Direkt am SVIAL-Stand abholen. Kein QR-Code nötig.</small>'
+    if kind != "gift":
+        qr = "data:image/png;base64," + base64.b64encode(SFR_QR.read_bytes() if kind == "sfr" else qr_png(claim_link(card))).decode("ascii")
+        qr_section = '<img class="claim-qr" src="'+qr+'" alt="Gewinn einlösen"><small>'+('IG entdecken und kostenlos anmelden.' if kind == 'sfr' else 'Scannen. Angaben prüfen. Gewinn bestätigen.')+'</small>'
+
+    st.markdown('<div class="reveal-stage"><div class="turning-card"><div class="card-back"><img src="'+logo_uri()+'" alt="SVIAL"><span>Verbindungen, die wachsen.</span></div><div class="card-front"><img src="'+logo_uri()+'" alt="SVIAL"><span class="card-kicker">DEINE NETZWERKKARTE</span><h2>'+escape(benefit)+'</h2><p>'+wording+'</p>'+qr_section+'<div class="card-owner">'+escape(q.profile(participant)["name"])+' · '+CARDS[card][0]+'</div></div></div></div>', unsafe_allow_html=True)
+    if kind == "sfr":
+        st.link_button("Innovationsgruppen ansehen & anmelden", SFR_URL)
+    elif kind != "gift":
+        st.caption("Scanne den QR-Code mit deinem Handy und bestätige deinen Gewinn mit deinem eigenen Zugang.")
+        with st.expander("Auf diesem Computer testen"):
+            st.code(claim_link(card), language=None)
     if st.button("Fertig · nächste Person", type="primary", use_container_width=True):
         s.pop("reveal_card", None)
         s.pop("staff_person_v2", None)
@@ -578,7 +590,7 @@ elif view == "SVIAL-Team":
     st.title("Netzwerkkarten-Ausgabe")
     st.caption("Prüfe den Pass und lade deinen Gast zur Kartenziehung ein.")
     with st.expander("Preisbestand · verfügbar"):
-        st.table([{"Preis":label,"Verfügbar":sum(row[2]==kind and token not in q.assignments for token,row in CARDS.items()),"Gesamt":sum(row[2]==kind for row in CARDS.values())} for kind,label in [("membership","SVIAL-Gratismitgliedschaft bis 31.12.2027"),("event","Gratis-Eintritt für einen SVIAL-Event"),("gift","Kleines Agro-Food-Geschenk"),("sfr","SFR-Preis · Details folgen")]])
+        st.table([{"Preis":label,"Verfügbar":sum(row[2]==kind and token not in q.assignments for token,row in CARDS.items()),"Gesamt":sum(row[2]==kind for row in CARDS.values())} for kind,label in [("membership","SVIAL-Gratismitgliedschaft bis 31.12.2027"),("event","Gratis-Eintritt für einen SVIAL-Event"),("gift","Kleines Agro-Food-Geschenk"),("sfr","SFR-Preis")]])
     eligible = sorted((p for p in q.unlocked if p in ROSTER), key=lambda p:q.profile(p)["name"])
     if not eligible:
         st.info("Noch keine freigeschalteten Netzwerkkarten. Berechtigte Personen erscheinen hier automatisch.")
@@ -611,7 +623,7 @@ elif view == "SVIAL-Team":
                         s.pop("reveal_card", None)
                         st.rerun()
                     except ValueError as error: st.error(str(error))
-            if st.button("Karte und Einlöse-QR zeigen", use_container_width=True):
+            if st.button("Gewinnkarte zeigen" if CARDS[existing][2] == "gift" else "Karte und Einlöse-QR zeigen", use_container_width=True):
                 s.reveal_card = (p, existing)
                 st.rerun()
         elif p not in q.unlocked:

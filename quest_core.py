@@ -71,12 +71,12 @@ CARDS = {
     "r-5xa2v7": ("NC-005", "Gratismitgliedschaft SVIAL · bis 31.12.2027", "membership"),
     "r-8zb6n4": ("NC-006", "Dein nächster SVIAL-Event geht auf uns", "event"),
 }
-for kind,total,label in [("membership",50,"Gratismitgliedschaft SVIAL · bis 31.12.2027"),("event",20,"Dein nächster SVIAL-Event geht auf uns"),("gift",60,"Kleines Agro-Food-Geschenk"),("sfr",5,"SFR-Preis · Details werden noch bestätigt")]:
+for kind,total,label in [("membership",50,"Gratismitgliedschaft SVIAL · bis 31.12.2027"),("event",20,"Dein nächster SVIAL-Event geht auf uns"),("gift",60,"Kleines Agro-Food-Geschenk"),("sfr",8,"SFR-Preis")]:
     existing=sum(row[2]==kind for row in CARDS.values())
     for number in range(existing+1,total+1):
         CARDS[f"r-{kind}-{number:03}"]=(f"{kind.upper()}-{number:03}",label,kind)
 # Pending quantities are not silently added to the drawable inventory.
-PENDING_PRIZES = {"gift":"Kleines Agro-Food-Geschenk", "food":"Future Food Surprise", "sfr":"SFR-Event · Details folgen"}
+PENDING_PRIZES = {"gift":"Kleines Agro-Food-Geschenk", "food":"Future Food Surprise", "sfr":"SFR-Preis"}
 
 
 def payload(kind, token):
@@ -348,7 +348,7 @@ class Quest:
             if card:
                 status = "Abgeholt" if card in self.collected else "Bestätigt" if card in self.applications else "Reserviert"
             rows.append({"Gewinn":CARDS[card][1] if card else "", "Gewinnreferenz":CARDS[card][0] if card else "", "Gewinnstatus":status,
-                "Bestätigung per E-Mail":self.outbox.get("confirmation:"+str(card), {}).get("status", ""), "Person":person, "Badge-ID":entry["id"], "Name":profile["name"],
+                "Bestätigung per E-Mail":self.outbox.get(("claim:" if card and CARDS[card][2] == "event" else "confirmation:")+str(card), {}).get("status", ""), "Person":person, "Badge-ID":entry["id"], "Name":profile["name"],
                 "E-Mail":profile["email"], "Zugangscode":codes[person],
                 "Institution":entry.get("affiliation", ""),
                 "Zuordnung":self.annotations.get(person, entry.get("annotation")) or (company[1] if company else ""),
@@ -567,9 +567,6 @@ class Quest:
             from quest_membership import confirmation_draft
             self.outbox["confirmation:"+card]={"kind":"confirmation","person":person,"card":card,"ready":True,"status":"Wartet auf Versand","draft":confirmation_draft(self.applications[card]).decode("utf-8")}
 
-        elif CARDS[card][2] == "event":
-            from quest_membership import event_confirmation_draft
-            self.outbox["confirmation:"+card]={"kind":"confirmation","person":person,"card":card,"ready":True,"status":"Wartet auf Versand","draft":event_confirmation_draft(self.applications[card], CARDS[card]).decode("utf-8")}
 
     def return_prize(self, person, card, staff_id, reason):
         if staff_id not in {"STAFF-01", "STAFF-02"}:

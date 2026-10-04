@@ -2,7 +2,7 @@
 from email import policy
 from email.message import EmailMessage
 from email.parser import BytesParser
-from email.utils import formataddr
+from email.utils import formataddr, getaddresses
 from contextlib import contextmanager
 import hashlib
 import json
@@ -35,10 +35,12 @@ def prepare_message(draft, config, force_test=False):
         raise ValueError('email.mode muss "test" oder "live" sein.')
     test = force_test or mode == "test"
     recipient = address(config.get("test_recipient", "j.burkard@svial.ch") if test else str(msg["To"] or ""))
+    cc = [] if test else [address(value) for _,value in getaddresses(msg.get_all("Cc", []))]
     sender = address(config.get("sender", ""))
     for key in ["To", "Cc", "Bcc", "From", "Reply-To", "X-Unsent"]:
         if key in msg: del msg[key]
     msg["To"] = recipient
+    if cc: msg["Cc"] = ", ".join(dict.fromkeys(cc))
     msg["From"] = formataddr(("SVIAL-Team", sender))
     msg["Reply-To"] = address(config.get("reply_to", "svial@svial.ch"))
     if test and not str(msg["Subject"]).startswith("[TEST]"):
@@ -60,7 +62,9 @@ def send_once(draft, config, db_path, staff_id, *, force_test=False, delivery_sc
         raise ValueError("SMTP-Server, Benutzername oder App-Passwort fehlen in Streamlit Secrets.")
     msg, sender, recipient = prepare_message(draft, config, force_test)
     bodies = [p.get_content() for p in msg.walk() if p.get_content_type() in ("text/plain", "text/html")]
-    key = hashlib.sha256(json.dumps([delivery_scope, sender, recipient, str(msg["Subject"]), bodies], ensure_ascii=False).encode()).hexdigest()
+    identity = [delivery_scope, sender, recipient, str(msg["Subject"]), bodies]
+    if msg.get("Cc"): identity.append(str(msg["Cc"]))
+    key = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
     with delivery_db(db_path) as db:
         db.execute("CREATE TABLE IF NOT EXISTS smtp_deliveries (id TEXT PRIMARY KEY, status TEXT NOT NULL, recipient TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
         db.execute("BEGIN IMMEDIATE")
@@ -80,7 +84,7 @@ def send_once(draft, config, db_path, staff_id, *, force_test=False, delivery_sc
                 smtp.ehlo()
             smtp.login(config["username"], config["password"])
             sending = True
-            smtp.send_message(msg, from_addr=sender, to_addrs=[recipient])
+            smtp.send_message(msg, from_addr=sender, to_addrs=list(dict.fromkeys([recipient]+[value for _,value in getaddresses(msg.get_all("Cc", []))])))
             # Persist acceptance before QUIT: a QUIT error must not trigger a resend.
             with delivery_db(db_path) as db:
                 db.execute("UPDATE smtp_deliveries SET status='sent' WHERE id=?", (key,))
