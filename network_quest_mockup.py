@@ -198,8 +198,14 @@ def show_qr(kind, token, caption):
 
 def scanner(key, label, camera_first=False):
     st.write(label)
-    mode = st.radio("Lesemethode", (["Kamerafoto", "Badge-ID eingeben"] if camera_first else ["Badge-ID eingeben", "Kamerafoto"]), horizontal=True, key=key+"mode-v2")
-    if mode == "Badge-ID eingeben":
+    mode = st.radio("Lesemethode", (["Live-Kamera", "Kamerafoto", "Badge-ID eingeben"] if camera_first else ["Badge-ID eingeben", "Live-Kamera", "Kamerafoto"]), horizontal=True, key=key+"mode-v3")
+    if mode == "Live-Kamera":
+        camera = components.declare_component("afjd_live_camera", path=str(Path(__file__).with_name("camera_scan")))
+        result = camera(key=key+"live", default=None)
+        if isinstance(result, dict) and result.get("event") != s.get(key+"live-event"):
+            s[key+"live-event"] = result.get("event")
+            return result.get("value")
+    elif mode == "Badge-ID eingeben":
         with st.form(key+"form"):
             code = st.text_input("Badge-ID oder QR-Link", placeholder="AFJD-0001", help="Öffentliche ID unter dem persönlichen QR-Code. Nicht dein privater Zugangscode. Alternativ den vollständigen QR-Link einfügen.", key=key+"text")
             if st.form_submit_button("Code lesen", type="primary"):
@@ -485,7 +491,7 @@ if view == "Mein Pass":
         with tabs[1]:
             st.subheader("Badge oder Stand scannen")
             st.write("Scanne einen Badge oder Stand, um Kontakte zu speichern und passende Quests zu erfüllen.")
-            st.write("Tippe auf Kamerafoto aufnehmen oder nutze die normale Kamera-App deines Handys und öffne den QR-Link im selben Browser. Falls der Code nicht erkannt wird, gib die öffentliche Badge-ID ein. Nach dem Scan öffnen sich deine Kontakte.")
+            st.write("Starte die Live-Kamera: Der QR-Code wird automatisch erkannt, ohne ein Foto aufzunehmen. Alternativ nutze Kamerafoto oder die normale Kamera-App deines Handys und öffne den QR-Link im selben Browser. Falls der Code nicht erkannt wird, gib die öffentliche Badge-ID ein. Nach dem Scan öffnen sich deine Kontakte.")
             value = scanner("participant", "QR-Code erfassen", camera_first=True)
             if value:
                 result = try_action(lambda:record_scan(person,value))
