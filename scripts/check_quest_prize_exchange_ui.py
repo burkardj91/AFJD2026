@@ -32,6 +32,22 @@ with tempfile.TemporaryDirectory() as folder:
     assert not participant.exception
     next(c for c in participant.checkbox if c.label.startswith('Ich bestätige meinen Antrag')).check()
     click(participant,'Eventgewinn bestätigen')
-    assert len(q.outbox)==2
-    assert q.outbox['confirmation:r-2kh8w5']['ready']
-    print('PASS: staff returns membership, redraws event, participant confirms, two unsent messages queued')
+    assert len(q.outbox)==1
+    assert q.outbox['claim:r-2kh8w5']['ready']
+    print('PASS: staff returns membership, redraws event, participant confirms, one unsent message with CC queued')
+
+    click(staff,'Fertig · nächste Person')
+    from quest_core import CARDS
+    for login,kind in [('AFJD-MB-310','gift'),('AFJD-SR-532','sfr')]:
+        other=q.demo_login(login)[1];q.simulate_completion(other)
+        card=next(c for c,r in CARDS.items() if r[2]==kind)
+        q.assign(other,card,staff=True)
+        staff.session_state['staff_person_v2']=other;staff.run()
+        click(staff,'Gewinnkarte zeigen' if kind=='gift' else 'Karte und Einlöse-QR zeigen')
+        markup=' '.join(x.value for x in staff.markdown)
+        if kind=='gift': assert 'class="claim-qr"' not in markup
+        else:
+            assert 'class="claim-qr"' in markup
+            assert any(x.label=='Innovationsgruppen ansehen & anmelden' for x in staff.get('link_button'))
+        click(staff,'Fertig · nächste Person')
+    print('PASS: gift reveal without QR; SFR reveal with supplied QR and direct link')

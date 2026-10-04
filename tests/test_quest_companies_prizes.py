@@ -29,7 +29,7 @@ class CompanyPrizeTests(unittest.TestCase):
         self.assertEqual(q.public_network()['connections'],[])
 
     def test_inventory_and_membership_validation(self):
-        self.assertEqual(Counter(c[2] for c in CARDS.values()),{'membership':50,'event':20,'gift':60,'sfr':5})
+        self.assertEqual(Counter(c[2] for c in CARDS.values()),{'membership':50,'event':20,'gift':60,'sfr':8})
         valid={'address':'Demo street','qualification':'HAFL','study_programme':'Agrarwissenschaften','date_of_birth':'2000-01-01'}
         for missing in valid:
             q=Quest();p=q.activate('DEMO-264');q.simulate_completion(p);q.assign(p,'r-7mn4b2',staff=True)

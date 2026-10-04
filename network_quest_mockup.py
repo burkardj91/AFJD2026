@@ -108,7 +108,7 @@ def change_login():
     s.skip_browser_restore = True
     if isinstance(token, str) and token:
         s.cookie_write = {"token":"", "id":os.urandom(8).hex()}
-    for key in ["demo_role_v3", "person_v2", "claim_v2", "staff_person_v2", "flash_v2", "deferred_requests", "profile_saved", "validate_person", "reveal_card", "claim_from_link", "scan_notice"]:
+    for key in ["demo_role_v3", "person_v2", "claim_v2", "staff_person_v2", "flash_v2", "deferred_requests", "profile_saved", "validate_person", "reveal_card", "claim_from_link", "scan_notice", "scan_destination"]:
         s.pop(key, None)
     st.rerun()
 
@@ -198,32 +198,24 @@ def show_qr(kind, token, caption):
 
 def scanner(key, label, camera_first=False):
     st.write(label)
-    mode = st.radio("Lesemethode", (["Kamerafoto", "QR-Bild", "Code eingeben"] if camera_first else ["Code eingeben", "Kamerafoto", "QR-Bild"]), horizontal=True, key=key+"mode")
-    value = None
-    if mode == "Code eingeben":
+    mode = st.radio("Lesemethode", (["Kamerafoto", "Badge-ID eingeben"] if camera_first else ["Badge-ID eingeben", "Kamerafoto"]), horizontal=True, key=key+"mode-v2")
+    if mode == "Badge-ID eingeben":
         with st.form(key+"form"):
-            code = st.text_input("QR-Inhalt", placeholder="afjd:2026:…", key=key+"text")
+            code = st.text_input("Badge-ID oder QR-Link", placeholder="AFJD-0001", help="Öffentliche ID unter dem persönlichen QR-Code. Nicht dein privater Zugangscode. Alternativ den vollständigen QR-Link einfügen.", key=key+"text")
             if st.form_submit_button("Code lesen", type="primary"):
-                value = code
+                return code
     else:
-        st.caption("Fotos werden zur Auswertung an den App-Server übertragen und nicht dauerhaft gespeichert. Alternativ kannst du den QR-Code mit der normalen Kamera-App öffnen.")
-        data = st.camera_input("QR-Code fotografieren", key=key+"camera") if mode == "Kamerafoto" else st.file_uploader("QR-Bild", type=["png", "jpg", "jpeg"], key=key+"upload")
-        if data and st.button("QR-Bild lesen", key=key+"decode", type="primary"):
-            if data.size > 8 * 1024 * 1024:
-                st.error("Wähle ein Bild mit weniger als 8 MB.")
-            else:
-                try:
-                    img = cv2.imdecode(np.frombuffer(data.getvalue(), dtype=np.uint8), cv2.IMREAD_COLOR)
-                    if img is None:
-                        raise ValueError("Unlesbares Bild")
-                    if max(img.shape[:2]) > 1800:
-                        img = cv2.resize(img, None, fx=1800/max(img.shape[:2]), fy=1800/max(img.shape[:2]))
-                    value, _, _ = cv2.QRCodeDetector().detectAndDecode(img)
-                    if not value:
-                        st.error("Kein QR-Code erkannt. Gehe näher heran und halte alle vier Ränder im Bild.")
-                except (ValueError, cv2.error):
-                    st.error("Das Bild konnte nicht gelesen werden. Versuche ein scharfes, kleineres QR-Bild.")
-    return value
+        camera = components.declare_component("afjd_camera_photo", path=str(Path(__file__).with_name("camera_capture")))
+        result = camera(key=key+"photo", default=None)
+        if isinstance(result, dict) and result.get("event") != s.get(key+"photo-event"):
+            s[key+"photo-event"] = result.get("event")
+            from quest_scan import decode_photo
+            try:
+                return decode_photo(result.get("photo"))
+            except ValueError as error:
+                st.error(str(error))
+    return None
+
 
 def try_action(action):
     try:
@@ -238,7 +230,9 @@ def member_form(p, card):
         st.success("Geschenk abgeholt. Viel Freude damit!" if card in q.collected else "Hole dein Geschenk am SVIAL-Stand ab. Weitere persönliche Angaben sind nicht nötig.")
         return
     if CARDS[card][2] == "sfr":
-        st.info("Dein SFR-Preis ist reserviert. Besprich die Einlösung mit dem SVIAL-Team; die Details werden noch geklärt.")
+        st.info("Dein SFR-Preis: Entdecke die Innovationsgruppen von Swiss Food Research und melde dich direkt kostenlos an.")
+        st.link_button("Innovationsgruppen ansehen & anmelden", SFR_URL)
+        st.image(str(SFR_QR), width=240)
         return
     if CARDS[card][2] == "event":
         from quest_membership import EVENT_NOTE
@@ -247,7 +241,7 @@ def member_form(p, card):
         st.success("Dein Eventgewinn ist bestätigt!" if CARDS[card][2] == "event" else "Vielen Dank für deine Anmeldung!")
         from quest_membership import MEMBERSHIP_NOTE
         if CARDS[card][2] == "membership": st.write(MEMBERSHIP_NOTE)
-        st.write("Deine Anmeldung geht an svial@svial.ch. Die persönliche Bestätigung geht an "+q.profile(p)["email"]+".")
+        st.write("Deine Anmeldung geht an svial@svial.ch. Eine Bestätigung bzw. Kopie geht an "+q.profile(p)["email"]+".")
         for key in ("claim:"+card, "confirmation:"+card):
             if key in q.outbox: st.caption(q.outbox[key]["status"])
         if not email_config.get("enabled"):
@@ -309,6 +303,7 @@ def record_scan(participant, value):
         result=(result[0],"Gescannt: "+label+". "+result[1])
     if kind != "reward":
         s.scan_notice={"message":result[1],"quests":sorted(newly),"remaining":max(0,4-len(q.completed(participant)))}
+        s.scan_destination = "Kontakte"
     return result
 
 def privacy_form(participant, location):
@@ -325,17 +320,6 @@ def privacy_welcome(participant):
     st.write("Wähle einmal deine Einstellungen. Du kannst sie später unter Profil → Datenschutz ändern.")
     with st.expander("Datenschutz · Du entscheidest", expanded=True):
         privacy_form(participant, "welcome")
-
-@st.dialog("Scan gespeichert", dismissible=False)
-def scanned_popup():
-    notice=s.scan_notice
-    st.success(notice["message"])
-    for quest in notice["quests"]:
-        st.write("✓ "+quest+" · Quest geschafft")
-    st.write(str(notice["remaining"])+" Quests fehlen noch bis zu deiner Netzwerkkarte." if notice["remaining"] else "Deine Netzwerkkarte ist freigeschaltet. Besuche den SVIAL-Stand.")
-    if st.button("Weiter entdecken",type="primary",use_container_width=True):
-        s.pop("scan_notice",None)
-        st.rerun()
 
 @st.dialog("Bereit für deine Netzwerkkarte", dismissible=False)
 def reward_popup(participant):
@@ -366,6 +350,9 @@ def validation_popup(participant):
         s.pop("validate_person", None)
         st.rerun()
 
+SFR_URL = "https://www.swissfoodresearch.ch/de/agro-food-innovations-services/Innovationsgruppen/"
+SFR_QR = Path(__file__).with_name("assets") / "sfr-innovationsgruppen.png"
+
 def claim_link(card):
     base = public_base_url()
     return base + "/?claim=" + card
@@ -374,13 +361,20 @@ def claim_link(card):
 def card_reveal(participant, card):
     st.markdown(celebration_html("Dieser Gewinn gehört dir!", "Eine neue Verbindung. Eine kleine Überraschung. Ein Moment, der bleibt."), unsafe_allow_html=True)
     benefit = {"membership":"Du gehörst dazu.", "event":"Wir laden dich ein.", "gift":"Eine kleine Freude für dich.", "sfr":"Entdecke etwas Neues."}[CARDS[card][2]]
-    wording = {"membership":"Deine Gratismitgliedschaft beim SVIAL bis zum 31. Dezember 2027.","event":"Dein nächster SVIAL-Event geht auf uns. Wähle deinen Event aus und melde dich bei uns – wir organisieren deine Gratis-Teilnahme.","gift":"Ein kleines Dankeschön. Hole dein Geschenk am Stand ab.","sfr":"Dein Preis ist reserviert. Frage das Team nach den SFR-Details."}[CARDS[card][2]]
-    qr = "data:image/png;base64," + base64.b64encode(qr_png(claim_link(card))).decode("ascii")
-    st.markdown('<div class="reveal-stage"><div class="turning-card"><div class="card-back"><img src="'+logo_uri()+'" alt="SVIAL"><span>Verbindungen, die wachsen.</span></div><div class="card-front"><img src="'+logo_uri()+'" alt="SVIAL"><span class="card-kicker">DEINE NETZWERKKARTE</span><h2>'+escape(benefit)+'</h2><p>'+wording+'</p><img class="claim-qr" src="'+qr+'" alt="Zum Einlösen deiner Karte scannen"><small>Scannen. Angaben prüfen. Gewinn einlösen.</small><div class="card-owner">'+escape(q.profile(participant)["name"])+' · '+CARDS[card][0]+'</div></div></div></div>', unsafe_allow_html=True)
-    st.caption("Scanne diesen QR-Code mit deinem Handy und melde dich mit deinem eigenen Code an. Die Karte bleibt für dich reserviert.")
-    with st.expander("Auf diesem Computer testen"):
-        st.code(claim_link(card), language=None)
-        st.caption("Im Reiter Scan unter Hilfe eingeben oder im Browser der Person öffnen. Für ein anderes Handy ist eine erreichbare HTTPS-Adresse nötig.")
+    wording = {"membership":"Deine Gratismitgliedschaft beim SVIAL bis zum 31. Dezember 2027.","event":"Dein nächster SVIAL-Event geht auf uns. Wähle deinen Event aus und melde dich bei uns – wir organisieren deine Gratis-Teilnahme.","gift":"Ein kleines Dankeschön. Hole dein Geschenk am Stand ab.","sfr":"Entdecke die Innovationsgruppen von Swiss Food Research. Wähle deine IG und melde dich direkt kostenlos an."}[CARDS[card][2]]
+    kind = CARDS[card][2]
+    qr_section = '<small>Direkt am SVIAL-Stand abholen. Kein QR-Code nötig.</small>'
+    if kind != "gift":
+        qr = "data:image/png;base64," + base64.b64encode(SFR_QR.read_bytes() if kind == "sfr" else qr_png(claim_link(card))).decode("ascii")
+        qr_section = '<img class="claim-qr" src="'+qr+'" alt="Gewinn einlösen"><small>'+('IG entdecken und kostenlos anmelden.' if kind == 'sfr' else 'Scannen. Angaben prüfen. Gewinn bestätigen.')+'</small>'
+
+    st.markdown('<div class="reveal-stage"><div class="turning-card"><div class="card-back"><img src="'+logo_uri()+'" alt="SVIAL"><span>Verbindungen, die wachsen.</span></div><div class="card-front"><img src="'+logo_uri()+'" alt="SVIAL"><span class="card-kicker">DEINE NETZWERKKARTE</span><h2>'+escape(benefit)+'</h2><p>'+wording+'</p>'+qr_section+'<div class="card-owner">'+escape(q.profile(participant)["name"])+' · '+CARDS[card][0]+'</div></div></div></div>', unsafe_allow_html=True)
+    if kind == "sfr":
+        st.link_button("Innovationsgruppen ansehen & anmelden", SFR_URL)
+    elif kind != "gift":
+        st.caption("Scanne den QR-Code mit deinem Handy und bestätige deinen Gewinn mit deinem eigenen Zugang.")
+        with st.expander("Auf diesem Computer testen"):
+            st.code(claim_link(card), language=None)
     if st.button("Fertig · nächste Person", type="primary", use_container_width=True):
         s.pop("reveal_card", None)
         s.pop("staff_person_v2", None)
@@ -438,14 +432,19 @@ if view == "Mein Pass":
     else:
         profile, count = q.profile(person), len(q.completed(person))
         if s.get("scan_notice"):
-            scanned_popup()
+            notice = s.pop("scan_notice")
+            st.toast(notice["message"], icon="✅")
+            for quest in notice["quests"]:
+                st.success("✓ "+quest+" · Quest geschafft")
+            if notice["quests"]:
+                st.caption(str(notice["remaining"])+" Quests fehlen noch bis zur Netzwerkkarte." if notice["remaining"] else "Deine Netzwerkkarte ist freigeschaltet. Besuche den SVIAL-Stand.")
         elif s.get("preview_unlock") == person:
             reward_popup(person)
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
         personal_qr = base64.b64encode(branded_qr(public_base_url()+"/?badge="+person)).decode("ascii")
         st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Netzwerkkarte freigeschaltet" if person in q.unlocked else "Entdecke die Veranstaltung"}</span></div></div>', unsafe_allow_html=True)
-        tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else "Mein Pass")
+        tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else s.get("scan_destination", "Mein Pass"))
         with tabs[0]:
             with st.expander("Demo · Freischaltung testen", expanded=False):
                 st.caption("Erfülle vier Quests oder simuliere alle sechs Aufgaben. Dein bisheriger Fortschritt bleibt erhalten.")
@@ -485,8 +484,8 @@ if view == "Mein Pass":
 
         with tabs[1]:
             st.subheader("Badge oder Stand scannen")
-            st.write("Scans speichern Kontakte sofort – ohne Bestätigung. Passende Personen oder Stände erfüllen deine Quests; der Name ist sichtbar und die E-Mail-Freigabe bleibt freiwillig.")
-            st.write("Scanne direkt hier mit einem Kamerafoto oder nutze die normale Kamera-App deines Handys und öffne den erkannten Link. Bleibe dafür im selben Browser angemeldet. QR-Bild und Code-Eingabe sind Alternativen, falls das Scannen nicht klappt.")
+            st.write("Scanne einen Badge oder Stand, um Kontakte zu speichern und passende Quests zu erfüllen.")
+            st.write("Tippe auf Kamerafoto aufnehmen oder nutze die normale Kamera-App deines Handys und öffne den QR-Link im selben Browser. Falls der Code nicht erkannt wird, gib die öffentliche Badge-ID ein. Nach dem Scan öffnen sich deine Kontakte.")
             value = scanner("participant", "QR-Code erfassen", camera_first=True)
             if value:
                 result = try_action(lambda:record_scan(person,value))
@@ -578,7 +577,7 @@ elif view == "SVIAL-Team":
     st.title("Netzwerkkarten-Ausgabe")
     st.caption("Prüfe den Pass und lade deinen Gast zur Kartenziehung ein.")
     with st.expander("Preisbestand · verfügbar"):
-        st.table([{"Preis":label,"Verfügbar":sum(row[2]==kind and token not in q.assignments for token,row in CARDS.items()),"Gesamt":sum(row[2]==kind for row in CARDS.values())} for kind,label in [("membership","SVIAL-Gratismitgliedschaft bis 31.12.2027"),("event","Gratis-Eintritt für einen SVIAL-Event"),("gift","Kleines Agro-Food-Geschenk"),("sfr","SFR-Preis · Details folgen")]])
+        st.table([{"Preis":label,"Verfügbar":sum(row[2]==kind and token not in q.assignments for token,row in CARDS.items()),"Gesamt":sum(row[2]==kind for row in CARDS.values())} for kind,label in [("membership","SVIAL-Gratismitgliedschaft bis 31.12.2027"),("event","Gratis-Eintritt für einen SVIAL-Event"),("gift","Kleines Agro-Food-Geschenk"),("sfr","SFR-Preis")]])
     eligible = sorted((p for p in q.unlocked if p in ROSTER), key=lambda p:q.profile(p)["name"])
     if not eligible:
         st.info("Noch keine freigeschalteten Netzwerkkarten. Berechtigte Personen erscheinen hier automatisch.")
@@ -611,7 +610,7 @@ elif view == "SVIAL-Team":
                         s.pop("reveal_card", None)
                         st.rerun()
                     except ValueError as error: st.error(str(error))
-            if st.button("Karte und Einlöse-QR zeigen", use_container_width=True):
+            if st.button("Gewinnkarte zeigen" if CARDS[existing][2] == "gift" else "Karte und Einlöse-QR zeigen", use_container_width=True):
                 s.reveal_card = (p, existing)
                 st.rerun()
         elif p not in q.unlocked:
