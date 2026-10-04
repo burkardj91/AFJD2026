@@ -85,6 +85,11 @@ def payload(kind, token):
 def parse_payload(value, roster=None):
     roster = ROSTER if roster is None else roster
     value = value.strip()
+    matches = [p for p,r in roster.items() if r["id"].upper() == value.upper()]
+    if len(matches) == 1:
+        return "person", matches[0]
+    if value.upper().startswith("AFJD-"):
+        raise ValueError("Badge-ID nicht gefunden. Gib die öffentliche ID vom Badge ein (z. B. AFJD-0001), nicht den privaten Zugangscode.")
     if value.startswith(("http://", "https://")):
         params = parse_qs(urlparse(value).query)
         badge = params.get("badge", [""])[0]
@@ -501,7 +506,7 @@ class Quest:
         self.connections.add(edge)
         for p in edge:
             self.refresh(p)
-        return "message", "Verbindung gespeichert. Keine Bestätigung nötig; Kontaktdaten bleiben von den Datenschutzeinstellungen abhängig."
+        return "message", "Verbindung gespeichert."
 
     def confirm(self, recipient, sender):
         self.require_active(recipient)
