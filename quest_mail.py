@@ -3,23 +3,14 @@ from email import policy
 from email.message import EmailMessage
 from email.parser import BytesParser
 from email.utils import formataddr, getaddresses
-from contextlib import contextmanager
 import hashlib
 import json
 import re
 import smtplib
-import sqlite3
 import ssl
 
 
-@contextmanager
-def delivery_db(path):
-    db = sqlite3.connect(str(path), timeout=15)
-    try:
-        with db:
-            yield db
-    finally:
-        db.close()
+from quest_database import connect as delivery_db
 
 
 def address(value):
@@ -66,8 +57,8 @@ def send_once(draft, config, db_path, staff_id, *, force_test=False, delivery_sc
     if msg.get("Cc"): identity.append(str(msg["Cc"]))
     key = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
     with delivery_db(db_path) as db:
-        db.execute("CREATE TABLE IF NOT EXISTS smtp_deliveries (id TEXT PRIMARY KEY, status TEXT NOT NULL, recipient TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
         db.execute("BEGIN IMMEDIATE")
+        db.execute("CREATE TABLE IF NOT EXISTS smtp_deliveries (id TEXT PRIMARY KEY, status TEXT NOT NULL, recipient TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
         existing = db.execute("SELECT status FROM smtp_deliveries WHERE id=?", (key,)).fetchone()
         if existing and existing[0] != "failed":
             return "Bereits an den Mailserver übergeben." if existing[0] == "sent" else "Versandstatus unklar oder Versand läuft. Vor einem erneuten Versand im Postfach prüfen."

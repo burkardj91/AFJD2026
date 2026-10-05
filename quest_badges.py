@@ -1,5 +1,6 @@
 """Fill the supplied two-page, ten-label Word template without rebuilding styles."""
 from copy import deepcopy
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
@@ -12,6 +13,7 @@ REL = 'http://schemas.openxmlformats.org/package/2006/relationships'
 NS = {'w':W,'a':'http://schemas.openxmlformats.org/drawingml/2006/main','wp':'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'}
 
 
+@lru_cache(maxsize=512)
 def qr_image(value):
     import qrcode
     from PIL import Image, ImageDraw

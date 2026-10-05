@@ -179,3 +179,7 @@ Badge revision: standalone logos removed; one small SVIAL logo sits inside each 
 Sticker geometry: two adjacent 85 mm columns, five 55 mm rows, 20 mm side margins and 10 mm top margin. A4 leaves 12 mm below the last row (2 mm extra beyond the 10 mm bottom page margin). Print at 100%; do not fit to page.
 
 Print calibration: badge contents (text and QR, fronts and backs) are shifted 5 mm right inside the unchanged 85 x55 mm sticker grid.
+
+## Betrieb und Lasttests
+
+Siehe [INFRASTRUCTURE.md](INFRASTRUCTURE.md) für PostgreSQL, Datenübernahme, unabhängigen Mailversand und den isolierten 100-Client-Speichertest.
