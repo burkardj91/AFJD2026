@@ -10,7 +10,7 @@ _workers = {}
 def dispatch_due(q, config):
     if config.get("enabled") is not True or config.get("auto_send", True) is not True:
         return
-    q.queue_due_recaps()
+    q.maintenance()
     for key, entry in q.outbox.items():
         if entry.get("attempted"):
             continue
@@ -32,20 +32,22 @@ def ensure_worker(path, config):
         if path in _workers:
             _workers[path]["config"] = dict(config)
             return
-        if config.get("enabled") is not True:
-            return
         state = {"config":dict(config)}
         _workers[path] = state
         def run():
+            q = None
             while True:
                 try:
+                    if q is None:
+                        q = SharedQuest(path)
                     with _lock:
                         current = dict(state["config"])
+                    q.maintenance()
                     if current.get("enabled") is True and current.get("auto_send", True) is True:
-                        dispatch_due(SharedQuest(path), current)
+                        dispatch_due(q, current)
                 except Exception:
                     # Never log credentials or participant data. A later tick
                     # may recover storage availability; attempted mail is not retried.
-                    pass
-                threading.Event().wait(30)
+                    q = None
+                threading.Event().wait(5)
         threading.Thread(target=run, name="afjd-recap-dispatch", daemon=True).start()

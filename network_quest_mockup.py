@@ -23,7 +23,11 @@ st.set_page_config(page_title="SVIAL · Netzwerk-Quest", page_icon=Image.open(LO
 
 st.markdown("<style>"+Path(__file__).with_name("quest_theme.css").read_text(encoding="utf-8")+"</style>", unsafe_allow_html=True)
 s = st.session_state
-q = SharedQuest()
+try:
+    database_url = st.secrets.get("QUEST_DATABASE_URL")
+except FileNotFoundError:
+    database_url = None
+q = SharedQuest(database_url)
 from quest_mail_worker import ensure_worker
 try:
     email_config = dict(st.secrets.get("email", {}))
@@ -651,6 +655,13 @@ elif view == "SVIAL-Team":
     with st.expander("Ausstellerliste · Organisation"):
         st.table([{"ID":ORGANISATIONS[t][0],"Firma":ORGANISATIONS[t][1],"Gruppe":CLUSTER_LABELS[ORGANISATIONS[t][2]],"Bemerkungen":note} for t,note in EXHIBITOR_NOTES.items()])
 elif view == "Veranstaltung verwalten":
+    from quest_database import is_postgres
+    with st.expander("Betrieb & Datenspeicherung"):
+        if is_postgres(q.path):
+            st.success("PostgreSQL ist angebunden. Veranstaltungsdaten, Logins und Versandstatus werden dort gespeichert.")
+        else:
+            st.warning("Lokale SQLite-Datenbank. Streamlit Community Cloud garantiert deren dauerhafte Speicherung nicht. Für den Anlass PostgreSQL über QUEST_DATABASE_URL einrichten und bestehende Daten vorher übernehmen.")
+        st.caption("Der eingebaute Termin- und Maildienst läuft mit dem App-Prozess. Ein extern eingerichteter Worker kann geplante E-Mails auch bei geschlossener oder schlafender App auslösen. Anleitung: INFRASTRUCTURE.md im Repository.")
     st.title("Veranstaltung verwalten")
     from quest_mail import mail_admin
     mail_admin(q, s.staff_login)
@@ -702,17 +713,18 @@ elif view == "Live-Netzwerk":
     show_companies = st.toggle("Einzelne Unternehmen zeigen", value=False)
     crowd_preview = st.toggle("Layout-Vorschau mit 100 fiktiven Personen", value=False)
     presentation = components.declare_component("afjd_screen", path=str(Path(__file__).with_name("screen_presentation")))
-    @st.fragment(run_every=1)
+    @st.fragment(run_every=3)
     def live_presentation():
-        q.resolve_raffle()
-        graph, totals = q.public_network(), q.public_counts()
+        q.maintenance()
+        screen_state = q.snapshot()
+        graph, totals = screen_state.public_network(), screen_state.public_counts()
         if crowd_preview:
             graph = {**graph, "people":100, "connections":[(i,(i+7)%100) for i in range(100)],
                      "visits":[(i,i%len(graph["organisations"])) for i in range(100)]}
             totals = {"passes":100,"people":100,"visits":100,"unlocked":40}
             st.caption("Nur Layout-Vorschau. Die fiktiven Zahlen verändern keine Veranstaltungsdaten.")
         presentation(html=network_html(graph, totals, show_companies=show_companies),
-                     draw=q.public_raffle(), epoch=q.reset_epoch, server_now=datetime.now(timezone.utc).timestamp(),
+                     draw=screen_state.public_raffle(), epoch=screen_state.reset_epoch, server_now=datetime.now(timezone.utc).timestamp(),
                      key="live-presentation", default=None)
     live_presentation()
     st.caption("Anonyme Verbindungen aus dieser Demo. Aktualisiert sich automatisch über alle Tabs.")
@@ -731,12 +743,11 @@ if view != "Live-Netzwerk":
 
 # This fragment checks shared state without continuously rerendering the page.
 if role and role != "screen":
-    s.shared_revision = q.revision()
+    s.shared_revision = q.viewer_revision(person if role == "participant" else None)
 
-    @st.fragment(run_every=2)
+    @st.fragment(run_every=10)
     def watch_shared_event():
-        q.queue_due_recaps()
-        if q.revision() != s.get("shared_revision"):
+        if q.viewer_revision(person if role == "participant" else None) != s.get("shared_revision"):
             st.rerun(scope="app")
 
     watch_shared_event()
