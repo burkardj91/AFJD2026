@@ -257,14 +257,14 @@ class Quest:
         instant = now or datetime.now(timezone.utc)
         if instant < datetime.fromisoformat(draw["deadline"]):
             return
-        eligible=sorted(p for p in self.active if len(self.completed(p)) >= draw["minimum"])
+        eligible=sorted(p for p in self.active if not self.registrations.get(p,{}).get("identity_pending") and len(self.completed(p)) >= draw["minimum"])
         winners=secrets.SystemRandom().sample(eligible,min(draw["count"],len(eligible)))
         draw.update(status="completed", eligible=eligible, winners=winners, resolved_at=instant.isoformat())
 
     def public_raffle(self):
         return {k:self.raffle[k] for k in ["deadline","count","minimum","status","resolved_at"] if k in self.raffle} | {
             "winner_badges":[self.roster()[p]["id"] for p in self.raffle.get("winners",[])],
-            "eligible_count":len(self.raffle.get("eligible",[])) if self.raffle.get("status")=="completed" else sum(len(self.completed(p)) >= self.raffle.get("minimum",1) for p in self.active)}
+            "eligible_count":len(self.raffle.get("eligible",[])) if self.raffle.get("status")=="completed" else sum(len(self.completed(p)) >= self.raffle.get("minimum",1) for p in self.active if not self.registrations.get(p,{}).get("identity_pending"))}
 
     affiliations: dict = field(default_factory=lambda:dict(DEFAULT_AFFILIATIONS))
     company_contacts: dict = field(default_factory=dict)
@@ -482,6 +482,8 @@ class Quest:
         return result
 
     def refresh(self, person):
+        if self.registrations.get(person,{}).get("identity_pending"):
+            return
         if len(self.completed(person)) >= 4:
             self.unlocked.add(person)
 
@@ -540,6 +542,8 @@ class Quest:
         return 1 + self.bonuses.get(person, 0) if person in self.unlocked else 0
 
     def assign(self, person, card, *, staff=False):
+        if self.registrations.get(person,{}).get("identity_pending"):
+            raise ValueError("Bitte zuerst Name und E-Mail unter Badge korrigieren ergänzen.")
         if not staff:
             raise ValueError("Nur das Standteam kann Karten zuordnen.")
         self.require_active(person)
@@ -607,6 +611,8 @@ class Quest:
         self.return_log.append({"person":person,"card":card,"staff":staff_id,"reason":reason,"at":datetime.now(timezone.utc).isoformat()})
 
     def approve_draw(self, person, staff_id):
+        if self.registrations.get(person,{}).get("identity_pending"):
+            raise ValueError("Bitte zuerst Name und E-Mail unter Badge korrigieren ergänzen.")
         if staff_id not in {"STAFF-01", "STAFF-02"}:
             raise ValueError("Ein Administrator-Zugang ist erforderlich.")
         self.require_active(person)

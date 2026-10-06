@@ -1,6 +1,7 @@
 """Eventfrog import: allowlisted fields only; never evaluate spreadsheet formulas."""
 from io import BytesIO
 import re
+import hashlib
 from html import escape
 import base64
 import qrcode
@@ -23,12 +24,12 @@ def read_eventfrog(content):
                 values = [str(v).strip() if v is not None else "" for v in cells]
                 if header is None:
                     labels = [v.casefold() for v in values]
-                    if all(k in labels for k in ("vorname", "nachname", "e-mail")):
+                    if all(k in labels for k in ("vorname", "nachname", "e-mail")) or "annotation" in labels:
                         header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation", "affiliation", "institution", "zugehörigkeit", "namensschild leer", "plz", "ort", "strasse / nr.", "straße / nr.") if k in labels}
                     continue
                 def get(key):
                     return values[header[key]] if key in header and header[key] < len(values) else ""
-                if not any(get(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id")):
+                if not any(get(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation", "institution", "affiliation", "zugehörigkeit")):
                     continue
                 address_fields = ("strasse / nr.", "straße / nr.", "plz", "ort")
                 address = "\n".join(filter(None, [get("strasse / nr.") or get("straße / nr."), " ".join(filter(None, [get("plz"), get("ort")]))]))
@@ -41,7 +42,7 @@ def read_eventfrog(content):
                                **({"annotation":get(next(k for k in ("annotation","affiliation","institution","zugehörigkeit") if k in header))} if any(k in header for k in ("annotation","affiliation","institution","zugehörigkeit")) else {}), "row":number, "invalid_name":not get("vorname") or not get("nachname")})
             if header is not None:
                 return result
-        raise ValueError("Keine Kopfzeile mit Vorname, Nachname und E-Mail gefunden.")
+        raise ValueError("Keine Kopfzeile mit Vorname, Nachname und E-Mail oder Annotation gefunden.")
     finally:
         book.close()
 
@@ -49,17 +50,28 @@ def read_eventfrog(content):
 def plan_import(rows, registrations):
     plan, seen_sources, seen_people = [], set(), set()
     known = dict(registrations)
+    anonymous_counts = {}
     for index, source in enumerate(rows, 1):
         row = {k:str(source.get(k, "")).strip() for k in ("name", "email", "source_id", "annotation", "affiliation", "first_name", "last_name", "address")}
         if "first_name" not in source:
             row["first_name"], _, row["last_name"] = row["name"].partition(" ")
+        annotation_only = bool(row["annotation"]) and not any(row[k] for k in ("name", "first_name", "last_name", "email"))
+        if annotation_only:
+            annotation_key = row["annotation"].casefold()
+            anonymous_counts[annotation_key] = anonymous_counts.get(annotation_key, 0) + 1
+            slot = anonymous_counts[annotation_key]
+            if not row["source_id"]:
+                group_key = hashlib.sha256(annotation_key.encode()).hexdigest()[:16]
+                row["source_id"] = f"annotation-reserve:{group_key}:{slot}"
+            row["name"] = f"{row['annotation']} · Offen {slot:02}"
+            row["first_name"], row["last_name"] = row["annotation"], f"Offen {slot:02}"
         row.update(row=source.get("row",index), action="New", reason="", person=None)
         name, email, sid = row["name"], row["email"].casefold(), row["source_id"]
         identity = (name.casefold(), email)
         issue = ""
-        if not name or source.get("invalid_name") or any(x.startswith("=") for x in (name,email,sid)):
+        if not name or (source.get("invalid_name") and not annotation_only) or any(x.startswith("=") for x in (name,email,sid,row["annotation"])):
             issue = "Vor- und Nachname sind Pflicht; Formeln werden nicht unterstützt."
-        elif not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        elif not annotation_only and not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
             issue = "Eine gültige E-Mail-Adresse ist erforderlich."
         elif (sid and sid in seen_sources) or (not sid and identity in seen_people):
             issue = "Doppelte Zeile in dieser Datei."
@@ -72,7 +84,7 @@ def plan_import(rows, registrations):
         previous = registrations[matches[0]] if matches else {}
         duplicates = [r for r in known.values() if (r.get("source_name",r["name"]).casefold(), r.get("source_email",r["email"]).casefold()) == identity]
         ordinal = len(duplicates)+1
-        pending = bool(source.get("blank_badge")) or (not matches and bool(sid) and ordinal>1)
+        pending = annotation_only or bool(source.get("blank_badge")) or (not matches and bool(sid) and ordinal>1)
         row.update(source_name=name, source_email=row["email"], provisional_name=name+(" "+str(ordinal) if ordinal>1 else ""), blank_badge=pending, identity_pending=pending, identity_corrected=False)
         if matches:
             row.update(person=matches[0], action="Update")
@@ -89,6 +101,8 @@ def plan_import(rows, registrations):
         if row["identity_pending"]:
             row["address"] = ""  # A second ticket may belong to someone other than the buyer.
             row["name"] = row["provisional_name"]
+        if annotation_only and matches and previous.get("identity_corrected"):
+            row["annotation"] = previous.get("annotation", "")
         if "annotation" in source:
             row["affiliation"] = row["annotation"]
         row["mapping"] = annotation_mapping(row["annotation"])["label"]

@@ -195,3 +195,11 @@ Unter Veranstaltung verwalten gibt es zwei getrennte, bestätigungspflichtige Ak
 - **Alle Importe samt Aktivitäten löschen**: zusätzlich importierte Personen, Reserve-Badges und ihre Zugangsdaten löschen.
 
 Team-Zugänge bleiben bei beiden Aktionen erhalten. Bereits versendete Nachrichten werden nicht zurückgerufen, laufender Versand kann noch abgeschlossen werden.
+
+## Firmen-Badges ohne bekannte Person
+
+Eine Excel-Datei darf nur `Annotation` enthalten, oder in einer Eventfrog-Datei bleiben Vorname, Nachname und E-Mail für diese Zeilen vollständig leer. Jede ausgefüllte Annotation-Zeile erzeugt einen eigenen unzugeteilten Badge: freies Namensfeld vorne, Firmenannotation und QR-Code; hinten Platzhalterbezeichnung, Badge-ID und privater Zugangscode. Die Zuordnung zur hinterlegten Firma erfolgt automatisch.
+
+Unter Registration → Badge korrigieren anhand der Badge-ID Name und E-Mail ergänzen. ID, QR und Zugangscode bleiben erhalten. Unzugeteilte Plätze werden nicht für Zusammenfassungen oder Gewinne berücksichtigt.
+
+Ohne Ticket-ID/ID werden Platzhalter je Annotation durchnummeriert. Wiederimport derselben Liste aktualisiert dieselben Plätze, auch nach Namenskorrektur. Für zusätzliche unabhängige Chargen eindeutige Werte in `ID` verwenden (z. B. SVIAL-01, SVIAL-02). Teilweise ausgefüllte persönliche Datensätze benötigen weiterhin einen vollständigen Namen und eine gültige E-Mail; Tippfehler werden nicht still in Platzhalter umgewandelt.
