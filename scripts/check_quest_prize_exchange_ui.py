@@ -22,9 +22,10 @@ with tempfile.TemporaryDirectory() as folder:
     staff=start('STAFF-01')
     next(v for v in staff.selectbox if v.label=='Name oder Badge-ID').select(p).run()
     click(staff,'Pass prüfen')
-    next(c for c in staff.checkbox if c.label=='Gewinn zurücklegen und neue Ziehung freigeben').check().run()
+    assert not next(b for b in staff.button if b.label=='Gewinn zurücklegen').disabled
     click(staff,'Gewinn zurücklegen')
     assert not q.assignments
+    assert any("Gewinn zurückgelegt" in message.value for message in staff.success)
     with patch('quest_core.secrets.choice',return_value='r-2kh8w5'):
         staff.button(key='draw-choice-1').click().run()
     assert not staff.exception and q.assignments['r-2kh8w5']==p

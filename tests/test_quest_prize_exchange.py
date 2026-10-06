@@ -5,6 +5,14 @@ from quest_core import Quest, CARDS
 from unittest.mock import patch
 
 class PrizeExchangeTests(unittest.TestCase):
+    def test_other_prize_means_a_different_type(self):
+        q,p=self.prepared()
+        card=next(c for c,r in CARDS.items() if r[2]=='gift')
+        q.assign(p,card,staff=True)
+        q.return_prize(p,card,'STAFF-01','Anderer Gewinn gewünscht')
+        self.assertNotIn(card,q.assignments)
+        self.assertNotEqual(CARDS[q.draw(p,'STAFF-02')][2],'gift')
+
     def prepared(self):
         q=Quest();p='p-8hd2v7';q.demo_login('AFJD-LM-264');q.simulate_completion(p)
         q.approve_draw(p,'STAFF-01')
