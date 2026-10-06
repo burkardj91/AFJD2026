@@ -450,6 +450,10 @@ if view == "Mein Pass":
             reward_popup(person)
         personal_qr = base64.b64encode(branded_qr(public_base_url()+"/?badge="+person)).decode("ascii")
         st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Netzwerkkarte freigeschaltet" if person in q.unlocked else "Entdecke die Veranstaltung"}</span></div></div>', unsafe_allow_html=True)
+        from quest_appointments import appointments_html
+        appointment_markup = appointments_html(profile)
+        if appointment_markup:
+            st.markdown(appointment_markup, unsafe_allow_html=True)
         tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else s.get("scan_destination", "Mein Pass"))
         with tabs[0]:
             with st.expander("Demo · Freischaltung testen", expanded=False):
@@ -595,6 +599,8 @@ elif view == "SVIAL-Team":
             s.validate_person = lookup
         st.rerun()
     p = s.get("staff_person_v2")
+    if s.get("prize_return_notice"):
+        st.success(s.pop("prize_return_notice"))
     if p:
         existing = next((c for c,owner in q.assignments.items() if owner == p),None)
         if s.get("validate_person") == p and not existing and p not in q.draw_approvals:
@@ -608,13 +614,16 @@ elif view == "SVIAL-Team":
                     q.collect_gift(s.staff_login,existing)
                     st.rerun()
             with st.expander("Gewinn zurücklegen & neu ziehen"):
-                st.caption("Die Karte geht zurück in den Vorrat. Die Person darf erneut ziehen. Bereits bestätigte Anmeldungen und abgeholte Geschenke können nicht zurückgenommen werden.")
-                reason = st.selectbox("Grund für den Austausch", ["Bereits SVIAL-Mitglied", "Anderer Gewinn gewünscht"], key="return-reason-"+existing)
-                confirmed = st.checkbox("Gewinn zurücklegen und neue Ziehung freigeben", key="return-confirm-"+existing)
-                if st.button("Gewinn zurücklegen", disabled=not confirmed or existing in q.applications or existing in q.collected):
+                st.caption("Die Karte geht zurück in den Vorrat. Danach erscheinen direkt die Karten für eine neue Ziehung aus einer anderen Gewinnart. Bereits bestätigte Anmeldungen und abgeholte Geschenke können nicht zurückgenommen werden.")
+                reason = st.selectbox("Grund für den Austausch", ["Anderer Gewinn gewünscht", "Bereits SVIAL-Mitglied"], key="return-reason-"+existing)
+                locked = existing in q.applications or existing in q.collected or any(m.get("card") == existing for m in q.outbox.values())
+                if locked:
+                    st.info("Dieser Gewinn wurde bereits bestätigt oder abgeholt. Ein Austausch ist nicht mehr möglich.")
+                if st.button("Gewinn zurücklegen", disabled=locked, key="return-prize-"+existing):
                     try:
                         q.return_prize(p, existing, s.staff_login, reason)
                         s.pop("reveal_card", None)
+                        s.prize_return_notice = "Gewinn zurückgelegt. Bitte jetzt eine neue Karte wählen."
                         st.rerun()
                     except ValueError as error: st.error(str(error))
             if st.button("Gewinnkarte zeigen" if CARDS[existing][2] == "gift" else "Karte und Einlöse-QR zeigen", use_container_width=True):

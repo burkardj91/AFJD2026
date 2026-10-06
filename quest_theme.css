@@ -126,3 +126,5 @@ button[kind="primary"],[data-testid="stBaseButton-primary"],[data-testid="stBase
 [class*="st-key-draw-choice-"] button:before{content:"Dein nächstes\A Kapitel.";font:25px/1.15 Georgia,serif;letter-spacing:-.02em;top:122px;color:#005b34}
 [class*="st-key-draw-choice-"] button:after{content:"";position:absolute;right:-28px;top:-34px;width:96px;height:96px;border:18px solid #ef82814d;border-radius:50%;pointer-events:none}
 @media(max-width:600px){[class*="st-key-draw-choice-"] button:before{font-size:20px;top:102px}}
+
+.personal-appointments{margin:12px 0 20px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.personal-appointments>strong{font-size:15px;color:var(--accent)}.personal-appointments dl{margin:8px 0 0;display:flex;gap:16px 32px;flex-wrap:wrap}.personal-appointments dl>div{display:flex;gap:10px;min-width:0}.personal-appointments dt{font-weight:600;flex:none}.personal-appointments dd{margin:0;overflow-wrap:anywhere;min-width:0}@media(max-width:600px){.personal-appointments dl{display:grid;grid-template-columns:1fr;gap:8px}.personal-appointments dl>div{display:grid;grid-template-columns:88px minmax(0,1fr)}}

@@ -136,7 +136,7 @@ class Quest:
                     raise ValueError("Die Annotation kann nach einem Scan nicht geändert werden. Setze zuerst die Aktivitäten zurück.")
         saved = []
         for row in plan:
-            data = {k:row[k] for k in ("name", "email", "source_id", "annotation", "first_name", "last_name", "affiliation", "source_name", "source_email", "provisional_name", "blank_badge", "identity_pending", "identity_corrected", "address")}
+            data = {k:row[k] for k in ("name", "email", "source_id", "annotation", "first_name", "last_name", "affiliation", "source_name", "source_email", "provisional_name", "blank_badge", "identity_pending", "identity_corrected", "address", "cv_check", "cv_photo")}
             person = row.get("person")
             annotation_changed = not person or data["annotation"] != self.registrations[person].get("annotation", "")
             if not person:
@@ -599,7 +599,7 @@ class Quest:
             raise ValueError("Der Gewinn wurde bereits bestätigt oder abgeholt und kann nicht zurückgelegt werden.")
         if reason not in {"Bereits SVIAL-Mitglied", "Anderer Gewinn gewünscht"}:
             raise ValueError("Wähle einen Grund für den Austausch.")
-        excluded = set(self.draw_exclusions.get(person, set())) | {card}
+        excluded = set(self.draw_exclusions.get(person, set())) | {c for c,row in CARDS.items() if row[2] == CARDS[card][2]}
         if reason == "Bereits SVIAL-Mitglied":
             excluded.update(c for c, row in CARDS.items() if row[2] == "membership")
         if not any(c not in self.assignments and c not in excluded for c in CARDS):
