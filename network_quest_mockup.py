@@ -273,6 +273,7 @@ def member_form(p, card):
         st.text_input("E-Mail-Adresse", value=saved["email"], disabled=True)
         details = {}
         if CARDS[card][2] == "membership":
+            st.caption("Deine Postadresse aus der Anmeldung ist vorausgefüllt, soweit vorhanden. Bitte prüfe sie und ändere sie nur, wenn sie nicht mehr aktuell ist. Sie wird für die Mitgliedschaft an SVIAL übermittelt, nicht an deine Netzwerkkontakte.")
             details["address"] = st.text_area("Postadresse (Pflicht)", value=saved.get("address", ""), placeholder="Strasse, Postleitzahl, Ort und Land")
             qualifications = ["HAFL", "ETHZ", "HES-SO", "ZHAW", "Andere"]
             programmes = ["Agrarwissenschaften", "Lebensmittelwissenschaften", "Andere"]

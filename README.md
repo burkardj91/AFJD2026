@@ -183,3 +183,7 @@ Print calibration: badge contents (text and QR, fronts and backs) are shifted 5 
 ## Betrieb und Lasttests
 
 Siehe [INFRASTRUCTURE.md](INFRASTRUCTURE.md) für PostgreSQL, Datenübernahme, unabhängigen Mailversand und den isolierten 100-Client-Speichertest.
+
+## Eventfrog: Institution und private Postadresse
+
+`Institution` ist der Text auf dem Badge (auch `Affiliation` oder `Zugehörigkeit` wird erkannt). `Annotation` steuert die interne Quest-Zuordnung, z. B. Coop, SVIAL oder Mentoring. Die Felder `Strasse / Nr.`, `PLZ` und `Ort` werden als private Postadresse für die Gratismitgliedschaft importiert. Im Mitgliedschaftsformular prüfen und bei Bedarf korrigieren; kein Versand an Netzwerkkontakte. Bereits korrigierte Profiladressen bleiben bei erneutem Import erhalten. Bei Platzhaltern für doppelte Tickets wird keine Käuferadresse übernommen. Bereits importierte Personen können über dieselbe Ticket-ID erneut importiert werden, um die Adresse zu ergänzen.
