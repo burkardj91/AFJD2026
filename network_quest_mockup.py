@@ -450,10 +450,8 @@ if view == "Mein Pass":
             reward_popup(person)
         personal_qr = base64.b64encode(branded_qr(public_base_url()+"/?badge="+person)).decode("ascii")
         st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Netzwerkkarte freigeschaltet" if person in q.unlocked else "Entdecke die Veranstaltung"}</span></div></div>', unsafe_allow_html=True)
-        from quest_appointments import appointments_html
-        appointment_markup = appointments_html(profile)
-        if appointment_markup:
-            st.markdown(appointment_markup, unsafe_allow_html=True)
+        from quest_appointments import render_appointments
+        render_appointments(profile)
         tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else s.get("scan_destination", "Mein Pass"))
         with tabs[0]:
             with st.expander("Demo · Freischaltung testen", expanded=False):

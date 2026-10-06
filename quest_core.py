@@ -386,7 +386,11 @@ class Quest:
         self.pending.discard((sender, recipient))
 
     def profile(self, person):
-        profile = {**self.roster()[person], **self.profiles.get(person, {})}
+        registration = self.roster()[person]
+        profile = {**registration, **self.profiles.get(person, {})}
+        # Appointment slots are maintained by registration, not profile edits.
+        for field in ("cv_check", "cv_photo"):
+            profile[field] = registration.get(field, "")
         if person in ROSTER:
             profile["email"] = "j.burkard@svial.ch"
         return profile

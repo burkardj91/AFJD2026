@@ -43,3 +43,10 @@ class AppointmentTests(unittest.TestCase):
             q=Quest();person=q.import_registrations('ADMIN-01',rows)[0]
             admin=next(r for r in q.admin_people('ADMIN-01') if r['Person']==person)
             self.assertEqual(admin['CV-Foto'],preview['CV-Foto'])
+
+    def test_old_profile_does_not_hide_registration_slots(self):
+        q=Quest()
+        person=q.import_registrations('ADMIN-01',[{'name':'Test Termine','email':'test@example.test','source_id':'CV-1','cv_check':'18:00 - 18:15','cv_photo':'19:00 - 19:15'}])[0]
+        q.profiles[person]={'cv_check':'','cv_photo':'old value'}
+        self.assertEqual(q.profile(person)['cv_check'],'18:00 - 18:15')
+        self.assertEqual(q.profile(person)['cv_photo'],'19:00 - 19:15')
