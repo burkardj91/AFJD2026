@@ -318,6 +318,17 @@ class Quest:
         fresh.reset_epoch = self.reset_epoch + 1
         self.__dict__.update(fresh.__dict__)
 
+    def reset_activities(self, staff_id, confirmation):
+        if staff_id != "ADMIN-01" or confirmation != "AKTIVITÄTEN LÖSCHEN":
+            raise ValueError("Bestätige als Administrator mit AKTIVITÄTEN LÖSCHEN.")
+        from copy import deepcopy
+        fresh = Quest()
+        for key in ("registrations", "affiliations", "annotations", "profiles",
+                    "privacy_reviewed", "sharing", "recap", "recap_deadline"):
+            setattr(fresh, key, deepcopy(getattr(self, key)))
+        fresh.reset_epoch = self.reset_epoch + 1
+        self.__dict__.update(fresh.__dict__)
+
     def reset_imports(self, staff_id, confirmation):
         if staff_id != "ADMIN-01" or confirmation != "IMPORTE LÖSCHEN":
             raise ValueError("Bestätige als Administrator mit IMPORTE LÖSCHEN.")

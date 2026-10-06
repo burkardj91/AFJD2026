@@ -186,4 +186,12 @@ Siehe [INFRASTRUCTURE.md](INFRASTRUCTURE.md) für PostgreSQL, Datenübernahme, u
 
 ## Eventfrog: Institution und private Postadresse
 
-`Institution` ist der Text auf dem Badge (auch `Affiliation` oder `Zugehörigkeit` wird erkannt). `Annotation` steuert die interne Quest-Zuordnung, z. B. Coop, SVIAL oder Mentoring. Die Felder `Strasse / Nr.`, `PLZ` und `Ort` werden als private Postadresse für die Gratismitgliedschaft importiert. Im Mitgliedschaftsformular prüfen und bei Bedarf korrigieren; kein Versand an Netzwerkkontakte. Bereits korrigierte Profiladressen bleiben bei erneutem Import erhalten. Bei Platzhaltern für doppelte Tickets wird keine Käuferadresse übernommen. Bereits importierte Personen können über dieselbe Ticket-ID erneut importiert werden, um die Adresse zu ergänzen.
+`Annotation` bestimmt sowohl den Text auf dem Badge als auch die interne Quest-Zuordnung, z. B. Coop, SVIAL oder Mentoring. Eine zweite Spalte ist nicht nötig. Ältere Dateien mit `Institution`, `Affiliation` oder `Zugehörigkeit` bleiben lesbar; wenn `Annotation` vorhanden ist, hat diese Spalte Vorrang (auch bei leeren Werten). Unbekannte Angaben erscheinen als Text, erhalten aber keine automatische Firmen-/Gruppenzuordnung. Die Felder `Strasse / Nr.`, `PLZ` und `Ort` werden als private Postadresse für die Gratismitgliedschaft importiert. Im Mitgliedschaftsformular prüfen und bei Bedarf korrigieren; kein Versand an Netzwerkkontakte. Bereits korrigierte Profiladressen bleiben bei erneutem Import erhalten. Bei Platzhaltern für doppelte Tickets wird keine Käuferadresse übernommen. Bereits importierte Personen können über dieselbe Ticket-ID erneut importiert werden, um die Adresse zu ergänzen.
+
+## Bereinigung durch ADMIN-01
+
+Unter Veranstaltung verwalten gibt es zwei getrennte, bestätigungspflichtige Aktionen:
+- **Nur Aktivitäten zurücksetzen**: Kontakte, Besuche, Quests, Gewinnzuordnungen, Anträge, Verlosung und Mailwarteschlange löschen. Importe, Reserve-Badges, Profile, private Adressen, Annotationen, IDs, QR-Codes, Zugangscodes und Datenschutzeinstellungen bleiben erhalten. Teilnehmende melden sich erneut an. Der Kontakt-Mail-Zeitpunkt bleibt erhalten und sollte vor einer neuen Runde geprüft werden.
+- **Alle Importe samt Aktivitäten löschen**: zusätzlich importierte Personen, Reserve-Badges und ihre Zugangsdaten löschen.
+
+Team-Zugänge bleiben bei beiden Aktionen erhalten. Bereits versendete Nachrichten werden nicht zurückgerufen, laufender Versand kann noch abgeschlossen werden.

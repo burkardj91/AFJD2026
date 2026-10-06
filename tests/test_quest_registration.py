@@ -8,6 +8,22 @@ from quest_store import SharedQuest
 from quest_core import payload
 
 class RegistrationTests(unittest.TestCase):
+    def test_annotation_alone_sets_badge_and_group(self):
+        from quest_core import Quest, ORGANISATIONS
+        book=Workbook(); sheet=book.active
+        sheet.append(['Ticket-ID','Vorname','Nachname','E-Mail','Annotation'])
+        sheet.append(['A1','Test','Person','test@example.test','Coop'])
+        stream=BytesIO(); book.save(stream)
+        rows=read_eventfrog(stream.getvalue())
+        q=Quest(); person=q.import_registrations('ADMIN-01',rows)[0]
+        self.assertEqual(q.roster()[person]['affiliation'],'Coop')
+        self.assertEqual(ORGANISATIONS[q.affiliations[person]][2],'Retail')
+        q.import_registrations('ADMIN-01',[dict(rows[0],annotation='SVIAL',affiliation='Coop')])
+        self.assertEqual(q.roster()[person]['affiliation'],'SVIAL')
+        q.import_registrations('ADMIN-01',[dict(rows[0],annotation='')])
+        self.assertEqual(q.roster()[person]['affiliation'],'')
+        self.assertNotIn(person,q.affiliations)
+
     def test_eventfrog_header_and_allowlist(self):
         book=Workbook(); sheet=book.active
         sheet.append(['Event title']); sheet.append([]); sheet.append(['Notice'])

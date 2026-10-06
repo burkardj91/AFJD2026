@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory() as folder:
     next(x for x in app.selectbox if x.label=='Badge-ID oder Name').select(token).run()
     for label,value in [('Tatsächlicher Vorname','Sara'),('Tatsächlicher Nachname','Rossi'),('Persönliche E-Mail','sara@example.test')]:
         next(t for t in app.text_input if t.label==label).input(value)
-    next(x for x in app.selectbox if x.label=='Quest-Zuordnung').select('Mentoring')
+    next(x for x in app.selectbox if x.key=='badge-annotation-'+token).select('Mentoring')
     click('Badge aktualisieren')
     assert q.profile(token)['name']=='Sara Rossi'
     assert q.registrations[token]['annotation']=='Mentoring'
@@ -42,7 +42,12 @@ with tempfile.TemporaryDirectory() as folder:
     assert len(app.dataframe[0].value)==11
     assert 'Zugangscode' in app.dataframe[0].value.columns
     next(r for r in app.radio if r.label=='Arbeitsbereich').set_value('Veranstaltung verwalten').run()
-    assert not any(b.label=='Alle Aktivitäten zurücksetzen' for b in app.button)
+    assert any(b.label=='Nur Aktivitäten zurücksetzen' for b in app.button)
+    next(t for t in app.text_input if t.label=='Zum Zurücksetzen AKTIVITÄTEN LÖSCHEN eingeben').input('AKTIVITÄTEN LÖSCHEN')
+    click('Nur Aktivitäten zurücksetzen')
+    assert token in q.registrations and q.registrations[token]['code']==before['code']
+    assert app.session_state['demo_role_v3']=='admin'
+    next(r for r in app.radio if r.label=='Arbeitsbereich').set_value('Veranstaltung verwalten').run()
     next(t for t in app.text_input if t.label=='Zum Löschen IMPORTE LÖSCHEN eingeben').input('IMPORTE LÖSCHEN')
     click('Importe und Veranstaltungsdaten löschen')
     assert not q.registrations and app.session_state['demo_role_v3']=='admin'

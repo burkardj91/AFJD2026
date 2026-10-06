@@ -697,7 +697,18 @@ elif view == "Veranstaltung verwalten":
         if q.raffle:
             st.write("Geplant: "+q.raffle["deadline"]+" · "+str(q.raffle["count"])+" Gewinner:innen · mindestens "+str(q.raffle["minimum"])+" Quests")
         st.caption("Sind weniger Personen berechtigt, gewinnen alle Berechtigten. Niemand gewinnt doppelt. Eine abgeschlossene Verlosung lässt sich erst nach dem Zurücksetzen erneut durchführen.")
-    with st.expander("Administration · Alle Importe löschen"):
+    with st.expander("Administration · Nur Aktivitäten zurücksetzen"):
+        st.warning("Löscht Kontakte, Standbesuche, Quest-Fortschritt, Gewinnziehungen, Gewinnanträge und die E-Mail-Warteschlange aller Personen. Gewinne werden wieder freigegeben; die Hauptverlosung wird entfernt.")
+        st.write("Erhalten bleiben alle importierten Personen und Reserve-Badges, Profile und Adressen, Annotationen, Badge-IDs, QR-Codes, Zugangscodes sowie Datenschutzeinstellungen. Der geplante Zeitpunkt der Kontakt-Mail bleibt erhalten.")
+        st.caption("Teilnehmende melden sich danach mit demselben Zugangscode erneut an. Team-Zugänge bleiben erhalten. Bereits versendete E-Mails werden nicht zurückgerufen; ein laufender Versand kann noch abgeschlossen werden. Vor einer neuen Runde den Versandzeitpunkt prüfen.")
+        with st.form("reset-activities"):
+            activity_confirmation = st.text_input("Zum Zurücksetzen AKTIVITÄTEN LÖSCHEN eingeben")
+            if st.form_submit_button("Nur Aktivitäten zurücksetzen"):
+                try:
+                    q.reset_activities(s.staff_login, activity_confirmation)
+                    st.rerun()
+                except ValueError as error: st.error(str(error))
+    with st.expander("Administration · Alle Importe samt Aktivitäten löschen"):
         st.warning("Löscht alle importierten Personen, Nachmeldungen und Reserve-Badges samt persönlichen Zugangscodes, QR-Zuordnungen, Profilen und sämtlichen Teilnehmeraktivitäten – auch die der Beispielpersonen. Karten, Anträge, Warteschlange und Verlosung werden zurückgesetzt. Der Zusammenfassungszeitpunkt wird auf den 8. Oktober 2026 um 21 Uhr zurückgesetzt.")
         st.caption("Alte persönliche Zugangscodes und QR-Codes der gelöschten Personen funktionieren danach nicht mehr. Team-Zugänge und Secrets (Passwörter, Mailkonfiguration) bleiben erhalten. Beispielpersonen bleiben zum Testen verfügbar. Bereits versendete E-Mails und heruntergeladene Druckdateien werden nicht zurückgerufen. Ein bereits laufender Mailversand kann noch abgeschlossen werden.")
         with st.form("reset-imports"):
