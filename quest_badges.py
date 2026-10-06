@@ -46,41 +46,94 @@ def fit_badge_text(first, last, institution):
             continue
         blocks = [(wrap(text, size, face),size) for text,size,face in zip((first,last,institution),sizes,fonts)]
         height = sum(len(lines)*size*1.2 for lines,size in blocks)+4
-        if height <= 108:
+        if height <= 98:
             return blocks
     raise ValueError("Name oder Institution ist zu lang für einen lesbaren Badge. Bitte die Badge-Bezeichnung kürzen.")
 
 
+def _node(parent, tag, **attributes):
+    return E.SubElement(parent, '{'+W+'}'+tag, {'{'+W+'}'+k:str(v) for k,v in attributes.items()})
+
+
+def _cell_layout(cell):
+    props=cell.find('w:tcPr',NS)
+    for child in list(props):
+        if E.QName(child).localname in {'tcMar','vAlign'}: props.remove(child)
+    margins=_node(props,'tcMar')
+    for side,value in [('top',142),('left',411),('right',0),('bottom',0)]:
+        _node(margins,side,w=value,type='dxa')
+    _node(props,'vAlign',val='top')
+    for child in list(cell):
+        if child is not props: cell.remove(child)
+
+
+def _paragraph(parent, lines, size, bold=False, after=0):
+    paragraph=_node(parent,'p'); props=_node(paragraph,'pPr')
+    _node(props,'spacing',before=0,after=after,line=round(size*1.2*20),lineRule='exact')
+    _node(props,'ind',left=0,right=0)
+    _node(props,'jc',val='left')
+    run=_node(paragraph,'r'); rp=_node(run,'rPr')
+    _node(rp,'rFonts',ascii='Arial',hAnsi='Arial')
+    _node(rp,'sz',val=round(size*2))
+    if bold: _node(rp,'b')
+    for index,line in enumerate(lines):
+        if index: _node(run,'br')
+        _node(run,'t').text=line or '\u00a0'
+    return paragraph
+
+
 def fit_front_cell(cell, first, last, institution):
-    blocks = fit_badge_text(first, last, institution)
-    drawing = deepcopy(next(d for d in cell.findall('.//w:drawing',NS)
-                            if any(b.get('{'+R+'}embed') == 'rId4' for b in d.findall('.//a:blip',NS))))
-    anchor = drawing.find('wp:anchor',NS)
-    anchor.find('wp:positionV/wp:posOffset',NS).text = '0'
-    for child in list(anchor):
-        if E.QName(child).localname.startswith('wrap'): anchor.remove(child)
-    effect = anchor.find('wp:effectExtent',NS)
-    anchor.insert(list(anchor).index(effect)+1,E.Element('{'+NS['wp']+'}wrapNone'))
-    for paragraph in list(cell.findall('w:p',NS)): cell.remove(paragraph)
-    used = 0
-    for index,(lines,size) in enumerate(blocks):
-        paragraph=E.SubElement(cell,'{'+W+'}p'); props=E.SubElement(paragraph,'{'+W+'}pPr')
-        line_height=round(size*1.2*20); after=80 if index==1 else 0
-        used += line_height*len(lines)+after
-        E.SubElement(props,'{'+W+'}spacing',{'{'+W+'}before':'0','{'+W+'}after':str(after),'{'+W+'}line':str(line_height),'{'+W+'}lineRule':'exact'})
-        E.SubElement(props,'{'+W+'}ind',{'{'+W+'}left':'128','{'+W+'}right':'2594'})
-        E.SubElement(props,'{'+W+'}jc',{'{'+W+'}val':'left'})
-        if index==0: E.SubElement(paragraph,'{'+W+'}r').append(drawing)
-        run=E.SubElement(paragraph,'{'+W+'}r'); rp=E.SubElement(run,'{'+W+'}rPr')
-        E.SubElement(rp,'{'+W+'}rFonts',{'{'+W+'}ascii':'Arial','{'+W+'}hAnsi':'Arial'})
-        E.SubElement(rp,'{'+W+'}sz',{'{'+W+'}val':str(round(size*2))})
-        if index<2: E.SubElement(rp,'{'+W+'}b')
-        for i,line in enumerate(lines):
-            if i: E.SubElement(run,'{'+W+'}br')
-            E.SubElement(run,'{'+W+'}t').text=line or '\u00a0'
-    # Keep the block at the QR height; no inherited template paragraph gaps.
-    paragraph=E.SubElement(cell,'{'+W+'}p'); props=E.SubElement(paragraph,'{'+W+'}pPr')
-    E.SubElement(props,'{'+W+'}spacing',{'{'+W+'}before':'0','{'+W+'}after':'0','{'+W+'}line':str(max(1,2218-used)),'{'+W+'}lineRule':'exact'})
+    blocks=fit_badge_text(first,last,institution)
+    first_size=next((size for lines,size in blocks if any(line.strip() for line in lines)),16)
+    text_top=round(120+(16-first_size)*4.5)
+    anchor=deepcopy(next(a for a in cell.findall('.//wp:anchor',NS)
+        if any(b.get('{'+R+'}embed')=='rId4' for b in a.findall('.//a:blip',NS))))
+    inline=E.Element('{'+NS['wp']+'}inline',distT='0',distB='0',distL='0',distR='0')
+    for name in ('extent','effectExtent','docPr','cNvGraphicFramePr'):
+        child=anchor.find('wp:'+name,NS)
+        if child is not None: inline.append(deepcopy(child))
+    inline.find('wp:extent',NS).set('cx','1408430')
+    inline.find('wp:extent',NS).set('cy','1408430')
+    inline.append(deepcopy(anchor.find('a:graphic',NS)))
+    _cell_layout(cell)
+    table=_node(cell,'tbl'); props=_node(table,'tblPr')
+    _node(props,'tblW',w=4132,type='dxa'); _node(props,'tblLayout',type='fixed')
+    _node(props,'tblInd',w=0,type='dxa')
+    borders=_node(props,'tblBorders')
+    for edge in ('top','left','bottom','right','insideH','insideV'): _node(borders,edge,val='nil')
+    grid=_node(table,'tblGrid')
+    for width in (1914,2218): _node(grid,'gridCol',w=width)
+    row=_node(table,'tr')
+    for index,width in enumerate((1914,2218)):
+        target=_node(row,'tc'); cp=_node(target,'tcPr'); _node(cp,'tcW',w=width,type='dxa')
+        margins=_node(cp,'tcMar')
+        for edge,value in [('top',0),('left',0),('right',114 if index==0 else 0),('bottom',0)]:
+            _node(margins,edge,w=value,type='dxa')
+        _node(cp,'vAlign',val='top')
+        if index==0:
+            spacer=_paragraph(target,[''],1)
+            spacer.find('w:pPr/w:spacing',NS).set('{'+W+'}line',str(text_top))
+            for i,(lines,size) in enumerate(blocks):
+                if not any(line.strip() for line in lines): continue
+                _paragraph(target,lines,size,bold=i<2,after=80 if i==1 else 0)
+            if target.find('w:p',NS) is None: _paragraph(target,[''],1)
+        else:
+            paragraph=_paragraph(target,[],1)
+            spacing=paragraph.find('w:pPr/w:spacing',NS)
+            spacing.set('{'+W+'}line','240'); spacing.set('{'+W+'}lineRule','auto')
+            drawing=_node(paragraph.find('w:r',NS),'drawing'); drawing.append(inline)
+    _paragraph(cell,[''],1)
+
+
+def fit_back_cell(cell, person):
+    _cell_layout(cell)
+    _paragraph(cell,['ID: '+person['id']],16,True,after=120)
+    _paragraph(cell,['Zugangscode:'],12,True,after=20)
+    _paragraph(cell,[person['code']],10,after=40)
+    label=person.get('provisional_name') or person.get('name','')
+    # The private side identifies the assigned person or the reserve slot.
+    for lines,size in fit_badge_text('','',label)[2:]:
+        _paragraph(cell,lines,min(size,10))
 
 
 @lru_cache(maxsize=512)
@@ -131,13 +184,16 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
         margins.set('{'+W+'}'+side,str(value))
     table.find('w:tblPr/w:tblW',NS).set('{'+W+'}w','9638')
     position = table.find('w:tblPr/w:tblpPr',NS)
-    position.set('{'+W+'}tblpY','567')
+    table.find('w:tblPr',NS).remove(position)
+    table.find('w:tblPr/w:tblLayout',NS).set('{'+W+'}type','fixed')
     grid = table.find('w:tblGrid',NS)
     for column in list(grid):grid.remove(column)
     for _ in range(2):E.SubElement(grid,'{'+W+'}gridCol').set('{'+W+'}w','4819')
     for row in table.findall('w:tr',NS):
         row.remove(row.findall('w:tc',NS)[1])  # No gap between the two columns.
         row.find('w:trPr/w:trHeight',NS).set('{'+W+'}val','3118')
+        row.find('w:trPr/w:trHeight',NS).set('{'+W+'}hRule','exact')
+        _node(row.find('w:trPr',NS),'cantSplit')
         for cell in row.findall('w:tc',NS):
             cell.find('w:tcPr/w:tcW',NS).set('{'+W+'}w','4819')
     prototypes = [deepcopy(row) for row in table.findall('w:tr',NS)]
@@ -156,23 +212,7 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
                         continue
                     token = batch[index]; person = roster[token]
                     if back:
-                        for paragraph in cell.findall('w:p',NS):
-                            texts = paragraph.findall('.//w:t',NS)
-                            label = ''.join(t.text or '' for t in texts)
-                            if label.startswith('ID'):
-                                texts[-1].text = ': ' + person['id']
-                            elif label.startswith('Password'):
-                                run=E.SubElement(paragraph,'{'+W+'}r')
-                                properties=E.SubElement(run,'{'+W+'}rPr')
-                                E.SubElement(properties,'{'+W+'}sz').set('{'+W+'}val','20')
-                                E.SubElement(run,'{'+W+'}br')
-                                E.SubElement(run,'{'+W+'}t').text=person['code']
-                                if person.get('provisional_name'):
-                                    labelrun=E.SubElement(paragraph,'{'+W+'}r')
-                                    props=E.SubElement(labelrun,'{'+W+'}rPr')
-                                    E.SubElement(props,'{'+W+'}sz').set('{'+W+'}val','16')
-                                    E.SubElement(labelrun,'{'+W+'}br')
-                                    E.SubElement(labelrun,'{'+W+'}t').text=person['provisional_name']
+                        fit_back_cell(cell, person)
                     else:
                         # The QR contains the only visible logo; remove every template logo.
                         for drawing in list(cell.findall('.//w:drawing',NS)):
@@ -200,17 +240,22 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
                         E.SubElement(relationships,'{'+REL+'}Relationship',Id=rid,Type=R+'/image',Target='media/'+image_name)
                         for blip in cell.findall('.//a:blip',NS):
                             if blip.get('{'+R+'}embed')=='rId4':blip.set('{'+R+'}embed',rid)
-                    # Print calibration: translate contents 5 mm, not the sticker grid.
-                    for paragraph in cell.findall('w:p',NS):
-                        if paragraph.findall('.//w:t',NS):
-                            props=paragraph.find('w:pPr',NS)
-                            if props is None:props=E.SubElement(paragraph,'{'+W+'}pPr')
-                            indent=props.find('w:ind',NS)
-                            if indent is None:indent=E.SubElement(props,'{'+W+'}ind')
-                            indent.set('{'+W+'}left',str(int(indent.get('{'+W+'}left','0'))+283))
-                    for offset in cell.findall('.//wp:positionH/wp:posOffset',NS):
-                        offset.text=str(int(offset.text)+180000)
                 table.append(row)
+    # A separate fixed five-row table per page prevents cumulative pagination drift.
+    body=root.find('w:body',NS)
+    rows=list(table.findall('w:tr',NS))
+    insertion=list(body).index(table)
+    body.remove(table)
+    for offset in range(0,len(rows),5):
+        page=deepcopy(table)
+        for old in list(page.findall('w:tr',NS)): page.remove(old)
+        for row in rows[offset:offset+5]: page.append(row)
+        if offset:
+            separator=E.Element('{'+W+'}p'); pp=_node(separator,'pPr')
+            _node(pp,'spacing',before=0,after=0,line=1,lineRule='exact')
+            _node(_node(separator,'r'),'br',type='page')
+            body.insert(insertion,separator); insertion+=1
+        body.insert(insertion,page); insertion+=1
     for index,element in enumerate(root.findall('.//wp:docPr',NS),1):element.set('id',str(index))
     # Optional Word editing identifiers must remain unique after row cloning.
     for index,element in enumerate(root.iter(),1):
