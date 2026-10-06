@@ -84,7 +84,7 @@ def registration_page(q, staff_id, base_url):
         return
     upload_tab, print_tab, correct_tab = st.tabs(["Excel importieren", "Badges & Reserve", "Badge korrigieren"])
     with upload_tab:
-        st.write("Die Spaltenüberschriften dürfen unter dem Eventfrog-Titel und den Hinweisen stehen. Gespeichert werden Name, E-Mail, Ticketreferenz sowie optional Institution, Annotation und die private Postadresse aus „Strasse / Nr.“, „PLZ“ und „Ort“. Die Adresse wird nur für die Mitgliedschaft vorausgefüllt und nicht mit Netzwerkkontakten geteilt. Die Institution erscheint auf dem Badge; Annotation steuert die Quest-Zuordnung. Mit der optionalen Spalte „Namensschild leer“ (ja) bleibt das Namensfeld vorne leer. Mehrere Tickets mit gleichem Namen erhalten ab dem zweiten Ticket automatisch einen Platzhalter; unterschiedliche Ticket-IDs sind dafür erforderlich. Andere Spalten werden ignoriert.")
+        st.write("Die Spaltenüberschriften dürfen unter dem Eventfrog-Titel und den Hinweisen stehen. Gespeichert werden Name, E-Mail, Ticketreferenz sowie optional Annotation und die private Postadresse aus „Strasse / Nr.“, „PLZ“ und „Ort“. Die Adresse wird nur für die Mitgliedschaft vorausgefüllt und nicht mit Netzwerkkontakten geteilt. Die Spalte „Annotation“ bestimmt den Text auf dem Badge und die automatische Quest-Zuordnung. Eine zusätzliche Institution-Spalte ist nicht nötig. Mit der optionalen Spalte „Namensschild leer“ (ja) bleibt das Namensfeld vorne leer. Mehrere Tickets mit gleichem Namen erhalten ab dem zweiten Ticket automatisch einen Platzhalter; unterschiedliche Ticket-IDs sind dafür erforderlich. Andere Spalten werden ignoriert.")
         from quest_registration import mock_eventfrog_xlsx
         st.download_button("Eventfrog-Testdatei · 10 Personen herunterladen", mock_eventfrog_xlsx(), "AFJD-fictional-sample.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         uploaded = st.file_uploader("Eventfrog-Export (.xlsx)", type=["xlsx"])
@@ -113,8 +113,8 @@ def registration_page(q, staff_id, base_url):
                 first = st.text_input("Vorname")
                 last = st.text_input("Nachname")
                 email = st.text_input("E-Mail")
-                affiliation = institution_select("Zugehörigkeit / Institution", key="new-institution")
-                annotation = st.text_input("Annotation", help="Interne Zuordnung: Firmenname, Mentor, SVIAL oder Rosie. Unabhängig von der aufgedruckten Institution.")
+                annotation = institution_select("Annotation · Badge und Quest-Zuordnung", key="new-institution")
+                affiliation = annotation
                 submitted = st.form_submit_button("Person anlegen", type="primary")
             if submitted:
                 rows = [{"name":first.strip()+" "+last.strip(), "email":email, "first_name":first.strip(), "last_name":last.strip(), "affiliation":affiliation, "annotation":annotation, "invalid_name":not first.strip() or not last.strip()}]
@@ -157,10 +157,10 @@ def registration_page(q, staff_id, base_url):
                 first=st.text_input("Tatsächlicher Vorname", value="" if entry.get("identity_pending") else entry.get("first_name", ""))
                 last=st.text_input("Tatsächlicher Nachname", value="" if entry.get("identity_pending") else entry.get("last_name", ""))
                 email=st.text_input("Persönliche E-Mail", value="" if entry.get("identity_pending") else entry["email"])
-                affiliation=institution_select("Institution auf dem Badge", entry.get("affiliation", ""), key="badge-institution-"+person)
                 current_annotation = q.annotations.get(person, entry.get("annotation", ""))
-                annotation = institution_select("Quest-Zuordnung", current_annotation, key="badge-annotation-"+person)
-                st.caption("Institution erscheint auf dem Badge. Quest-Zuordnung bestimmt, für welche Aufgabe diese Person zählt; hier kannst du auch Mentoring auswählen. Beides wird zusammen gespeichert.")
+                annotation = institution_select("Annotation · Badge und Quest-Zuordnung", current_annotation, key="badge-annotation-"+person)
+                affiliation = annotation
+                st.caption("Die Annotation erscheint auf dem Badge. Hinterlegte Unternehmen werden automatisch ihrer Gruppe zugeordnet; Mentoring zählt für die Mentoring-Quest.")
                 renew_code=st.checkbox("Neuen kurzen Zugangscode erstellen", value=False, help="Format AFJD-LM-482. Der alte Zugangscode und gespeicherte Anmeldungen werden ungültig. QR-Code und Badge-ID bleiben gleich.")
                 if st.form_submit_button("Badge aktualisieren"):
                     try:

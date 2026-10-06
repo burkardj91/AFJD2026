@@ -35,10 +35,10 @@ def read_eventfrog(content):
                 if any(get(k).startswith("=") for k in address_fields):
                     raise ValueError("Adressfelder dürfen keine Excel-Formeln enthalten.")
                 result.append({**({"address":address} if any(k in header for k in address_fields) else {}), "name":" ".join(filter(None,[get("vorname"),get("nachname")])), "email":get("e-mail"), "first_name":get("vorname"), "last_name":get("nachname"),
-                               **({"affiliation":get(next(k for k in ("affiliation","institution","zugehörigkeit") if k in header))} if any(k in header for k in ("affiliation","institution","zugehörigkeit")) else {}),
+                               **({"affiliation":get(next(k for k in ("annotation","affiliation","institution","zugehörigkeit") if k in header))} if any(k in header for k in ("annotation","affiliation","institution","zugehörigkeit")) else {}),
                                "blank_badge":get("namensschild leer").casefold() in {"ja","true","1","x"},
                                "source_id":("ticket:"+get("ticket-id")) if get("ticket-id") else (("id:"+get("id")) if get("id") else ""),
-                               **({"annotation":get("annotation")} if "annotation" in header else {}), "row":number, "invalid_name":not get("vorname") or not get("nachname")})
+                               **({"annotation":get(next(k for k in ("annotation","affiliation","institution","zugehörigkeit") if k in header))} if any(k in header for k in ("annotation","affiliation","institution","zugehörigkeit")) else {}), "row":number, "invalid_name":not get("vorname") or not get("nachname")})
             if header is not None:
                 return result
         raise ValueError("Keine Kopfzeile mit Vorname, Nachname und E-Mail gefunden.")
@@ -89,6 +89,8 @@ def plan_import(rows, registrations):
         if row["identity_pending"]:
             row["address"] = ""  # A second ticket may belong to someone other than the buyer.
             row["name"] = row["provisional_name"]
+        if "annotation" in source:
+            row["affiliation"] = row["annotation"]
         row["mapping"] = annotation_mapping(row["annotation"])["label"]
         if row["blank_badge"]: row["reason"]="Leeres Namensschild · tatsächliche Person unter Badge korrigieren erfassen."
         if issue: row.update(action="Review",reason=issue)
@@ -146,10 +148,10 @@ def mock_eventfrog_xlsx(count=10):
     sheet.append([f'AFJD fictional badge rehearsal — {count} participants'])
     sheet.append(['Nur Testdaten. Beim Import erzeugt die App gültige IDs und Zugangscodes.'])
     sheet.append([])
-    sheet.append(['Ticket-ID','Vorname','Nachname','E-Mail','Institution','Annotation','Strasse / Nr.','PLZ','Ort'])
+    sheet.append(['Ticket-ID','Vorname','Nachname','E-Mail','Annotation','Strasse / Nr.','PLZ','Ort'])
     annotations=['','Coop','Lidl','SVIAL','','Mentor','mooh Genossenschaft','Emmi Schweiz AG','','SVIAL','Strickhof','']
     for i,(first,last,affiliation) in enumerate(names[:count]):
-        sheet.append([f'BADGE-MOCK-{i+1:02}',first,last,'j.burkard@svial.ch',affiliation,annotations[i],f'Teststrasse {i+1}','8000','Zürich'])
+        sheet.append([f'BADGE-MOCK-{i+1:02}',first,last,'j.burkard@svial.ch',annotations[i],f'Teststrasse {i+1}','8000','Zürich'])
     for col,width in [('A',23),('B',18),('C',18),('D',34),('E',22),('F',29)]:sheet.column_dimensions[col].width=width
     stream=BytesIO();book.save(stream);return stream.getvalue()
 
