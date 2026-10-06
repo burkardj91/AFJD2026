@@ -365,7 +365,7 @@ class Quest:
                 status = "Abgeholt" if card in self.collected else "Bestätigt" if card in self.applications else "Reserviert"
             rows.append({"Gewinn":CARDS[card][1] if card else "", "Gewinnreferenz":CARDS[card][0] if card else "", "Gewinnstatus":status,
                 "Bestätigung per E-Mail":self.outbox.get(("claim:" if card and CARDS[card][2] == "event" else "confirmation:")+str(card), {}).get("status", ""), "Person":person, "Badge-ID":entry["id"], "Name":profile["name"],
-                "E-Mail":profile["email"], "Zugangscode":codes[person],
+                "E-Mail":profile["email"], "CV-Check":profile.get("cv_check", ""), "CV-Foto":profile.get("cv_photo", ""), "Zugangscode":codes[person],
                 "Institution":entry.get("affiliation", ""),
                 "Zuordnung":self.annotations.get(person, entry.get("annotation")) or (company[1] if company else ""),
                 "Quelle":("Reserve" if entry.get("source_id", "").startswith("reserve:") else "Registration") if person in self.registrations else "Beispielperson",

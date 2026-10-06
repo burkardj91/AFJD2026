@@ -9,6 +9,17 @@ import qrcode
 MENTORING_ANNOTATIONS = {"mentoring","rosie", "svial-mentoring", "svial mentoring", "rosie vom svial-mentoring", "mentor", "mentors", "mentorin", "mentor:in", "mentoren"}
 
 
+def normalize_import_header(value):
+    label = str(value).strip().casefold()
+    compact = re.sub(r"[\s_\-‐‑‒–—−]+", "", label)
+    return {"cvcheck":"cv-check", "cvfoto":"cv-foto", "cvphoto":"cv-foto"}.get(compact, label)
+
+
+def import_preview(plan):
+    labels = {"row":"Zeile", "name":"Name", "email":"E-Mail", "cv_check":"CV-Check", "cv_photo":"CV-Foto", "affiliation":"Institution", "annotation":"Annotation", "mapping":"Zuordnung", "action":"Aktion", "reason":"Hinweis"}
+    return [{label:({"New":"Neu", "Update":"Aktualisieren", "Review":"Prüfen"}.get(row[key], row[key]) if key == "action" else row.get(key, "")) for key,label in labels.items()} for row in plan]
+
+
 def read_eventfrog(content):
     from openpyxl import load_workbook
     if len(content) > 10_000_000:
@@ -23,7 +34,7 @@ def read_eventfrog(content):
                     raise ValueError("Die Datei enthält mehr als 20’000 Zeilen.")
                 values = [str(v).strip() if v is not None else "" for v in cells]
                 if header is None:
-                    labels = [v.casefold() for v in values]
+                    labels = [normalize_import_header(v) for v in values]
                     if all(k in labels for k in ("vorname", "nachname", "e-mail")) or "annotation" in labels:
                         header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation", "affiliation", "institution", "zugehörigkeit", "namensschild leer", "plz", "ort", "strasse / nr.", "straße / nr.", "cv-check", "cv-foto") if k in labels}
                     continue

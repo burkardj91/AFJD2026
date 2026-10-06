@@ -3,7 +3,7 @@ import streamlit as st
 import os
 import secrets
 import hashlib
-from quest_registration import read_eventfrog, plan_import, print_documents, batch_archive
+from quest_registration import read_eventfrog, plan_import, print_documents, batch_archive, import_preview
 
 
 def admin_password(setting="QUEST_ADMIN_PASSWORD"):
@@ -92,7 +92,13 @@ def registration_page(q, staff_id, base_url):
             try:
                 rows = read_eventfrog(uploaded.getvalue())
                 plan = plan_import(rows, q.registrations)
-                st.dataframe([{ {"row":"Zeile","name":"Name","email":"E-Mail","affiliation":"Institution","annotation":"Annotation","mapping":"Zuordnung","action":"Aktion","reason":"Hinweis"}[k]: ({"New":"Neu","Update":"Aktualisieren","Review":"Prüfen"}.get(r[k],r[k]) if k == "action" else r[k]) for k in ("row","name","email","affiliation","annotation","mapping","action","reason")} for r in plan], hide_index=True)
+                st.dataframe(import_preview(plan), hide_index=True)
+                for field, label in (("cv_check", "CV-Check"), ("cv_photo", "CV-Foto")):
+                    if any(field in row for row in rows):
+                        count = sum(bool(row.get(field, "").strip()) for row in rows)
+                        st.caption(f"{label}: Spalte erkannt · {count} ausgefüllte Termine in dieser Datei.")
+                    else:
+                        st.info(f"{label}: Keine Spalte in dieser Datei erkannt. Vorhandene Termine bleiben erhalten; neue Termine können erst mit dieser Spalte übernommen werden.")
                 problems = any(r["action"] == "Review" for r in plan)
                 st.caption("Aktualisierungen behalten Badge-IDs, Zugangscodes, bearbeitete Profile und Fortschritte. Korrigiere markierte Zeilen in Excel und lade die Datei erneut hoch.")
                 if st.button("Import bestätigen", disabled=not plan or problems, type="primary"):
