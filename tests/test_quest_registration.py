@@ -12,14 +12,14 @@ class RegistrationTests(unittest.TestCase):
         book=Workbook(); sheet=book.active
         sheet.append(['Event title']); sheet.append([]); sheet.append(['Notice'])
         sheet.append(['ID','Ticket-ID','Vorname','Nachname','E-Mail','Annotation','Preis','Strasse / Nr.'])
-        sheet.append([1,'T42','Test','Person','person@example.test','Coop',99,'Do not import'])
+        sheet.append([1,'T42','Test','Person','person@example.test','Coop',99,'Privatweg 7'])
         content=BytesIO(); book.save(content)
         rows=read_eventfrog(content.getvalue())
         self.assertEqual(rows[0]['name'],'Test Person')
         self.assertEqual(rows[0]['source_id'],'ticket:T42')
         self.assertEqual(rows[0]['annotation'],'Coop')
         self.assertNotIn('Preis',rows[0])
-        self.assertNotIn('Do not import',str(rows))
+        self.assertEqual(rows[0]['address'], 'Privatweg 7')
 
     def test_import_reload_login_scan_update_and_reset(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -136,7 +136,7 @@ class Quest:
                     raise ValueError("Die Annotation kann nach einem Scan nicht geändert werden. Setze zuerst die Aktivitäten zurück.")
         saved = []
         for row in plan:
-            data = {k:row[k] for k in ("name", "email", "source_id", "annotation", "first_name", "last_name", "affiliation", "source_name", "source_email", "provisional_name", "blank_badge", "identity_pending", "identity_corrected")}
+            data = {k:row[k] for k in ("name", "email", "source_id", "annotation", "first_name", "last_name", "affiliation", "source_name", "source_email", "provisional_name", "blank_badge", "identity_pending", "identity_corrected", "address")}
             person = row.get("person")
             annotation_changed = not person or data["annotation"] != self.registrations[person].get("annotation", "")
             if not person:
@@ -390,7 +390,7 @@ class Quest:
             raise ValueError("Gib eine gültige E-Mail-Adresse ein.")
         if clean.get("linkedin") and not re.fullmatch(r"https://(?:www\.)?linkedin\.com/[^\s]*", clean["linkedin"]):
             raise ValueError("Verwende einen LinkedIn-Profillink mit https://www.linkedin.com/.")
-        self.profiles[person] = clean
+        self.profiles.setdefault(person, {}).update(clean)
 
     def demo_login(self, code, private_code=None):
         """Public rehearsal credentials only, not production authentication."""
@@ -565,6 +565,8 @@ class Quest:
                 if born > datetime.now().date() or born.year < 1900: raise ValueError()
             except ValueError:
                 raise ValueError("Gib ein gültiges Geburtsdatum ein.")
+        if CARDS[card][2] == "membership":
+            self.profiles.setdefault(person, {})["address"] = details["address"].strip()
         self.applications[card] = {"person": person, "identity": {k:self.profile(person)[k] for k in ["name", "email"]}, "details": {k:details[k] for k in ("qualification", "study_programme", "address", "date_of_birth") if k in details} if CARDS[card][2] == "membership" else {}, "status": "Anmeldung gespeichert"}
 
         self.outbox["claim:"+card]={"kind":"claim","person":person,"card":card,"ready":True,"status":"Wartet auf Versand","draft":email_draft(self,card,"svial@svial.ch").decode("utf-8")}

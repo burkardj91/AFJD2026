@@ -24,13 +24,17 @@ def read_eventfrog(content):
                 if header is None:
                     labels = [v.casefold() for v in values]
                     if all(k in labels for k in ("vorname", "nachname", "e-mail")):
-                        header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation", "affiliation", "institution", "zugehörigkeit", "namensschild leer") if k in labels}
+                        header = {k:labels.index(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id", "annotation", "affiliation", "institution", "zugehörigkeit", "namensschild leer", "plz", "ort", "strasse / nr.", "straße / nr.") if k in labels}
                     continue
                 def get(key):
                     return values[header[key]] if key in header and header[key] < len(values) else ""
                 if not any(get(k) for k in ("vorname", "nachname", "e-mail", "ticket-id", "id")):
                     continue
-                result.append({"name":" ".join(filter(None,[get("vorname"),get("nachname")])), "email":get("e-mail"), "first_name":get("vorname"), "last_name":get("nachname"),
+                address_fields = ("strasse / nr.", "straße / nr.", "plz", "ort")
+                address = "\n".join(filter(None, [get("strasse / nr.") or get("straße / nr."), " ".join(filter(None, [get("plz"), get("ort")]))]))
+                if any(get(k).startswith("=") for k in address_fields):
+                    raise ValueError("Adressfelder dürfen keine Excel-Formeln enthalten.")
+                result.append({**({"address":address} if any(k in header for k in address_fields) else {}), "name":" ".join(filter(None,[get("vorname"),get("nachname")])), "email":get("e-mail"), "first_name":get("vorname"), "last_name":get("nachname"),
                                **({"affiliation":get(next(k for k in ("affiliation","institution","zugehörigkeit") if k in header))} if any(k in header for k in ("affiliation","institution","zugehörigkeit")) else {}),
                                "blank_badge":get("namensschild leer").casefold() in {"ja","true","1","x"},
                                "source_id":("ticket:"+get("ticket-id")) if get("ticket-id") else (("id:"+get("id")) if get("id") else ""),
@@ -46,7 +50,7 @@ def plan_import(rows, registrations):
     plan, seen_sources, seen_people = [], set(), set()
     known = dict(registrations)
     for index, source in enumerate(rows, 1):
-        row = {k:str(source.get(k, "")).strip() for k in ("name", "email", "source_id", "annotation", "affiliation", "first_name", "last_name")}
+        row = {k:str(source.get(k, "")).strip() for k in ("name", "email", "source_id", "annotation", "affiliation", "first_name", "last_name", "address")}
         if "first_name" not in source:
             row["first_name"], _, row["last_name"] = row["name"].partition(" ")
         row.update(row=source.get("row",index), action="New", reason="", person=None)
@@ -72,17 +76,18 @@ def plan_import(rows, registrations):
         row.update(source_name=name, source_email=row["email"], provisional_name=name+(" "+str(ordinal) if ordinal>1 else ""), blank_badge=pending, identity_pending=pending, identity_corrected=False)
         if matches:
             row.update(person=matches[0], action="Update")
-            for key in ("affiliation", "annotation"):
+            for key in ("affiliation", "annotation", "address"):
                 if key not in source: row[key]=previous.get(key, "")
             for key in ("source_name", "source_email", "provisional_name", "blank_badge", "identity_pending", "identity_corrected"):
                 if key in previous: row[key]=previous[key]
             if previous.get("identity_corrected"):
-                for key in ("name","email","first_name","last_name","affiliation"):
+                for key in ("name","email","first_name","last_name","affiliation","address"):
                     row[key]=previous.get(key,row[key])
             if not sid: row["source_id"]=previous.get("source_id", "")
         if source.get("blank_badge") and not row["identity_corrected"]:
             row.update(blank_badge=True, identity_pending=True)
         if row["identity_pending"]:
+            row["address"] = ""  # A second ticket may belong to someone other than the buyer.
             row["name"] = row["provisional_name"]
         row["mapping"] = annotation_mapping(row["annotation"])["label"]
         if row["blank_badge"]: row["reason"]="Leeres Namensschild · tatsächliche Person unter Badge korrigieren erfassen."
@@ -141,10 +146,10 @@ def mock_eventfrog_xlsx(count=10):
     sheet.append([f'AFJD fictional badge rehearsal — {count} participants'])
     sheet.append(['Nur Testdaten. Beim Import erzeugt die App gültige IDs und Zugangscodes.'])
     sheet.append([])
-    sheet.append(['Ticket-ID','Vorname','Nachname','E-Mail','Affiliation','Annotation'])
+    sheet.append(['Ticket-ID','Vorname','Nachname','E-Mail','Institution','Annotation','Strasse / Nr.','PLZ','Ort'])
     annotations=['','Coop','Lidl','SVIAL','','Mentor','mooh Genossenschaft','Emmi Schweiz AG','','SVIAL','Strickhof','']
     for i,(first,last,affiliation) in enumerate(names[:count]):
-        sheet.append([f'BADGE-MOCK-{i+1:02}',first,last,'j.burkard@svial.ch',affiliation,annotations[i]])
+        sheet.append([f'BADGE-MOCK-{i+1:02}',first,last,'j.burkard@svial.ch',affiliation,annotations[i],f'Teststrasse {i+1}','8000','Zürich'])
     for col,width in [('A',23),('B',18),('C',18),('D',34),('E',22),('F',29)]:sheet.column_dimensions[col].width=width
     stream=BytesIO();book.save(stream);return stream.getvalue()
 
