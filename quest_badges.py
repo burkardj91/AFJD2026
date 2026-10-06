@@ -13,6 +13,76 @@ REL = 'http://schemas.openxmlformats.org/package/2006/relationships'
 NS = {'w':W,'a':'http://schemas.openxmlformats.org/drawingml/2006/main','wp':'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'}
 
 
+def fit_badge_text(first, last, institution):
+    """Explicit line wrapping within the 32 mm text column and 39 mm QR height."""
+    from PIL import ImageFont
+    def font(bold):
+        for name in (["arialbd.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"] if bold else ["arial.ttf", "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"]):
+            try: return ImageFont.truetype(name, 400)
+            except OSError: pass
+        return ImageFont.load_default(size=400)
+    fonts = [font(True), font(True), font(False)]
+    def wrap(text, size, face):
+        words = str(text or '').split()
+        lines = []; line = ''
+        def fits(value): return face.getlength(value) / 400 * size <= 84
+        for word in words:
+            if line and not fits(line+' '+word): lines.append(line); line=''
+            while not fits(word):
+                cut = len(word)-1
+                while cut > 1 and not fits(word[:cut]): cut -= 1
+                if line: lines.append(line); line=''
+                lines.append(word[:cut]); word=word[cut:]
+            line = (line+' '+word).strip()
+        if line: lines.append(line)
+        return lines or ['']
+    for half_points in range(32, 15, -1):
+        sizes = [half_points/2, half_points/2, min(13, half_points/2)]
+        # Prefer smaller type over tearing an ordinary word apart. Only truly
+        # exceptional words are split once the readable minimum is reached.
+        if half_points > 16 and any(face.getlength(word)/400*size > 84
+                for text,size,face in zip((first,last,institution),sizes,fonts)
+                for word in str(text or '').split()):
+            continue
+        blocks = [(wrap(text, size, face),size) for text,size,face in zip((first,last,institution),sizes,fonts)]
+        height = sum(len(lines)*size*1.2 for lines,size in blocks)+4
+        if height <= 108:
+            return blocks
+    raise ValueError("Name oder Institution ist zu lang für einen lesbaren Badge. Bitte die Badge-Bezeichnung kürzen.")
+
+
+def fit_front_cell(cell, first, last, institution):
+    blocks = fit_badge_text(first, last, institution)
+    drawing = deepcopy(next(d for d in cell.findall('.//w:drawing',NS)
+                            if any(b.get('{'+R+'}embed') == 'rId4' for b in d.findall('.//a:blip',NS))))
+    anchor = drawing.find('wp:anchor',NS)
+    anchor.find('wp:positionV/wp:posOffset',NS).text = '0'
+    for child in list(anchor):
+        if E.QName(child).localname.startswith('wrap'): anchor.remove(child)
+    effect = anchor.find('wp:effectExtent',NS)
+    anchor.insert(list(anchor).index(effect)+1,E.Element('{'+NS['wp']+'}wrapNone'))
+    for paragraph in list(cell.findall('w:p',NS)): cell.remove(paragraph)
+    used = 0
+    for index,(lines,size) in enumerate(blocks):
+        paragraph=E.SubElement(cell,'{'+W+'}p'); props=E.SubElement(paragraph,'{'+W+'}pPr')
+        line_height=round(size*1.2*20); after=80 if index==1 else 0
+        used += line_height*len(lines)+after
+        E.SubElement(props,'{'+W+'}spacing',{'{'+W+'}before':'0','{'+W+'}after':str(after),'{'+W+'}line':str(line_height),'{'+W+'}lineRule':'exact'})
+        E.SubElement(props,'{'+W+'}ind',{'{'+W+'}left':'128','{'+W+'}right':'2594'})
+        E.SubElement(props,'{'+W+'}jc',{'{'+W+'}val':'left'})
+        if index==0: E.SubElement(paragraph,'{'+W+'}r').append(drawing)
+        run=E.SubElement(paragraph,'{'+W+'}r'); rp=E.SubElement(run,'{'+W+'}rPr')
+        E.SubElement(rp,'{'+W+'}rFonts',{'{'+W+'}ascii':'Arial','{'+W+'}hAnsi':'Arial'})
+        E.SubElement(rp,'{'+W+'}sz',{'{'+W+'}val':str(round(size*2))})
+        if index<2: E.SubElement(rp,'{'+W+'}b')
+        for i,line in enumerate(lines):
+            if i: E.SubElement(run,'{'+W+'}br')
+            E.SubElement(run,'{'+W+'}t').text=line or '\u00a0'
+    # Keep the block at the QR height; no inherited template paragraph gaps.
+    paragraph=E.SubElement(cell,'{'+W+'}p'); props=E.SubElement(paragraph,'{'+W+'}pPr')
+    E.SubElement(props,'{'+W+'}spacing',{'{'+W+'}before':'0','{'+W+'}after':'0','{'+W+'}line':str(max(1,2218-used)),'{'+W+'}lineRule':'exact'})
+
+
 @lru_cache(maxsize=512)
 def qr_image(value):
     import qrcode
@@ -124,6 +194,7 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
                         values={'Vorname':first,'Nachname':last,'Institution':person.get('affiliation','')}
                         for text in cell.findall('.//w:t',NS):
                             if text.text in values:text.text=values[text.text]
+                        fit_front_cell(cell, first, last, person.get('affiliation',''))
                         image_name=f'badge-qr-{start+index}.png';rid=f'rIdBadge{start+index}'
                         parts['word/media/'+image_name]=qr_encoder(base_url.rstrip('/')+'/?badge='+token)
                         E.SubElement(relationships,'{'+REL+'}Relationship',Id=rid,Type=R+'/image',Target='media/'+image_name)
