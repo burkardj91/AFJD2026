@@ -28,3 +28,18 @@ class AppointmentTests(unittest.TestCase):
         self.assertEqual(appointments_html({}),'')
         self.assertNotIn('<script>',appointments_html({'cv_photo':'<script>alert(1)</script>'}))
         self.assertIn('18:00',appointments_html({'cv_check':'18:00:00'}))
+
+    def test_excel_header_variants_and_preview(self):
+        from quest_registration import plan_import, import_preview
+        for check, photo in [('CV Check', 'CV Foto'), ('CV‑Check', 'CV–Foto'), (' CV - Check ', 'CV-\nFoto')]:
+            book=Workbook(); sheet=book.active
+            sheet.append(['Ticket-ID','Vorname','Nachname','E-Mail',check,photo])
+            sheet.append(['T2','Test','Person','test@example.test','18:00 - 18:15','19:20 - 19:30'])
+            stream=BytesIO();book.save(stream)
+            rows=read_eventfrog(stream.getvalue())
+            preview=import_preview(plan_import(rows,{}))[0]
+            self.assertEqual(preview['CV-Check'],'18:00 - 18:15')
+            self.assertEqual(preview['CV-Foto'],'19:20 - 19:30')
+            q=Quest();person=q.import_registrations('ADMIN-01',rows)[0]
+            admin=next(r for r in q.admin_people('ADMIN-01') if r['Person']==person)
+            self.assertEqual(admin['CV-Foto'],preview['CV-Foto'])
