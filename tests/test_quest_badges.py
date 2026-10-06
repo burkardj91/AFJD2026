@@ -2,11 +2,22 @@ import unittest
 from io import BytesIO
 from zipfile import ZipFile
 from lxml import etree as E
-from quest_badges import badge_docx, TEMPLATE, NS
+from quest_badges import badge_docx, TEMPLATE, NS, fit_badge_text
 from quest_registration import mock_eventfrog_xlsx, read_eventfrog
 from quest_core import Quest
 
 class BadgeTemplateTests(unittest.TestCase):
+    def test_long_text_shrinks_and_stays_within_qr_height(self):
+        short=fit_badge_text('Anna','Meier','SVIAL')
+        values=('Maximilian Alexander','von Hohenlohe-Schillingsfürst','Kanton Thurgau – Arenenberg & Landwirtschaftsamt')
+        long=fit_badge_text(*values)
+        self.assertLess(long[0][1],short[0][1])
+        self.assertLessEqual(sum(len(lines)*size*1.2 for lines,size in long)+4,108)
+        for value,(lines,size) in zip(values,long):
+            self.assertEqual(''.join(''.join(lines).split()),''.join(value.split()))
+            self.assertGreaterEqual(size,8)
+        with self.assertRaises(ValueError): fit_badge_text('Name '*200,'Last','Institution')
+
     def test_import_duplex_mapping_and_template_fidelity(self):
         rows=read_eventfrog(mock_eventfrog_xlsx(12));q=Quest()
         ids=q.import_registrations('ADMIN-01',rows)
