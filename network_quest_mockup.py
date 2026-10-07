@@ -369,10 +369,8 @@ def card_reveal(participant, card):
         st.caption("Scanne den QR-Code mit deinem Handy und bestätige deinen Gewinn mit deinem eigenen Zugang.")
         with st.expander("Auf diesem Computer testen"):
             st.code(claim_link(card), language=None)
-    if st.button("Fertig · nächste Person", type="primary", use_container_width=True):
+    if st.button("Karte schliessen", type="primary", use_container_width=True):
         s.pop("reveal_card", None)
-        s.pop("staff_person_v2", None)
-        s.desk_generation = s.get("desk_generation", 0) + 1
         st.rerun()
 
 if role == "participant" and person and person not in q.privacy_reviewed:
@@ -415,6 +413,17 @@ if role == "participant" and person and st.query_params.get("claim"):
         st.error(str(error))
     st.query_params.clear()
 
+def open_membership(participant, card):
+    q.scan(participant, payload("reward", card))
+    s.claim_v2 = card
+    s.pass_navigation = s.get("pass_navigation", 0) + 1
+
+
+def next_staff_person():
+    for key in ("reveal_card", "staff_person_v2", "validate_person", "prize_return_notice"):
+        s.pop(key, None)
+    s.desk_generation = s.get("desk_generation", 0) + 1
+
 def return_staff_prize(participant, card):
     try:
         q.return_prize(participant, card, s.staff_login, s.get("return-reason-"+card, "Anderer Gewinn gewünscht"))
@@ -456,11 +465,13 @@ if view == "Mein Pass":
             reward_popup(person)
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
+        from quest_reward_status import reward_status
+        prize_state, prize_label, prize_card = reward_status(q, person)
         personal_qr = base64.b64encode(branded_qr(public_base_url()+"/?badge="+person)).decode("ascii")
-        st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{"Netzwerkkarte freigeschaltet" if person in q.unlocked else "Entdecke die Veranstaltung"}</span></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading reward-{prize_state}"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong><div class="pass-prize-status">{escape(prize_label)}</div></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{escape(prize_label)}</span></div></div>', unsafe_allow_html=True)
         from quest_appointments import render_appointments
         render_appointments(profile)
-        tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else s.get("scan_destination", "Mein Pass"))
+        tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], key="pass-tabs-"+person+"-"+str(s.get("pass_navigation",0)), default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else s.get("scan_destination", "Mein Pass"))
         with tabs[0]:
             with st.expander("Test · Alle Quests simulieren", expanded=False):
                 st.caption("Vorübergehend zum Testen: Speichert simulierte Kontakte und Quest-Fortschritte für dieses Konto und schaltet die Netzwerkkarte frei.")
@@ -479,10 +490,10 @@ if view == "Mein Pass":
             if card:
                 if CARDS[card][2] == "membership":
                     st.markdown('<div class="reward"><span>DEIN GEWINN</span><strong>Willkommen in deinem Agro-Food-Netzwerk.</strong><span>Deine SVIAL-Gratismitgliedschaft bis Ende 2027.</span></div>', unsafe_allow_html=True)
-                    if st.button("Mitgliedschaft im Profil einlösen", type="primary"):
-                        q.scan(person,payload("reward",card))
-                        s.claim_v2 = card
-                        st.rerun()
+                    if prize_state == "redeemed":
+                        st.success("Eingelöst · Deine Anmeldung ist bestätigt.")
+                    else:
+                        st.button("Mitgliedschaft im Profil einlösen", type="primary", on_click=open_membership, args=(person,card))
                 else:
                     member_form(person,card)
             elif person in q.unlocked:
@@ -547,19 +558,11 @@ if view == "Mein Pass":
             if rows:
                 st.dataframe(rows, hide_index=True, width="stretch")
             st.caption("Institution / Zugehörigkeit zeigt die Firma oder Organisation. Stand-Scans ohne persönliche Angaben erscheinen mit einem Strich. Nicht freigegebene Angaben bleiben ausgeblendet.")
-            st.subheader("Deine Zusammenfassung")
-            recap_opt = st.checkbox("Meine Zusammenfassung vorbereiten", value=person in q.recap, key="recap-summary-"+person)
-            if st.button("Auswahl speichern"):
-                q.set_preferences(person, person in q.sharing, recap_opt)
-                st.rerun()
             if person in q.recap:
-                draft = recap_draft(q, person)
-                st.download_button("E-Mail-Entwurf herunterladen",draft,file_name="network-recap.eml",mime="message/rfc822")
-                with st.expander("Zusammenfassung ansehen"):
-                    from email import policy
-                    from email.parser import BytesParser
-                    st.html(BytesParser(policy=policy.default).parsebytes(draft).get_body(preferencelist=("html",)).get_content())
-            st.caption("Der Entwurf ist an deine Profil-E-Mail adressiert. Die Administration kann ihn nach Einrichtung des Maildiensts versenden.")
+                recap_at=datetime.fromisoformat(q.recap_deadline).astimezone(ZoneInfo("Europe/Zurich"))
+                st.caption("Deine Kontaktübersicht ist für den "+recap_at.strftime("%d.%m.%Y um %H:%M")+" Uhr per E-Mail vorgesehen. Deine Auswahl kannst du unter Profil → Datenschutz ändern.")
+            else:
+                st.caption("Du hast den E-Mail-Rückblick deaktiviert. Du kannst ihn unter Profil → Datenschutz einschalten.")
         with tabs[3]:
             with st.expander("Datenschutz · Du entscheidest", expanded=False):
                 privacy_form(person, "profile")
@@ -645,6 +648,8 @@ elif view == "SVIAL-Team":
                             st.button("Karte wählen " + str(index+1).zfill(2), key="draw-choice-"+str(index),
                                       use_container_width=True, on_click=draw_staff_prize, args=(p,))
                 st.caption("Tippe auf eine Karte und entdecke deinen Gewinn. Eine Ziehung pro Person.")
+    if p:
+        st.button("Fertig · nächste Person", on_click=next_staff_person)
     if s.get("reveal_card"):
         card_reveal(*s.reveal_card)
     with st.expander("Anträge & E-Mail-Entwürfe"):

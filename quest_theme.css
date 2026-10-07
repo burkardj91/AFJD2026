@@ -132,3 +132,8 @@ button[kind="primary"],[data-testid="stBaseButton-primary"],[data-testid="stBase
 /* Compact appointment dropdown beneath the pass; readable slots when expanded. */
 .st-key-personal-appointments{margin:0 0 12px;border-left:4px solid #009641;border-radius:6px;background:var(--soft)}
 .st-key-personal-appointments [data-testid="stText"]{font-size:22px!important;font-weight:700;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+
+/* Persistent reward ring: labels convey the state without relying on colour. */
+.identity-heading>img{box-sizing:border-box;padding:4px;border:4px solid var(--line);border-radius:50%}
+.identity-heading.reward-unlocked>img{border-color:#009641}.identity-heading.reward-reserved>img{border-color:#ef8281}.identity-heading.reward-redeemed>img{border-color:#246799}
+.pass-prize-status{font-size:13px;font-weight:650;margin-top:5px;color:var(--ink)}
