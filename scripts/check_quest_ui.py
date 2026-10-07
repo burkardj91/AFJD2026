@@ -8,6 +8,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from quest_store import SharedQuest
 
 with tempfile.TemporaryDirectory() as folder:
+    os.environ['QUEST_TEST_DEMO_ACCESS']='1'
     os.environ['QUEST_DB_PATH']=str(Path(folder)/'event.sqlite3')
     state=SharedQuest()
     person=state.activate('DEMO-264')
@@ -42,14 +43,14 @@ with tempfile.TemporaryDirectory() as folder:
     next(t for t in app.text_input if t.label=='Dein vollständiger Name').input('Lea Test')
     click('Mein Profil speichern')
     assert state.profile(person)['name']=='Lea Test'
-    click('Demo-Konto wechseln')
+    click('Abmelden / Konto wechseln')
     app.query_params['claim']=card
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('DEMO-137')
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('ALEX-9P2R-26')
     click('Anmelden')
     assert app.error and 'zuzuordnen' in app.error[0].value
     assert 'claim_v2' not in app.session_state
-    click('Demo-Konto wechseln')
+    click('Abmelden / Konto wechseln')
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('SCREEN-01')
     click('Anmelden')
     visible=' '.join(m.value for m in app.markdown)

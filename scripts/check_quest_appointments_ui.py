@@ -25,7 +25,12 @@ with tempfile.TemporaryDirectory() as folder:
         next(b for b in app.button if b.label=='Datenschutzauswahl speichern').click().run()
     assert not app.exception,[e.message for e in app.exception]
     markup=' '.join(m.value for m in app.markdown)
-    assert any(h.value=='Deine gebuchten Termine' for h in app.subheader)
+    assert any(b.label=='Verstanden · zu meinem Pass' for b in app.button)
+    next(b for b in app.button if b.label=='Verstanden · zu meinem Pass').click().run()
+    assert p in SharedQuest().appointments_reviewed
+    assert not next(e for e in app.expander if e.label.startswith('Deine Termine')).proto.expanded
+    app.run()
+    assert not any(b.label=='Verstanden · zu meinem Pass' for b in app.button)
     assert [t.value for t in app.text if ':' in t.value]==['18:00 - 18:15','19:20 - 19:30']
     # Re-import for an existing logged-in user with a saved profile.
     q.update_profile(p,{'name':'Test Termine','email':'appointments@example.test'})

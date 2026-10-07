@@ -50,3 +50,20 @@ class AppointmentTests(unittest.TestCase):
         q.profiles[person]={'cv_check':'','cv_photo':'old value'}
         self.assertEqual(q.profile(person)['cv_check'],'18:00 - 18:15')
         self.assertEqual(q.profile(person)['cv_photo'],'19:00 - 19:15')
+
+    def test_missing_slots_hidden_and_acknowledgement_persisted(self):
+        from quest_appointments import appointment_slots
+        from quest_store import SharedQuest
+        import tempfile
+        from pathlib import Path
+        for value in ('', ' ', None, float('nan'), 'NaN', 'nan', 'NaT', '<NA>', 'null'):
+            self.assertEqual(appointment_slots({'cv_check':value,'cv_photo':value}),[])
+        self.assertEqual(appointment_slots({'cv_check':'NaN','cv_photo':'18:00 - 18:15'}), [('CV-Foto','18:00 - 18:15')])
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'quest.sqlite3'
+            q=SharedQuest(path)
+            person=q.activate('DEMO-264')
+            q.acknowledge_appointments(person)
+            self.assertIn(person,SharedQuest(path).appointments_reviewed)
+            q.reset_activities('ADMIN-01','AKTIVITÄTEN LÖSCHEN')
+            self.assertIn(person,q.appointments_reviewed)

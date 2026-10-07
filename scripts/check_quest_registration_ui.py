@@ -39,7 +39,7 @@ with tempfile.TemporaryDirectory() as folder:
     assert q.registrations[token]['id']==before['id'] and q.registrations[token]['code']==before['code']
     next(r for r in app.radio if r.label=='Arbeitsbereich').set_value('Personen & Aktivitäten').run()
     assert not app.exception
-    assert len(app.dataframe[0].value)==11
+    assert len(app.dataframe[0].value)==1
     assert 'Zugangscode' in app.dataframe[0].value.columns
     next(r for r in app.radio if r.label=='Arbeitsbereich').set_value('Veranstaltung verwalten').run()
     assert any(b.label=='Nur Aktivitäten zurücksetzen' for b in app.button)
@@ -51,7 +51,7 @@ with tempfile.TemporaryDirectory() as folder:
     next(t for t in app.text_input if t.label=='Zum Löschen IMPORTE LÖSCHEN eingeben').input('IMPORTE LÖSCHEN')
     click('Importe und Veranstaltungsdaten löschen')
     assert not q.registrations and app.session_state['demo_role_v3']=='admin'
-    click('Demo-Konto wechseln')
+    click('Abmelden / Konto wechseln')
     os.environ['QUEST_STAFF_PASSWORD']='fictional-booth-password-for-test'
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('STAFF-01')
     click('Anmelden')

@@ -75,17 +75,17 @@ button[kind=secondary],button[kind=tertiary]{background:var(--surface)!important
 .st-key-card-selection{padding:20px 0 12px}
 .st-key-card-selection [data-testid=stHorizontalBlock]{flex-wrap:nowrap!important;gap:16px!important}
 .st-key-card-selection [data-testid=stColumn]{min-width:0!important;flex:1 1 0!important;width:0!important}
-[class*="st-key-draw-choice-"] button{position:relative;display:flex;align-items:flex-end;justify-content:center;height:260px;min-height:260px;border:1px solid #b7c9bd!important;border-radius:8px!important;background-color:#f8f7f1!important;background-repeat:no-repeat!important;background-size:68px auto!important;background-position:center 28px!important;color:#173e2a!important;padding:0 8px 22px!important;box-shadow:0 5px 10px #001e1110!important;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s}
-[class*="st-key-draw-choice-"] button:before{content:"NETZWERK\A KARTE";white-space:pre;position:absolute;top:125px;left:0;right:0;font:22px/1.2 Georgia,serif;letter-spacing:.08em;color:#234732;pointer-events:none}
-[class*="st-key-draw-choice-"] button:hover{transform:translateY(-7px);border-color:#009641!important;box-shadow:0 12px 20px #001e1120!important}
-[class*="st-key-draw-choice-"] button:focus-visible{outline:3px solid #ef8281;outline-offset:4px}
-[class*="st-key-draw-choice-"] button p{font-size:12px!important;font-weight:500!important;color:#315941!important;letter-spacing:.03em}
+.st-key-card-selection button{position:relative;display:flex;align-items:flex-end;justify-content:center;height:260px;min-height:260px;border:1px solid #b7c9bd!important;border-radius:8px!important;background-color:#f8f7f1!important;background-repeat:no-repeat!important;background-size:68px auto!important;background-position:center 28px!important;color:#173e2a!important;padding:0 8px 22px!important;box-shadow:0 5px 10px #001e1110!important;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s}
+.st-key-card-selection button:before{content:"NETZWERK\A KARTE";white-space:pre;position:absolute;top:125px;left:0;right:0;font:22px/1.2 Georgia,serif;letter-spacing:.08em;color:#234732;pointer-events:none}
+.st-key-card-selection button:hover{transform:translateY(-7px);border-color:#009641!important;box-shadow:0 12px 20px #001e1120!important}
+.st-key-card-selection button:focus-visible{outline:3px solid #ef8281;outline-offset:4px}
+.st-key-card-selection button p{font-size:12px!important;font-weight:500!important;color:#315941!important;letter-spacing:.03em}
 .masthead{padding-bottom:22px;margin-bottom:22px}.event-label strong{font-size:12px}.brand-logo{width:62px}
 .pass{border:0;border-bottom:1px solid var(--line);border-radius:0;border-left:0;padding:18px 0 24px;margin:4px 0 16px}.pass .name{font-size:30px;letter-spacing:-.025em}.pass .eyebrow{font-size:10px;letter-spacing:.12em}
 .invitation{border:0;padding:8px 0}.invitation h2{font-size:31px!important}.invitation-footer{border-bottom:1px solid var(--line);padding-bottom:18px}
 .reward-preview,.reward{border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;padding:22px 0;box-shadow:none}
-@media(max-width:600px){.st-key-card-selection [data-testid=stHorizontalBlock]{gap:8px!important}[class*="st-key-draw-choice-"] button{height:220px;min-height:220px;background-size:48px auto!important;background-position:center 24px!important;padding-bottom:18px!important}[class*="st-key-draw-choice-"] button:before{font-size:16px;top:104px}[class*="st-key-draw-choice-"] button p{font-size:10px!important}.pass .name{font-size:27px}}
-@media(prefers-reduced-motion:reduce){[class*="st-key-draw-choice-"] button{transition:none}[class*="st-key-draw-choice-"] button:hover{transform:none}}
+@media(max-width:600px){.st-key-card-selection [data-testid=stHorizontalBlock]{gap:8px!important}.st-key-card-selection button{height:220px;min-height:220px;background-size:48px auto!important;background-position:center 24px!important;padding-bottom:18px!important}.st-key-card-selection button:before{font-size:16px;top:104px}.st-key-card-selection button p{font-size:10px!important}.pass .name{font-size:27px}}
+@media(prefers-reduced-motion:reduce){.st-key-card-selection button{transition:none}.st-key-card-selection button:hover{transform:none}}
 /* Keep the page surface continuous when a long form exceeds the viewport. */
 .stApp,[data-testid=stMain]{background:var(--surface)!important}
 .block-container{height:auto!important;overflow:visible!important;padding-bottom:120px!important}
@@ -122,16 +122,13 @@ button[kind=secondary],button[kind=tertiary]{background:var(--surface)!important
 
 button[kind="primary"],[data-testid="stBaseButton-primary"],[data-testid="stBaseButton-primaryFormSubmit"]{background:#007934!important;border-color:#007934!important;color:#fff!important}button[kind="primary"] p,[data-testid="stBaseButton-primary"] p,[data-testid="stBaseButton-primaryFormSubmit"] p{color:#fff!important;font-weight:650!important}
 
-[class*="st-key-draw-choice-"] button{border-radius:18px!important;border:1px solid #cad8cd!important;border-bottom:5px solid #009641!important;box-shadow:0 10px 24px #163e2914!important;overflow:hidden}
-[class*="st-key-draw-choice-"] button:before{content:"Dein nächstes\A Kapitel.";font:25px/1.15 Georgia,serif;letter-spacing:-.02em;top:122px;color:#005b34}
-[class*="st-key-draw-choice-"] button:after{content:"";position:absolute;right:-28px;top:-34px;width:96px;height:96px;border:18px solid #ef82814d;border-radius:50%;pointer-events:none}
-@media(max-width:600px){[class*="st-key-draw-choice-"] button:before{font-size:20px;top:102px}}
+.st-key-card-selection button{border-radius:18px!important;border:1px solid #cad8cd!important;border-bottom:5px solid #009641!important;box-shadow:0 10px 24px #163e2914!important;overflow:hidden}
+.st-key-card-selection button:before{content:"Dein nächstes\A Kapitel.";font:25px/1.15 Georgia,serif;letter-spacing:-.02em;top:122px;color:#005b34}
+.st-key-card-selection button:after{content:"";position:absolute;right:-28px;top:-34px;width:96px;height:96px;border:18px solid #ef82814d;border-radius:50%;pointer-events:none}
+@media(max-width:600px){.st-key-card-selection button:before{font-size:20px;top:102px}}
 
 .personal-appointments{margin:12px 0 20px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.personal-appointments>strong{font-size:15px;color:var(--accent)}.personal-appointments dl{margin:8px 0 0;display:flex;gap:16px 32px;flex-wrap:wrap}.personal-appointments dl>div{display:flex;gap:10px;min-width:0}.personal-appointments dt{font-weight:600;flex:none}.personal-appointments dd{margin:0;overflow-wrap:anywhere;min-width:0}@media(max-width:600px){.personal-appointments dl{display:grid;grid-template-columns:1fr;gap:8px}.personal-appointments dl>div{display:grid;grid-template-columns:88px minmax(0,1fr)}}
 
-/* Personal appointments: native, high-contrast cards above participant tabs. */
-.st-key-personal-appointments{border-top:5px solid #009641!important;border-radius:10px;background:var(--soft);padding:16px!important;margin:0 0 18px}
-.st-key-personal-appointments h3{font-size:22px!important;margin:0!important;padding:0!important}
-.st-key-personal-appointments [data-testid="stText"]{font-size:24px!important;font-weight:700;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
-.st-key-personal-appointments [data-testid="stVerticalBlockBorderWrapper"]{background:var(--surface)}
-@media(max-width:600px){.st-key-personal-appointments{padding:12px!important}.st-key-personal-appointments [data-testid="stText"]{font-size:22px!important}}
+/* Compact appointment dropdown beneath the pass; readable slots when expanded. */
+.st-key-personal-appointments{margin:0 0 12px;border-left:4px solid #009641;border-radius:6px;background:var(--soft)}
+.st-key-personal-appointments [data-testid="stText"]{font-size:22px!important;font-weight:700;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}

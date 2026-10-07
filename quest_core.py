@@ -184,6 +184,7 @@ class Quest:
         self.registrations[person].update(data, blank_badge=False, identity_pending=False, identity_corrected=True)
         self.profiles.setdefault(person, {}).update({k:v for k,v in data.items() if k not in {"code", "auth_version"}})
         self.privacy_reviewed.discard(person)
+        self.appointments_reviewed.discard(person)
         self.sharing.discard(person)
         self.recap.discard(person)
         self.outbox.pop("recap:"+person, None)
@@ -225,6 +226,7 @@ class Quest:
     assignments: dict = field(default_factory=dict)
     applications: dict = field(default_factory=dict)
     privacy_reviewed: set = field(default_factory=set)
+    appointments_reviewed: set = field(default_factory=set)
     sharing: set = field(default_factory=set)
     recap: set = field(default_factory=set)
     profiles: dict = field(default_factory=dict)
@@ -324,7 +326,7 @@ class Quest:
         from copy import deepcopy
         fresh = Quest()
         for key in ("registrations", "affiliations", "annotations", "profiles",
-                    "privacy_reviewed", "sharing", "recap", "recap_deadline"):
+                    "privacy_reviewed", "appointments_reviewed", "sharing", "recap", "recap_deadline"):
             setattr(fresh, key, deepcopy(getattr(self, key)))
         fresh.reset_epoch = self.reset_epoch + 1
         self.__dict__.update(fresh.__dict__)
@@ -384,6 +386,10 @@ class Quest:
     def decline(self, recipient, sender):
         self.require_active(recipient)
         self.pending.discard((sender, recipient))
+
+    def acknowledge_appointments(self, person):
+        self.require_active(person)
+        self.appointments_reviewed.add(person)
 
     def profile(self, person):
         registration = self.roster()[person]

@@ -48,7 +48,11 @@ s.reset_epoch = q.reset_epoch
 s.quest_v2 = q
 if s.pop("reset_notice", False):
     st.success("Veranstaltungsdaten wurden zurückgesetzt. Teilnehmende müssen sich erneut anmelden.")
-logins = BrowserLogins(q)
+DEMO_ENABLED = os.environ.get("QUEST_TEST_DEMO_ACCESS") == "1"
+logins = BrowserLogins(q, allow_demo=DEMO_ENABLED)
+if s.get("demo_role_v3") == "participant" and s.get("person_v2") not in q.registrations and not DEMO_ENABLED:
+    s.clear()
+    s.skip_browser_restore = True
 cookie_writer = components.declare_component("afjd_login_cookie", path=str(Path(__file__).with_name("login_cookie")))
 
 # Wait for the browser to acknowledge cookie writes before continuing navigation.
@@ -108,12 +112,10 @@ if not s.get("recipient_v2"):
 def change_login():
     token = s.get("browser_token") or st.context.cookies.get(COOKIE_NAME)
     logins.revoke(token)
-    s.pop("browser_token", None)
+    s.clear()
     s.skip_browser_restore = True
     if isinstance(token, str) and token:
         s.cookie_write = {"token":"", "id":os.urandom(8).hex()}
-    for key in ["demo_role_v3", "person_v2", "claim_v2", "staff_person_v2", "flash_v2", "deferred_requests", "profile_saved", "validate_person", "reveal_card", "claim_from_link", "scan_notice", "scan_destination"]:
-        s.pop(key, None)
     st.rerun()
 
 if not role:
@@ -126,7 +128,7 @@ if not role:
         code = st.text_input("Persönlicher Zugangscode", type="password", placeholder="Dein Code vom Welcome Desk", help="Dein privater Zugangscode gehört zu deinem persönlichen Pass.")
         if st.form_submit_button("Anmelden", type="primary", use_container_width=True):
             try:
-                role, person = guarded_login(q, code, st.context.ip_address)
+                role, person = guarded_login(q, code, st.context.ip_address, allow_demo=DEMO_ENABLED)
                 s.demo_role_v3, s.person_v2 = role, person
                 s.staff_login = code.strip().upper() if role in {"staff", "admin"} else None
                 if role == "participant":
@@ -155,22 +157,10 @@ if role in {"staff", "admin"}:
 else:
     view = allowed_views[0]
 
-with st.sidebar:
-    st.title("Demo-Einstellungen")
-    st.caption("Nur fiktive Daten. Alle Tabs teilen dieselbe Demo. Neue Tabs in diesem Browser übernehmen die gespeicherte Anmeldung.")
-    if view != "Live-Netzwerk":
-        st.text_input("SVIAL-Empfangsadresse", key="recipient_v2")
-        st.caption("Mit aktiviertem Maildienst werden neue Gewinnanträge und Bestätigungen automatisch versendet.")
-        for token, row in DEMO_ROSTER.items():
-            st.caption(row["name"]+": "+ACTIVATION_CODES[token])
-        if st.button("Person wechseln"):
-            change_login()
-        if st.button("Abmelden / Anmeldung vergessen"):
-            change_login()
-with st.expander("Demo · Konto wechseln", expanded=False):
-    st.caption("Testwerkzeuge bleiben verfügbar. Alle Tabs teilen denselben Datenbestand. Versand richtet sich nach der Konfiguration der Administration.")
-    if st.button("Demo-Konto wechseln", key="change-demo-login"):
+with st.expander("Konto", expanded=False):
+    if st.button("Abmelden / Konto wechseln", key="change-demo-login"):
         change_login()
+
 
 def public_base_url():
     value = os.environ.get("QUEST_PUBLIC_URL")
@@ -327,6 +317,16 @@ def privacy_welcome(participant):
     with st.expander("Datenschutz · Du entscheidest", expanded=True):
         privacy_form(participant, "welcome")
 
+@st.dialog("Deine gebuchten Termine", dismissible=False)
+def appointment_welcome(participant):
+    from quest_appointments import render_appointment_details
+    st.write("Hier sind deine persönlichen Termine für den Abend.")
+    render_appointment_details(q.profile(participant))
+    st.caption("Du findest sie jederzeit unter deinem Pass im aufklappbaren Bereich „Deine Termine“.")
+    if st.button("Verstanden · zu meinem Pass", type="primary"):
+        q.acknowledge_appointments(participant)
+        st.rerun()
+
 @st.dialog("Bereit für deine Netzwerkkarte", dismissible=False)
 def reward_popup(participant):
     profile = q.profile(participant)
@@ -391,6 +391,11 @@ if role == "participant" and person and person not in q.privacy_reviewed:
     privacy_welcome(person)
     st.stop()
 
+from quest_appointments import appointment_slots
+if role == "participant" and person and person not in q.appointments_reviewed and appointment_slots(q.profile(person)):
+    appointment_welcome(person)
+    st.stop()
+
 # Public badge links identify whom to connect with, never whom to log in as.
 if role == "participant" and person and st.query_params.get("badge"):
     badge = st.query_params["badge"]
@@ -422,15 +427,30 @@ if role == "participant" and person and st.query_params.get("claim"):
         st.error(str(error))
     st.query_params.clear()
 
+def return_staff_prize(participant, card):
+    try:
+        q.return_prize(participant, card, s.staff_login, s.get("return-reason-"+card, "Anderer Gewinn gewünscht"))
+        s.pop("reveal_card", None)
+        s.prize_return_notice = "Gewinn zurückgelegt. Bitte jetzt eine neue Karte wählen."
+    except ValueError as error:
+        s.desk_error = str(error)
+
+
+def draw_staff_prize(participant):
+    try:
+        s.reveal_card = (participant, q.draw(participant, s.staff_login))
+    except ValueError as error:
+        s.desk_error = str(error)
+
 if view == "Mein Pass":
     if not person:
         st.title("Deine nächste Verbindung beginnt hier.")
         st.write("Aktiviere deinen Pass. Erfülle vier Quests. Hole deine Netzwerkkarte bei SVIAL ab.")
         with st.form("activation"):
-            code = st.text_input("Dein persönlicher Zugangscode", placeholder="DEMO-264")
-            st.caption("Teste DEMO-264. Name und E-Mail stammen aus der fiktiven Anmeldeliste.")
+            code = st.text_input("Dein persönlicher Zugangscode", placeholder="Dein Code vom Welcome Desk")
+            st.caption("Verwende deinen persönlichen Zugangscode.")
             if st.form_submit_button("Meinen Pass öffnen", type="primary", use_container_width=True):
-                p = try_action(lambda: q.activate(code))
+                p = try_action(lambda: guarded_login(q, code, st.context.ip_address, allow_demo=DEMO_ENABLED)[1])
                 if p:
                     s.person_v2 = p
                     st.rerun()
@@ -454,19 +474,20 @@ if view == "Mein Pass":
         render_appointments(profile)
         tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else s.get("scan_destination", "Mein Pass"))
         with tabs[0]:
-            with st.expander("Demo · Freischaltung testen", expanded=False):
-                st.caption("Erfülle vier Quests oder simuliere alle sechs Aufgaben. Dein bisheriger Fortschritt bleibt erhalten.")
-                four, six = st.columns(2)
-                if four.button("4 Quests erfüllen & freischalten", type="primary", use_container_width=True):
-                    q.simulate_completion(person)
-                    s.preview_unlock = person
-                    st.rerun()
-                if six.button("Alle 6 Quests erfüllen", use_container_width=True):
-                    q.simulate_completion(person, all_six=True)
-                    s.preview_unlock = person
-                    st.rerun()
-                if person in q.assignments.values():
-                    st.caption("Dir wurde bereits eine Karte zugeordnet. Diese Schaltflächen wiederholen die Feier, vergeben aber keinen weiteren Preis.")
+            if DEMO_ENABLED:
+                with st.expander("Demo · Freischaltung testen", expanded=False):
+                    st.caption("Erfülle vier Quests oder simuliere alle sechs Aufgaben. Dein bisheriger Fortschritt bleibt erhalten.")
+                    four, six = st.columns(2)
+                    if four.button("4 Quests erfüllen & freischalten", type="primary", use_container_width=True):
+                        q.simulate_completion(person)
+                        s.preview_unlock = person
+                        st.rerun()
+                    if six.button("Alle 6 Quests erfüllen", use_container_width=True):
+                        q.simulate_completion(person, all_six=True)
+                        s.preview_unlock = person
+                        st.rerun()
+                    if person in q.assignments.values():
+                        st.caption("Dir wurde bereits eine Karte zugeordnet. Diese Schaltflächen wiederholen die Feier, vergeben aber keinen weiteren Preis.")
             st.subheader("Deine Entdeckungstour")
             st.markdown(journey_html(count), unsafe_allow_html=True)
             from quest_journey import quest_map_html
@@ -505,32 +526,34 @@ if view == "Mein Pass":
                     st.rerun()
             if s.get("flash_v2"):
                 st.success(s.pop("flash_v2"))
-            with st.expander("Demo-Katalog · Standbesuch simulieren", expanded=False):
-                st.subheader("Unternehmen & Aufgaben")
-                st.caption("Aussteller gemäss deiner Liste. Wiederholte Scans speichern keine doppelten Kontakte. Personen-Quests benötigen persönliche Badges, nicht nur Stand-QRs.")
-                for stand in STATIONS:
-                    visited = stand in q.visits.get(person, set())
-                    with st.container(border=True):
-                        st.write("**"+STATIONS[stand][0]+"** · "+ORGANISATIONS[stand][0])
-                        st.caption(CLUSTER_LABELS[STATIONS[stand][1]]+" · "+STATIONS[stand][2])
-                        if st.button("✓ Besucht" if visited else "Stand-Scan simulieren", key="stand-"+stand, disabled=visited, use_container_width=True):
-                            q.scan(person, payload("station", stand))
-                            st.toast("Besuch gespeichert", icon="✅")
-                            st.rerun()
-            with st.expander("Demo · Scans simulieren", expanded=False):
-                demo = st.selectbox("Test-Station",list(STATIONS),format_func=lambda t:STATIONS[t][0])
-                if st.button("Ausgewählte Station besuchen"):
-                    q.scan(person,payload("station",demo))
-                    st.rerun()
-                imported = list(q.registrations)
-                catalogue = st.radio("Personenkatalog für den Test", ["Importierte Personen / Reserve-Badges", "Fiktive Beispielpersonen"], index=0 if imported else 1)
-                candidates = imported if catalogue == "Importierte Personen / Reserve-Badges" else list(DEMO_ROSTER)
-                other = st.selectbox("Testperson kennenlernen",[p for p in candidates if p != person],format_func=lambda p:ROSTER[p]["name"]+" · "+ROSTER[p]["id"])
-                if st.button("Badge-Scan simulieren", disabled=not other):
-                    result = record_scan(person,payload("person",other))
-                    s.flash_v2 = result[1]
-                    st.rerun()
-                st.caption("Sofort verbunden. Drei Teilnehmende ohne Firmenzuordnung erfüllen die Vernetzungsquest. Firmenvertretungen zählen für passende Fachquests.")
+            if DEMO_ENABLED:
+                with st.expander("Demo-Katalog · Standbesuch simulieren", expanded=False):
+                    st.subheader("Unternehmen & Aufgaben")
+                    st.caption("Aussteller gemäss deiner Liste. Wiederholte Scans speichern keine doppelten Kontakte. Personen-Quests benötigen persönliche Badges, nicht nur Stand-QRs.")
+                    for stand in STATIONS:
+                        visited = stand in q.visits.get(person, set())
+                        with st.container(border=True):
+                            st.write("**"+STATIONS[stand][0]+"** · "+ORGANISATIONS[stand][0])
+                            st.caption(CLUSTER_LABELS[STATIONS[stand][1]]+" · "+STATIONS[stand][2])
+                            if st.button("✓ Besucht" if visited else "Stand-Scan simulieren", key="stand-"+stand, disabled=visited, use_container_width=True):
+                                q.scan(person, payload("station", stand))
+                                st.toast("Besuch gespeichert", icon="✅")
+                                st.rerun()
+            if DEMO_ENABLED:
+                with st.expander("Demo · Scans simulieren", expanded=False):
+                    demo = st.selectbox("Test-Station",list(STATIONS),format_func=lambda t:STATIONS[t][0])
+                    if st.button("Ausgewählte Station besuchen"):
+                        q.scan(person,payload("station",demo))
+                        st.rerun()
+                    imported = list(q.registrations)
+                    catalogue = st.radio("Personenkatalog für den Test", ["Importierte Personen / Reserve-Badges", "Fiktive Beispielpersonen"], index=0 if imported else 1)
+                    candidates = imported if catalogue == "Importierte Personen / Reserve-Badges" else list(DEMO_ROSTER)
+                    other = st.selectbox("Testperson kennenlernen",[p for p in candidates if p != person],format_func=lambda p:ROSTER[p]["name"]+" · "+ROSTER[p]["id"])
+                    if st.button("Badge-Scan simulieren", disabled=not other):
+                        result = record_scan(person,payload("person",other))
+                        s.flash_v2 = result[1]
+                        st.rerun()
+                    st.caption("Sofort verbunden. Drei Teilnehmende ohne Firmenzuordnung erfüllen die Vernetzungsquest. Firmenvertretungen zählen für passende Fachquests.")
         with tabs[2]:
             st.subheader("Kontakte")
             if s.get("connection_notice"):
@@ -587,7 +610,7 @@ elif view == "SVIAL-Team":
     st.caption("Prüfe den Pass und lade deinen Gast zur Kartenziehung ein.")
     with st.expander("Preisbestand · verfügbar"):
         st.table([{"Preis":label,"Verfügbar":sum(row[2]==kind and token not in q.assignments for token,row in CARDS.items()),"Gesamt":sum(row[2]==kind for row in CARDS.values())} for kind,label in [("membership","SVIAL-Gratismitgliedschaft bis 31.12.2027"),("event","Gratis-Eintritt für einen SVIAL-Event"),("gift","Kleines Agro-Food-Geschenk"),("sfr","SFR-Preis")]])
-    eligible = sorted((p for p in q.unlocked if p in ROSTER), key=lambda p:q.profile(p)["name"])
+    eligible = sorted((p for p in q.unlocked if p in ROSTER and (DEMO_ENABLED or p in q.registrations)), key=lambda p:q.profile(p)["name"])
     if not eligible:
         st.info("Noch keine freigeschalteten Netzwerkkarten. Berechtigte Personen erscheinen hier automatisch.")
     lookup = st.selectbox("Name oder Badge-ID", eligible, index=None, key="staff-lookup-"+str(s.get("desk_generation",0)), placeholder="Name oder AFJD-ID suchen", format_func=lambda p:q.profile(p)["name"]+" · "+ROSTER[p]["id"])
@@ -596,6 +619,8 @@ elif view == "SVIAL-Team":
         if lookup in q.unlocked and lookup not in q.assignments.values() and lookup not in q.draw_approvals:
             s.validate_person = lookup
         st.rerun()
+    if s.get("desk_error"):
+        st.error(s.pop("desk_error"))
     p = s.get("staff_person_v2")
     if s.get("prize_return_notice"):
         st.success(s.pop("prize_return_notice"))
@@ -617,13 +642,8 @@ elif view == "SVIAL-Team":
                 locked = existing in q.applications or existing in q.collected or any(m.get("card") == existing for m in q.outbox.values())
                 if locked:
                     st.info("Dieser Gewinn wurde bereits bestätigt oder abgeholt. Ein Austausch ist nicht mehr möglich.")
-                if st.button("Gewinn zurücklegen", disabled=locked, key="return-prize-"+existing):
-                    try:
-                        q.return_prize(p, existing, s.staff_login, reason)
-                        s.pop("reveal_card", None)
-                        s.prize_return_notice = "Gewinn zurückgelegt. Bitte jetzt eine neue Karte wählen."
-                        st.rerun()
-                    except ValueError as error: st.error(str(error))
+                st.button("Gewinn zurücklegen", disabled=locked, key="return-prize-"+existing,
+                          on_click=return_staff_prize, args=(p, existing))
             if st.button("Gewinnkarte zeigen" if CARDS[existing][2] == "gift" else "Karte und Einlöse-QR zeigen", use_container_width=True):
                 s.reveal_card = (p, existing)
                 st.rerun()
@@ -635,18 +655,13 @@ elif view == "SVIAL-Team":
             if len(q.assignments) >= len(CARDS):
                 st.info("Alle Karten wurden gezogen.")
             else:
-                st.markdown('<style>[class*="st-key-draw-choice-"] button{background-image:url("'+logo_uri()+'")!important}</style>', unsafe_allow_html=True)
+                st.markdown('<style>.st-key-card-selection button{background-image:url("'+logo_uri()+'")!important}</style>', unsafe_allow_html=True)
                 with st.container(key="card-selection"):
                     columns = st.columns(3)
                     for index, column in enumerate(columns):
                         with column:
-                            if st.button("Karte wählen " + str(index+1).zfill(2), key="draw-choice-"+str(index), use_container_width=True):
-                                try:
-                                    card=q.draw(p, s.staff_login)
-                                    s.reveal_card=(p,card)
-                                    st.rerun()
-                                except ValueError as error:
-                                    st.error(str(error))
+                            st.button("Karte wählen " + str(index+1).zfill(2), key="draw-choice-"+str(index),
+                                      use_container_width=True, on_click=draw_staff_prize, args=(p,))
                 st.caption("Tippe auf eine Karte und entdecke deinen Gewinn. Eine Ziehung pro Person.")
     if s.get("reveal_card"):
         card_reveal(*s.reveal_card)
@@ -755,10 +770,11 @@ elif view == "Personen & Aktivitäten":
 st.divider()
 st.caption("SVIAL · Dein Netzwerk im Schweizer Agro-Food-System")
 if view != "Live-Netzwerk":
-    with st.expander("Demo-Anleitung"):
-        st.write("Beim Kontowechsel bleibt der Fortschritt erhalten. LEA-7K4M-26 für Lea, STAFF-01 für das Standteam, ADMIN-01 für die Verwaltung, SCREEN-01 für die Leinwand. Alle Tabs teilen dieselbe Demo.")
-        st.write("Dein Gewinn: Vier Quests erfüllen → Team prüft deinen Pass → Ziehung freischalten → Karte wählen → QR scannen → Angaben prüfen und bestätigen.")
-        st.write("Scanne einen anderen Badge, um den Kontakt sofort zu speichern. Eine Bestätigung ist nicht nötig. Namen sind sichtbar; das Teilen der E-Mail ist freiwillig.")
+    if DEMO_ENABLED:
+        with st.expander("Demo-Anleitung"):
+            st.write("Beim Kontowechsel bleibt der Fortschritt erhalten. LEA-7K4M-26 für Lea, STAFF-01 für das Standteam, ADMIN-01 für die Verwaltung, SCREEN-01 für die Leinwand. Alle Tabs teilen dieselbe Demo.")
+            st.write("Dein Gewinn: Vier Quests erfüllen → Team prüft deinen Pass → Ziehung freischalten → Karte wählen → QR scannen → Angaben prüfen und bestätigen.")
+            st.write("Scanne einen anderen Badge, um den Kontakt sofort zu speichern. Eine Bestätigung ist nicht nötig. Namen sind sichtbar; das Teilen der E-Mail ist freiwillig.")
 
 # This fragment checks shared state without continuously rerendering the page.
 if role and role != "screen":

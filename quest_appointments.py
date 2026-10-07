@@ -7,7 +7,7 @@ def appointment_slots(profile):
     slots=[]
     for field,label in (("cv_check","CV-Check"),("cv_photo","CV-Foto")):
         value=str(profile.get(field) or '').strip()
-        if not value:
+        if value.casefold() in {"", "nan", "nat", "none", "null", "<na>", "n/a"}:
             continue
         # Preserve the supplied slot; never invent a missing end time.
         value=re.sub(r"(\d{1,2}:\d{2}):00\b",r"\1",value)
@@ -22,16 +22,20 @@ def appointments_html(profile):
     return '<section class="personal-appointments" aria-label="Deine Termine"><strong>Deine Termine</strong><dl>'+''.join(rows)+'</dl></section>'
 
 
+def render_appointment_details(profile):
+    import streamlit as st
+    for label, value in appointment_slots(profile):
+        with st.container(border=True):
+            st.markdown("**" + label + "**")
+            st.text(value)
+    st.caption("Deine persönlichen Zeitfenster · Bitte sei pünktlich vor Ort.")
+
+
 def render_appointments(profile):
-    """Native Streamlit elements, visible without HTML definition-list rendering."""
     import streamlit as st
     slots = appointment_slots(profile)
     if not slots:
         return
-    with st.container(border=True, key="personal-appointments"):
-        st.subheader("Deine gebuchten Termine")
-        for label, value in slots:
-            with st.container(border=True):
-                st.markdown("**" + label + "**")
-                st.text(value)
-        st.caption("Deine persönlichen Zeitfenster · Bitte sei pünktlich vor Ort.")
+    with st.container(key="personal-appointments"):
+        with st.expander("Deine Termine · " + " & ".join(label for label, _ in slots), expanded=False):
+            render_appointment_details(profile)
