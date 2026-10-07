@@ -190,24 +190,12 @@ def show_qr(kind, token, caption):
     st.image(data, width=230, caption=caption)
     st.download_button("QR-Code herunterladen", data, file_name=f"{kind}-{token}.png", mime="image/png", key=f"qr-{kind}-{token}")
 
-def scanner(key, label, camera_first=False):
+def scanner(key, label):
     st.write(label)
-    mode = st.radio("Lesemethode", (["Handykamera", "Badge-ID eingeben"] if camera_first else ["Badge-ID eingeben", "Handykamera"]), horizontal=True, key=key+"mode-v4")
-    if mode == "Badge-ID eingeben":
-        with st.form(key+"form"):
-            code = st.text_input("Badge-ID oder QR-Link", placeholder="AFJD-0001", help="Öffentliche ID unter dem persönlichen QR-Code. Nicht dein privater Zugangscode. Alternativ den vollständigen QR-Link einfügen.", key=key+"text")
-            if st.form_submit_button("Code lesen", type="primary"):
-                return code
-    else:
-        camera = components.declare_component("afjd_camera_photo", path=str(Path(__file__).with_name("camera_capture")))
-        result = camera(key=key+"photo-"+str(s.get("scan_generation", 0)), default=None)
-        if isinstance(result, dict) and result.get("event") != s.get(key+"photo-event"):
-            s[key+"photo-event"] = result.get("event")
-            from quest_scan import decode_photo
-            try:
-                return decode_photo(result.get("photo"))
-            except ValueError as error:
-                st.error(str(error))
+    with st.form(key+"form"):
+        code = st.text_input("Badge-ID oder QR-Link", placeholder="AFJD-0001", help="Die öffentliche Badge-ID steht unter dem QR-Code. Nicht den privaten Zugangscode eingeben. Du kannst auch einen kopierten QR-Link einfügen.", key=key+"text")
+        if st.form_submit_button("Code lesen", type="primary"):
+            return code
     return None
 
 
@@ -508,9 +496,9 @@ if view == "Mein Pass":
         with tabs[1]:
             st.subheader("Badge oder Stand scannen")
             st.write("Scanne einen Badge oder Stand, um Kontakte zu speichern und passende Quests zu erfüllen.")
-            st.write("Wähle Handykamera und tippe auf „Handykamera öffnen“. Fotografiere den QR-Code und bestätige die Aufnahme; danach wird das Foto automatisch erkannt und deine Kontakte öffnen sich. Alternativ kannst du die öffentliche Badge-ID eingeben.")
-            st.caption("Ohne Fotoaufnahme: Öffne selbst die normale Kamera-App deines Handys, richte sie auf den QR-Code und tippe auf den erkannten Link. Öffne ihn im selben Browser, in dem du angemeldet bist.")
-            value = scanner("participant", "QR-Code erfassen", camera_first=True)
+            st.markdown("**Mit deiner Kamera-App:** Öffne die normale Kamera-App deines Handys, richte sie auf den QR-Code und tippe auf den erkannten Link. Du kehrst direkt zur App zurück, der Kontakt wird gespeichert und du kannst weiter netzwerken.")
+            st.caption("Öffne den Link im selben Browser, in dem du angemeldet bist. Du musst hier kein Foto aufnehmen oder hochladen.")
+            value = scanner("participant", "Oder gib die öffentliche Badge-ID ein:")
             if value:
                 result = try_action(lambda:record_scan(person,value))
                 if result:

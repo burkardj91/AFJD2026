@@ -50,3 +50,16 @@ with tempfile.TemporaryDirectory() as folder:
     assert len(q.completed(p))==6 and p in q.unlocked
     assert any(b.label=='Alles klar' for b in app.button)
     print('PASS: imported account can simulate all six quests with demo logins disabled')
+
+    next(b for b in app.button if b.label=='Alles klar').click().run()
+    assert 'Ab 18 Uhr · Für alle' in [t.value for t in app.text]
+    assert not any(r.label=='Lesemethode' for r in app.radio)
+    assert any(t.label=='Badge-ID oder QR-Link' for t in app.text_input)
+    before=dict(q.registrations[p])
+    q.import_registrations('ADMIN-01',[{'name':before['name'],'email':before['email'],'source_id':before['source_id'],'cv_check':'','cv_photo':'NaN'}])
+    app.run()
+    assert 'Ab 18 Uhr · Für alle' in [t.value for t in app.text]
+    assert not any(t.value=='20:00 - 20:15' for t in app.text)
+    assert any(e.label=='Deine Termine · Flying Apéro' for e in app.expander)
+    assert (q.registrations[p]['id'],q.registrations[p]['code'])==(before['id'],before['code'])
+    print('PASS: universal apéro without CV slots, no in-app camera selector, stable imported identity')

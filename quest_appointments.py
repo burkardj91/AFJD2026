@@ -28,14 +28,16 @@ def render_appointment_details(profile):
         with st.container(border=True):
             st.markdown("**" + label + "**")
             st.text(value)
-    st.caption("Deine persönlichen Zeitfenster · Bitte sei pünktlich vor Ort.")
+    if appointment_slots(profile):
+        st.caption("Deine persönlichen Zeitfenster · Bitte sei pünktlich vor Ort.")
+    with st.container(border=True):
+        st.markdown("**Flying Apéro Future Food**")
+        st.text("Ab 18 Uhr · Für alle")
 
 
 def render_appointments(profile):
     import streamlit as st
     slots = appointment_slots(profile)
-    if not slots:
-        return
     with st.container(key="personal-appointments"):
-        with st.expander("Deine Termine · " + " & ".join(label for label, _ in slots), expanded=False):
+        with st.expander("Deine Termine" + (" · " + " & ".join(label for label, _ in slots) if slots else " · Flying Apéro"), expanded=False):
             render_appointment_details(profile)
