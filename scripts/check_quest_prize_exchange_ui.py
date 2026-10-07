@@ -20,6 +20,14 @@ with tempfile.TemporaryDirectory() as folder:
             del app.session_state['cookie_write'];app.run()
         if any(b.label=='Datenschutzauswahl speichern' for b in app.button):click(app,'Datenschutzauswahl speichern')
         return app
+    member=start('AFJD-LM-264')
+    click(member,'Mitgliedschaft im Profil einlösen')
+    assert member.session_state['claim_v2']=='r-7mn4b2'
+    assert member.session_state['pass_navigation']==1
+    assert any(node.proto.tab_container.default_tab_index==3 for node in member.get('tab_container'))
+    assert any(x.label=='Postadresse (Pflicht)' for x in member.text_area)
+    assert not any(x.label=='Meine Zusammenfassung vorbereiten' for x in member.checkbox)
+    assert 'reward-reserved' in ' '.join(x.value for x in member.markdown)
     staff=start('STAFF-01')
     next(v for v in staff.selectbox if v.label=='Name oder Badge-ID').select(p).run()
     click(staff,'Pass prüfen')
@@ -35,10 +43,14 @@ with tempfile.TemporaryDirectory() as folder:
     assert not participant.exception
     next(c for c in participant.checkbox if c.label.startswith('Ich bestätige meinen Antrag')).check()
     click(participant,'Eventgewinn bestätigen')
+    from quest_reward_status import reward_status
+    assert reward_status(q,p)[0]=='redeemed'
     assert len(q.outbox)==1
     assert q.outbox['claim:r-2kh8w5']['ready']
     print('PASS: staff returns membership, redraws event, participant confirms, one unsent message with CC queued')
 
+    click(staff,'Karte schliessen')
+    assert staff.session_state['staff_person_v2']==p
     click(staff,'Fertig · nächste Person')
     from quest_core import CARDS
     for login,kind in [('AFJD-MB-310','gift'),('AFJD-SR-532','sfr')]:
@@ -52,6 +64,13 @@ with tempfile.TemporaryDirectory() as folder:
         else:
             assert 'class="claim-qr"' in markup
             assert any(x.label=='Innovationsgruppen ansehen & anmelden' for x in staff.get('link_button'))
+        click(staff,'Karte schliessen')
+        assert staff.session_state['staff_person_v2']==other
+        if kind=='gift':
+            click(staff,'Geschenk als abgeholt markieren')
+            assert card in q.collected
+            from quest_reward_status import reward_status
+            assert reward_status(q,other)[0]=='redeemed'
         click(staff,'Fertig · nächste Person')
     print('PASS: gift reveal without QR; SFR reveal with supplied QR and direct link')
 
