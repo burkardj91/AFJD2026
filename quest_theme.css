@@ -137,3 +137,9 @@ button[kind="primary"],[data-testid="stBaseButton-primary"],[data-testid="stBase
 .identity-heading>img{box-sizing:border-box;padding:4px;border:4px solid var(--line);border-radius:50%}
 .identity-heading.reward-unlocked>img{border-color:#009641}.identity-heading.reward-reserved>img{border-color:#ef8281}.identity-heading.reward-redeemed>img{border-color:#246799}
 .pass-prize-status{font-size:13px;font-weight:650;margin-top:5px;color:var(--ink)}
+
+.reward-avatar-link{display:block;flex:none;border-radius:50%;line-height:0;cursor:pointer}
+.reward-avatar-link>img{width:88px;height:88px;box-sizing:border-box;padding:4px;border:4px solid var(--line);border-radius:50%}
+.reward-unlocked .reward-avatar-link>img{border-color:#009641}.reward-reserved .reward-avatar-link>img{border-color:#ef8281}
+.reward-avatar-link:focus-visible{outline:3px solid var(--ink);outline-offset:4px}.reward-avatar-link:hover{filter:brightness(.94)}
+@media(max-width:600px){.reward-avatar-link{width:48px}.reward-avatar-link>img{width:48px;height:48px}}
