@@ -2,7 +2,7 @@ import unittest
 from io import BytesIO
 from zipfile import ZipFile
 from lxml import etree as E
-from quest_badges import badge_docx, TEMPLATE, NS, fit_badge_text
+from quest_badges import badge_docx, TEMPLATE, NS, fit_badge_text, qr_visible_top, CONTENT_TOP_TWIPS
 from quest_registration import mock_eventfrog_xlsx, read_eventfrog
 from quest_core import Quest
 
@@ -46,6 +46,19 @@ class BadgeTemplateTests(unittest.TestCase):
         self.assertEqual(xml.xpath('w:body/w:tbl/w:tblGrid/w:gridCol/@w:w',namespaces=NS),['4819','567','4819']*4)
         self.assertTrue(all(row.find('w:trPr/w:trHeight',NS).get('{'+NS['w']+'}val') == '3118' for row in trs))
         self.assertEqual(len(xml.findall('.//w:drawing',NS)),12)
+        rels=E.fromstring(archive.read('word/_rels/document.xml.rels'))
+        targets={r.get('Id'):r.get('Target') for r in rels}
+        for row_index,row in enumerate(trs):
+            for cell in row.findall('w:tc',NS)[::2]:
+                if not ''.join(cell.xpath('.//w:t/text()',namespaces=NS)).strip() and not cell.findall('.//w:drawing',NS): continue
+                top=int(cell.find('w:tcPr/w:tcMar/w:top',NS).get('{'+NS['w']+'}w'))
+                blips=cell.findall('.//a:blip',NS)
+                if blips:
+                    rid=blips[0].get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed')
+                    self.assertEqual(top+qr_visible_top(archive.read('word/'+targets[rid])),CONTENT_TOP_TWIPS)
+                else:
+                    self.assertEqual(top+round(16*4.25),CONTENT_TOP_TWIPS)
+
         self.assertFalse(xml.xpath('.//a:blip[@r:embed="rId5"]', namespaces={**NS,'r':'http://schemas.openxmlformats.org/officeDocument/2006/relationships'}))
         def texts(row,col):return ''.join(trs[row].findall('w:tc',NS)[col*2].xpath('.//w:t/text()',namespaces=NS))
         self.assertIn('Lea',texts(0,0));self.assertIn('Alex',texts(0,1))

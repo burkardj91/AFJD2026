@@ -9,6 +9,11 @@ from lxml import etree as E
 TEMPLATE = Path(__file__).with_name('assets') / 'badge-template.docx'
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+CONTENT_TOP_TWIPS = 567  # 10 mm below every label's top edge.
+QR_SIZE_EMU = 1408430
+QR_SIZE_TWIPS = QR_SIZE_EMU / 635
+INLINE_TOP_TWIPS = -4  # Word inline-image offset from the cell content reference.
+
 REL = 'http://schemas.openxmlformats.org/package/2006/relationships'
 NS = {'w':W,'a':'http://schemas.openxmlformats.org/drawingml/2006/main','wp':'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'}
 
@@ -55,12 +60,12 @@ def _node(parent, tag, **attributes):
     return E.SubElement(parent, '{'+W+'}'+tag, {'{'+W+'}'+k:str(v) for k,v in attributes.items()})
 
 
-def _cell_layout(cell):
+def _cell_layout(cell, top=0):
     props=cell.find('w:tcPr',NS)
     for child in list(props):
         if E.QName(child).localname in {'tcMar','vAlign'}: props.remove(child)
     margins=_node(props,'tcMar')
-    for side,value in [('top',142),('left',411),('right',0),('bottom',0)]:
+    for side,value in [('top',top),('left',411),('right',0),('bottom',0)]:
         _node(margins,side,w=value,type='dxa')
     _node(props,'vAlign',val='top')
     for child in list(cell):
@@ -82,10 +87,19 @@ def _paragraph(parent, lines, size, bold=False, after=0):
     return paragraph
 
 
-def fit_front_cell(cell, first, last, institution):
+def qr_visible_top(image_bytes):
+    """White quiet zone remains intact; compensate its height in the layout."""
+    from PIL import Image
+    image=Image.open(BytesIO(image_bytes)).convert('L')
+    bounds=image.point(lambda pixel:255 if pixel < 100 else 0).getbbox()
+    if bounds is None: raise ValueError("Das QR-Bild enthält keinen sichtbaren Code.")
+    return round(bounds[1] / image.height * QR_SIZE_TWIPS) + INLINE_TOP_TWIPS
+
+
+def fit_front_cell(cell, first, last, institution, qr_top):
     blocks=fit_badge_text(first,last,institution)
     first_size=next((size for lines,size in blocks if any(line.strip() for line in lines)),16)
-    text_top=round(120+(16-first_size)*4.5)
+    text_top=max(1, qr_top-round(first_size*4.25))
     anchor=deepcopy(next(a for a in cell.findall('.//wp:anchor',NS)
         if any(b.get('{'+R+'}embed')=='rId4' for b in a.findall('.//a:blip',NS))))
     inline=E.Element('{'+NS['wp']+'}inline',distT='0',distB='0',distL='0',distR='0')
@@ -95,7 +109,7 @@ def fit_front_cell(cell, first, last, institution):
     inline.find('wp:extent',NS).set('cx','1408430')
     inline.find('wp:extent',NS).set('cy','1408430')
     inline.append(deepcopy(anchor.find('a:graphic',NS)))
-    _cell_layout(cell)
+    _cell_layout(cell, top=CONTENT_TOP_TWIPS-qr_top)
     table=_node(cell,'tbl'); props=_node(table,'tblPr')
     _node(props,'tblW',w=4132,type='dxa'); _node(props,'tblLayout',type='fixed')
     _node(props,'tblInd',w=0,type='dxa')
@@ -126,7 +140,7 @@ def fit_front_cell(cell, first, last, institution):
 
 
 def fit_back_cell(cell, person):
-    _cell_layout(cell)
+    _cell_layout(cell, top=CONTENT_TOP_TWIPS-round(16*4.25))
     _paragraph(cell,['ID: '+person['id']],16,True,after=120)
     _paragraph(cell,['Zugangscode:'],12,True,after=20)
     _paragraph(cell,[person['code']],10,after=40)
@@ -237,9 +251,10 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
                         values={'Vorname':first,'Nachname':last,'Institution':person.get('affiliation','')}
                         for text in cell.findall('.//w:t',NS):
                             if text.text in values:text.text=values[text.text]
-                        fit_front_cell(cell, first, last, person.get('affiliation',''))
+                        qr_bytes=qr_encoder(base_url.rstrip('/')+'/?badge='+token)
+                        fit_front_cell(cell, first, last, person.get('affiliation',''), qr_visible_top(qr_bytes))
                         image_name=f'badge-qr-{start+index}.png';rid=f'rIdBadge{start+index}'
-                        parts['word/media/'+image_name]=qr_encoder(base_url.rstrip('/')+'/?badge='+token)
+                        parts['word/media/'+image_name]=qr_bytes
                         E.SubElement(relationships,'{'+REL+'}Relationship',Id=rid,Type=R+'/image',Target='media/'+image_name)
                         for blip in cell.findall('.//a:blip',NS):
                             if blip.get('{'+R+'}embed')=='rId4':blip.set('{'+R+'}embed',rid)
