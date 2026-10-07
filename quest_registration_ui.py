@@ -145,7 +145,7 @@ def registration_page(q, staff_id, base_url):
         if selected:
             from quest_badges import badge_docx
             mirror = st.checkbox("Rückseiten für Duplexdruck an der langen Kante spiegeln", value=True)
-            st.caption("Word-Vorlage: A4, 10 Badges pro Blatt (8,5 × 5,5 cm). Linke Spalte: 1,5–10 cm; rechte Spalte: 11–19,5 cm. Oben 1,2 cm, unten 1 cm. Ungerade Seiten sind Vorderseiten; gerade Seiten enthalten private IDs und Passwörter. Bei 100 % drucken. Zuerst ein Blatt testen.")
+            st.caption("Word-Vorlage: A4, 10 Badges pro Blatt (8,5 × 5,5 cm). Linke Spalte: 1,5–10 cm; rechte Spalte: 11–19,5 cm. Oben 1,2 cm, unten 1 cm. Text und sichtbarer QR-Code beginnen je Badge 1 cm unter der Badge-Oberkante; auf der Rückseite gilt dieselbe Referenz. Ungerade Seiten sind Vorderseiten; gerade Seiten enthalten private IDs und Passwörter. Bei 100 % drucken. Zuerst ein Blatt testen.")
             st.download_button("Badge-Vorlage · PRIVATES Word herunterladen", badge_docx(roster, selected, base_url, mirror), "AFJD-template-badges-PRIVATE.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
             badges, slips = print_documents(roster, selected, base_url)
             st.download_button("Gesamten Stapel · PRIVATES ZIP herunterladen", batch_archive(roster, selected, base_url, mirror), "AFJD-registration-batch-PRIVATE.zip", "application/zip")
