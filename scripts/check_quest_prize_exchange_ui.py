@@ -6,6 +6,7 @@ from streamlit.testing.v1 import AppTest
 from quest_store import SharedQuest
 from unittest.mock import patch
 with tempfile.TemporaryDirectory() as folder:
+    os.environ['QUEST_TEST_DEMO_ACCESS']='1'
     os.environ['QUEST_DB_PATH']=str(Path(folder)/'db')
     q=SharedQuest();p=q.demo_login('AFJD-LM-264')[1];q.simulate_completion(p);q.assign(p,'r-7mn4b2',staff=True)
     def click(app,label):
@@ -25,6 +26,7 @@ with tempfile.TemporaryDirectory() as folder:
     assert not next(b for b in staff.button if b.label=='Gewinn zurücklegen').disabled
     click(staff,'Gewinn zurücklegen')
     assert not q.assignments
+    assert len([b for b in staff.button if b.key and b.key.startswith('draw-choice-')])==3
     assert any("Gewinn zurückgelegt" in message.value for message in staff.success)
     with patch('quest_core.secrets.choice',return_value='r-2kh8w5'):
         staff.button(key='draw-choice-1').click().run()
@@ -52,3 +54,11 @@ with tempfile.TemporaryDirectory() as folder:
             assert any(x.label=='Innovationsgruppen ansehen & anmelden' for x in staff.get('link_button'))
         click(staff,'Fertig · nächste Person')
     print('PASS: gift reveal without QR; SFR reveal with supplied QR and direct link')
+
+    click(staff,'Abmelden / Konto wechseln')
+    assert not any(b.key and b.key.startswith('draw-choice-') for b in staff.button)
+    assert 'reveal_card' not in staff.session_state and 'staff_person_v2' not in staff.session_state
+    next(t for t in staff.text_input if t.label=='Persönlicher Zugangscode').input('ADMIN-01')
+    click(staff,'Anmelden')
+    assert not any(b.key and b.key.startswith('draw-choice-') for b in staff.button)
+    print('PASS: logout and admin login render no drawing cards and retain no selected person')

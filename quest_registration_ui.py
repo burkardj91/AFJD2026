@@ -55,8 +55,10 @@ def people_page(q, staff_id):
     st.title("Personen & Aktivitäten")
     st.caption("Vertrauliche Übersicht für die Administration. Pass aktiviert bedeutet in der App angemeldet – keine physische Einlasskontrolle.")
     rows = q.admin_people(staff_id)
+    if os.environ.get("QUEST_TEST_DEMO_ACCESS") != "1":
+        rows = [r for r in rows if r["Person"] in q.registrations]
     search = st.text_input("Person suchen · Name, Badge-ID oder E-Mail").strip().casefold()
-    source = st.radio("Personen anzeigen", ["Alle", "Registration", "Beispielpersonen"], horizontal=True)
+    source = st.radio("Personen anzeigen", (["Alle", "Registration", "Beispielpersonen"] if os.environ.get("QUEST_TEST_DEMO_ACCESS") == "1" else ["Alle", "Registration"]), horizontal=True)
     visible = [r for r in rows if (source == "Alle" or (r["Quelle"] == "Beispielperson") == (source == "Beispielpersonen"))
                and (not search or any(search in str(r[k]).casefold() for k in ["Name", "Badge-ID", "E-Mail"]))]
     st.dataframe([{k:v for k,v in r.items() if k != "Person"} for r in visible], hide_index=True)

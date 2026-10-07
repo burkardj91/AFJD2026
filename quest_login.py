@@ -13,8 +13,9 @@ LOGIN_SECONDS = 4 * 60 * 60
 
 
 class BrowserLogins:
-    def __init__(self, quest):
+    def __init__(self, quest, allow_demo=True):
         self.quest = quest
+        self.allow_demo = allow_demo
         with quest.connect() as db:
             db.execute("CREATE TABLE IF NOT EXISTS browser_logins_4h (digest TEXT PRIMARY KEY, person TEXT NOT NULL, expires REAL NOT NULL, epoch TEXT NOT NULL)")
 
@@ -31,6 +32,8 @@ class BrowserLogins:
         role, person = self.quest.demo_login(code)
         if role != "participant":
             raise ValueError("Nur persÃ¶nliche Teilnehmenden-ZugÃ¤nge kÃ¶nnen gespeichert werden.")
+        if not self.allow_demo and person not in self.quest.registrations:
+            raise ValueError("Demo-Zugänge sind deaktiviert. Verwende deinen Code vom Welcome Desk.")
         token = secrets.token_urlsafe(32)
         with self.quest.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -46,7 +49,8 @@ class BrowserLogins:
             row = db.execute("SELECT person, expires, epoch FROM browser_logins_4h WHERE digest = ?", (self.digest(token),)).fetchone()
             state = self.quest._load(db)
             if row and row[1] > time.time() and row[2] == self.epoch(state, row[0]) and row[0] in state.active:
-                return row[0]
+                if self.allow_demo or row[0] in state.registrations:
+                    return row[0]
         return None
 
     def revoke(self, token):
@@ -55,7 +59,7 @@ class BrowserLogins:
                 db.execute("DELETE FROM browser_logins_4h WHERE digest = ?", (self.digest(token),))
 
 
-def guarded_login(quest, code, source):
+def guarded_login(quest, code, source, allow_demo=True):
     """Limit failed guesses per browser address and initials, across sessions."""
     import re
     prefix=re.match(r"AFJD-[A-Z]{2}-",code.strip().upper())
@@ -68,6 +72,10 @@ def guarded_login(quest, code, source):
     if count>=5:
         raise ValueError("Zu viele ungültige Versuche. Bitte warte fünf Minuten oder frage am Welcome Desk nach.")
     try:
+        if not allow_demo:
+            allowed = {"ADMIN-01", "STAFF-01", "STAFF-02", "SCREEN-01"} | {r["code"] for r in quest.registrations.values()}
+            if code.strip().upper() not in allowed:
+                raise ValueError("Gib deinen gültigen persönlichen Zugangscode vom Welcome Desk ein.")
         return quest.demo_login(code)
     except ValueError:
         with quest.connect() as db: db.execute("INSERT INTO login_attempts VALUES (?,?)",(bucket,now))

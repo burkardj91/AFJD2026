@@ -43,3 +43,17 @@ class BrowserLoginTests(unittest.TestCase):
         for code in ['STAFF-01', 'SCREEN-01', 'incorrect']:
             with self.assertRaises(ValueError):
                 self.logins.issue(code)
+
+    def test_live_login_rejects_demo_and_old_demo_cookie(self):
+        from quest_login import guarded_login
+        token=self.logins.issue('AFJD-LM-264')
+        live=BrowserLogins(self.q,allow_demo=False)
+        self.assertIsNone(live.resolve(token))
+        with self.assertRaises(ValueError):live.issue('AFJD-LM-264')
+        with self.assertRaises(ValueError):guarded_login(self.q,'AFJD-LM-264','live-test',allow_demo=False)
+        for code,role in [('ADMIN-01','admin'),('STAFF-01','staff'),('STAFF-02','staff'),('SCREEN-01','screen')]:
+            self.assertEqual(guarded_login(self.q,code,'live-team',allow_demo=False)[0],role)
+        person=self.q.import_registrations('ADMIN-01',[{'name':'Real Test','email':'test@example.test'}])[0]
+        code=self.q.registrations[person]['code']
+        self.assertEqual(guarded_login(self.q,code,'live-person',allow_demo=False)[1],person)
+        self.assertEqual(live.resolve(live.issue(code)),person)
