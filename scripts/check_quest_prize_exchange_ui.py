@@ -6,9 +6,10 @@ from streamlit.testing.v1 import AppTest
 from quest_store import SharedQuest
 from unittest.mock import patch
 with tempfile.TemporaryDirectory() as folder:
-    os.environ['QUEST_TEST_DEMO_ACCESS']='1'
+    os.environ['QUEST_STAFF_PASSWORD']='isolated-staff-test-password'
     os.environ['QUEST_DB_PATH']=str(Path(folder)/'db')
-    q=SharedQuest();p=q.demo_login('AFJD-LM-264')[1];q.simulate_completion(p);q.assign(p,'r-7mn4b2',staff=True)
+    q=SharedQuest();p=q.import_registrations('ADMIN-01',[{'name':'Lea Meier','email':'lea@example.test','source_id':'test-prize'}])[0]
+    code=q.registrations[p]['code'];q.demo_login(code);q.simulate_completion(p);q.assign(p,'r-7mn4b2',staff=True)
     def click(app,label):
         next(b for b in app.button if b.label==label).click().run()
         assert not app.exception
@@ -19,8 +20,11 @@ with tempfile.TemporaryDirectory() as folder:
         if 'cookie_write' in app.session_state:
             del app.session_state['cookie_write'];app.run()
         if any(b.label=='Datenschutzauswahl speichern' for b in app.button):click(app,'Datenschutzauswahl speichern')
+        if any(t.label=='Team-Passwort' for t in app.text_input):
+            next(t for t in app.text_input if t.label=='Team-Passwort').input(os.environ['QUEST_STAFF_PASSWORD'])
+            click(app,'Arbeitsbereich öffnen')
         return app
-    member=start('AFJD-LM-264')
+    member=start(code)
     assert '?claim=r-7mn4b2' in ' '.join(x.value for x in member.markdown)
     member.query_params['claim']='r-7mn4b2';member.run()
     assert member.session_state['claim_v2']=='r-7mn4b2'
@@ -48,7 +52,7 @@ with tempfile.TemporaryDirectory() as folder:
         staff.button(key='draw-choice-1').click().run()
     assert not staff.exception and q.assignments['r-2kh8w5']==p
     assert not any(e.label=='Auf diesem Computer testen' for e in staff.expander)
-    participant=start('AFJD-LM-264');participant.query_params['claim']='r-2kh8w5';participant.run()
+    participant=start(code);participant.query_params['claim']='r-2kh8w5';participant.run()
     assert not participant.exception
     next(c for c in participant.checkbox if c.label.startswith('Ich bestätige meinen Antrag')).check()
     click(participant,'Eventgewinn bestätigen')

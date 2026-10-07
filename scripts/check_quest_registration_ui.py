@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory() as folder:
         next(t for t in app.text_input if t.label==label).input(value)
     click('Person anlegen')
     q=SharedQuest(); assert len(q.registrations)==1
-    assert len(app.get('download_button'))==5
+    assert len(app.get('download_button'))==4
     click('Person anlegen')
     assert len(q.registrations)==1 and app.error
     token=next(iter(q.registrations));before=q.registrations[token]

@@ -45,13 +45,10 @@ with tempfile.TemporaryDirectory() as folder:
     print('PASS: XLSX headers, persistent import, participant login, both appointments and re-import with saved profile')
 
     assert not os.environ.get('QUEST_TEST_DEMO_ACCESS')
-    next(b for b in app.button if b.label=='Alle 6 Quests erfüllen').click().run()
-    assert not app.exception,[e.message for e in app.exception]
-    assert len(q.completed(p))==6 and p in q.unlocked
-    assert any(b.label=='Alles klar' for b in app.button)
-    print('PASS: imported account can simulate all six quests with demo logins disabled')
+    assert not any('simulieren' in b.label.lower() for b in app.button)
+    assert not any('Test ·' in e.label or 'Demo' in e.label for e in app.expander)
+    print('PASS: participant interface has no simulation controls')
 
-    next(b for b in app.button if b.label=='Alles klar').click().run()
     assert 'Ab 18 Uhr · Für alle' in [t.value for t in app.text]
     assert not any(r.label=='Lesemethode' for r in app.radio)
     assert any(t.label=='Badge-ID oder QR-Link' for t in app.text_input)

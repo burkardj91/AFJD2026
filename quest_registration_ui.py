@@ -17,8 +17,6 @@ def admin_password(setting="QUEST_ADMIN_PASSWORD"):
 def protect_staff(q, role="admin"):
     setting = "QUEST_ADMIN_PASSWORD" if role == "admin" else "QUEST_STAFF_PASSWORD"
     password = admin_password(setting)
-    if role == "staff" and not password and not q.registrations:
-        return
     def return_to_login():
         if st.button("Zurück zur Anmeldung", key="protected-return-login"):
             for key in ("demo_role_v3", "person_v2", "staff_login", "registration_admin"):
@@ -55,12 +53,9 @@ def people_page(q, staff_id):
     st.title("Personen & Aktivitäten")
     st.caption("Vertrauliche Übersicht für die Administration. Pass aktiviert bedeutet in der App angemeldet – keine physische Einlasskontrolle.")
     rows = q.admin_people(staff_id)
-    if os.environ.get("QUEST_TEST_DEMO_ACCESS") != "1":
-        rows = [r for r in rows if r["Person"] in q.registrations]
+    rows = [r for r in rows if r["Person"] in q.registrations]
     search = st.text_input("Person suchen · Name, Badge-ID oder E-Mail").strip().casefold()
-    source = st.radio("Personen anzeigen", (["Alle", "Registration", "Beispielpersonen"] if os.environ.get("QUEST_TEST_DEMO_ACCESS") == "1" else ["Alle", "Registration"]), horizontal=True)
-    visible = [r for r in rows if (source == "Alle" or (r["Quelle"] == "Beispielperson") == (source == "Beispielpersonen"))
-               and (not search or any(search in str(r[k]).casefold() for k in ["Name", "Badge-ID", "E-Mail"]))]
+    visible = [r for r in rows if not search or any(search in str(r[k]).casefold() for k in ["Name", "Badge-ID", "E-Mail"])]
     st.dataframe([{k:v for k,v in r.items() if k != "Person"} for r in visible], hide_index=True)
     st.caption("Zugangscodes bleiben bei Namens- oder Institutionsänderungen erhalten. Korrekturen und Zuordnungen findest du unter Registration; dort liegt auch der gesamte Badge-Export.")
     selected = st.selectbox("Aktivität einer Person", [r["Person"] for r in visible], index=None,
@@ -80,15 +75,12 @@ def people_page(q, staff_id):
 def registration_page(q, staff_id, base_url):
     st.title("Registration")
     st.caption("Eventfrog-Import · Nachmeldungen · Badge-Druck")
-    st.warning("Demo: Verwende fiktive Daten, bis dauerhafte Speicherung und geschützte Team-Zugänge eingerichtet sind.")
     if len(admin_password()) < 16:
         st.info('Hinterlege QUEST_ADMIN_PASSWORD (mindestens 16 Zeichen) in Streamlit Secrets oder der Serverumgebung und melde dich erneut an. Das schützt Verwaltung, Importe und private Zugangszettel.')
         return
     upload_tab, print_tab, correct_tab = st.tabs(["Excel importieren", "Badges & Reserve", "Badge korrigieren"])
     with upload_tab:
         st.write("Die Spaltenüberschriften dürfen unter dem Eventfrog-Titel und den Hinweisen stehen. Gespeichert werden Name, E-Mail, Ticketreferenz sowie optional Annotation und die private Postadresse aus „Strasse / Nr.“, „PLZ“ und „Ort“. Die Adresse wird nur für die Mitgliedschaft vorausgefüllt und nicht mit Netzwerkkontakten geteilt. Die Spalte „Annotation“ bestimmt den Text auf dem Badge und die automatische Quest-Zuordnung. Eine zusätzliche Institution-Spalte ist nicht nötig. Mit der optionalen Spalte „Namensschild leer“ (ja) bleibt das Namensfeld vorne leer. Mehrere Tickets mit gleichem Namen erhalten ab dem zweiten Ticket automatisch einen Platzhalter; unterschiedliche Ticket-IDs sind dafür erforderlich. Zeilen mit nur Annotation (z. B. SVIAL) erzeugen leere Namensbadges mit ID, QR-Code und Zugangscode. Eine Zeile entspricht einem Badge. Name und E-Mail später unter Badge korrigieren anhand der ID ergänzen. Ohne Ticket-ID/ID werden solche Zeilen je Annotation durchnummeriert; derselbe Import aktualisiert dieselben Plätze. Für zusätzliche getrennte Chargen eigene eindeutige Werte in der Spalte ID verwenden. Die optionalen Spalten „CV-Check“ und „CV-Foto“ erscheinen als private Termine auf dem persönlichen Pass, wenn sie ausgefüllt sind (z. B. 18:00 - 18:15). Sie werden nicht mit Kontakten geteilt. Andere Spalten werden ignoriert.")
-        from quest_registration import mock_eventfrog_xlsx
-        st.download_button("Eventfrog-Testdatei · 10 Personen herunterladen", mock_eventfrog_xlsx(), "AFJD-fictional-sample.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         uploaded = st.file_uploader("Eventfrog-Export (.xlsx)", type=["xlsx"])
         if uploaded:
             try:

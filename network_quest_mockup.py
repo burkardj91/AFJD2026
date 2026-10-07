@@ -48,7 +48,7 @@ s.reset_epoch = q.reset_epoch
 s.quest_v2 = q
 if s.pop("reset_notice", False):
     st.success("Veranstaltungsdaten wurden zurückgesetzt. Teilnehmende müssen sich erneut anmelden.")
-DEMO_ENABLED = os.environ.get("QUEST_TEST_DEMO_ACCESS") == "1"
+DEMO_ENABLED = False  # Public app accepts imported registrations and team accounts only.
 logins = BrowserLogins(q, allow_demo=DEMO_ENABLED)
 if s.get("demo_role_v3") == "participant" and s.get("person_v2") not in q.registrations and not DEMO_ENABLED:
     s.clear()
@@ -244,7 +244,7 @@ def member_form(p, card):
                 st.error(str(e))
         return
     st.subheader("Prüfe deine Angaben")
-    st.caption("Mit deiner Anmeldung verknüpft. Verwende für die Demo fiktive Angaben.")
+    st.caption("Mit deiner Anmeldung verknüpft. Bitte prüfe deine Angaben vor dem Absenden.")
     saved = q.profile(p)
     with st.form("membership"):
         st.text_input("Vollständiger Name", value=saved["name"], disabled=True)
@@ -265,8 +265,6 @@ def member_form(p, card):
             from quest_membership import MEMBERSHIP_NOTE
             st.write(MEMBERSHIP_NOTE)
             st.caption("Nach der Anmeldung erhältst du eine Bestätigung per E-Mail. Deine Angaben werden an svial@svial.ch übermittelt.")
-        if email_config.get("mode", "test") == "test":
-            st.caption("Versandtest: Nachrichten werden an "+str(email_config.get("test_recipient", "j.burkard@svial.ch"))+" umgeleitet.")
         consent = st.checkbox("Ich bestätige meinen Antrag und stimme der Übermittlung dieser Angaben an SVIAL sowie einer Kopie an meine E-Mail-Adresse zur Bearbeitung zu.")
         if st.form_submit_button("Eventgewinn bestätigen" if CARDS[card][2] == "event" else "Anmeldung absenden", type="primary"):
             try:
@@ -477,14 +475,6 @@ if view == "Mein Pass":
         render_appointments(profile)
         tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], key="pass-tabs-"+person+"-"+str(s.get("pass_navigation",0)), default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else s.get("scan_destination", "Mein Pass"))
         with tabs[0]:
-            with st.expander("Test · Alle Quests simulieren", expanded=False):
-                st.caption("Vorübergehend zum Testen: Speichert simulierte Kontakte und Quest-Fortschritte für dieses Konto und schaltet die Netzwerkkarte frei.")
-                if st.button("Alle 6 Quests erfüllen", use_container_width=True):
-                    q.simulate_completion(person, all_six=True)
-                    s.preview_unlock = person
-                    st.rerun()
-                if person in q.assignments.values():
-                    st.caption("Ein bestehender Gewinn bleibt erhalten. Für eine neue Ziehung muss das Standteam ihn zuerst zurücklegen.")
             st.subheader("Deine Entdeckungstour")
             st.markdown(journey_html(count), unsafe_allow_html=True)
             from quest_journey import quest_map_html
@@ -523,34 +513,6 @@ if view == "Mein Pass":
                     st.rerun()
             if s.get("flash_v2"):
                 st.success(s.pop("flash_v2"))
-            if DEMO_ENABLED:
-                with st.expander("Demo-Katalog · Standbesuch simulieren", expanded=False):
-                    st.subheader("Unternehmen & Aufgaben")
-                    st.caption("Aussteller gemäss deiner Liste. Wiederholte Scans speichern keine doppelten Kontakte. Personen-Quests benötigen persönliche Badges, nicht nur Stand-QRs.")
-                    for stand in STATIONS:
-                        visited = stand in q.visits.get(person, set())
-                        with st.container(border=True):
-                            st.write("**"+STATIONS[stand][0]+"** · "+ORGANISATIONS[stand][0])
-                            st.caption(CLUSTER_LABELS[STATIONS[stand][1]]+" · "+STATIONS[stand][2])
-                            if st.button("✓ Besucht" if visited else "Stand-Scan simulieren", key="stand-"+stand, disabled=visited, use_container_width=True):
-                                q.scan(person, payload("station", stand))
-                                st.toast("Besuch gespeichert", icon="✅")
-                                st.rerun()
-            if DEMO_ENABLED:
-                with st.expander("Demo · Scans simulieren", expanded=False):
-                    demo = st.selectbox("Test-Station",list(STATIONS),format_func=lambda t:STATIONS[t][0])
-                    if st.button("Ausgewählte Station besuchen"):
-                        q.scan(person,payload("station",demo))
-                        st.rerun()
-                    imported = list(q.registrations)
-                    catalogue = st.radio("Personenkatalog für den Test", ["Importierte Personen / Reserve-Badges", "Fiktive Beispielpersonen"], index=0 if imported else 1)
-                    candidates = imported if catalogue == "Importierte Personen / Reserve-Badges" else list(DEMO_ROSTER)
-                    other = st.selectbox("Testperson kennenlernen",[p for p in candidates if p != person],format_func=lambda p:ROSTER[p]["name"]+" · "+ROSTER[p]["id"])
-                    if st.button("Badge-Scan simulieren", disabled=not other):
-                        result = record_scan(person,payload("person",other))
-                        s.flash_v2 = result[1]
-                        st.rerun()
-                    st.caption("Sofort verbunden. Drei Teilnehmende ohne Firmenzuordnung erfüllen die Vernetzungsquest. Firmenvertretungen zählen für passende Fachquests.")
         with tabs[2]:
             st.subheader("Kontakte")
             if s.get("connection_notice"):
@@ -575,7 +537,7 @@ if view == "Mein Pass":
                 st.subheader("Deine SVIAL-Gratismitgliedschaft")
                 member_form(person, claim_card)
             st.subheader("Dein Profil")
-            st.caption("Deine Anmeldedaten sind vorausgefüllt. Gespeicherte Angaben werden auch für einen Mitgliedschaftsantrag übernommen. Verwende fiktive Daten; geänderte E-Mail-Adressen werden in der Demo nicht verifiziert.")
+            st.caption("Deine Anmeldedaten sind vorausgefüllt. Gespeicherte Angaben werden auch für einen Mitgliedschaftsantrag übernommen. Bitte prüfe, ob deine E-Mail-Adresse korrekt ist.")
             with st.form("profile-"+person):
                 details = {}
                 details["name"] = st.text_input("Dein vollständiger Name", value=profile["name"])
@@ -665,7 +627,7 @@ elif view == "SVIAL-Team":
             st.caption(application["status"])
             draft = try_action(lambda:email_draft(q,card,s.recipient_v2.strip()))
             if draft:
-                st.download_button("E-Mail-Entwurf herunterladen",draft,file_name=CARDS[card][0]+"-rehearsal.eml",mime="message/rfc822",key="email-"+card)
+                st.download_button("E-Mail-Entwurf herunterladen",draft,file_name=CARDS[card][0]+"-anmeldung.eml",mime="message/rfc822",key="email-"+card)
     with st.expander("Ausstellerliste · Organisation"):
         st.table([{"ID":ORGANISATIONS[t][0],"Firma":ORGANISATIONS[t][1],"Gruppe":CLUSTER_LABELS[ORGANISATIONS[t][2]],"Bemerkungen":note} for t,note in EXHIBITOR_NOTES.items()])
 elif view == "Veranstaltung verwalten":
@@ -694,7 +656,7 @@ elif view == "Veranstaltung verwalten":
             st.caption(mail["status"])
             st.download_button("Herunterladen: "+{"recap":"Zusammenfassung","claim":"Antrag","confirmation":"Gewinnbestätigung"}.get(mail["kind"],mail["kind"])+" · "+q.profile(mail["person"])["name"],mail["draft"],file_name=key.replace(":","-")+".eml",mime="message/rfc822",key="queue-"+key)
     with st.expander("Hauptverlosung · Countdown"):
-        st.caption("Gleiche Chance pro berechtigter Person. Gewinner:innen erscheinen nur mit Badge-ID. Dies ist eine fiktive Testverlosung.")
+        st.caption("Gleiche Chance pro berechtigter Person. Gewinner:innen erscheinen nur mit Badge-ID.")
         with st.form("schedule-raffle"):
             event_day=st.date_input("Datum der Verlosung", value=datetime.now(ZoneInfo("Europe/Zurich")).date())
             event_time=st.time_input("Uhrzeit der Verlosung · Europe/Zurich", value=time(19,30))
@@ -722,8 +684,8 @@ elif view == "Veranstaltung verwalten":
                     st.rerun()
                 except ValueError as error: st.error(str(error))
     with st.expander("Administration · Alle Importe samt Aktivitäten löschen"):
-        st.warning("Löscht alle importierten Personen, Nachmeldungen und Reserve-Badges samt persönlichen Zugangscodes, QR-Zuordnungen, Profilen und sämtlichen Teilnehmeraktivitäten – auch die der Beispielpersonen. Karten, Anträge, Warteschlange und Verlosung werden zurückgesetzt. Der Zusammenfassungszeitpunkt wird auf den 8. Oktober 2026 um 21 Uhr zurückgesetzt.")
-        st.caption("Alte persönliche Zugangscodes und QR-Codes der gelöschten Personen funktionieren danach nicht mehr. Team-Zugänge und Secrets (Passwörter, Mailkonfiguration) bleiben erhalten. Beispielpersonen bleiben zum Testen verfügbar. Bereits versendete E-Mails und heruntergeladene Druckdateien werden nicht zurückgerufen. Ein bereits laufender Mailversand kann noch abgeschlossen werden.")
+        st.warning("Löscht alle importierten Personen, Nachmeldungen und Reserve-Badges samt persönlichen Zugangscodes, QR-Zuordnungen, Profilen und sämtlichen Teilnehmeraktivitäten. Karten, Anträge, Warteschlange und Verlosung werden zurückgesetzt. Der Zusammenfassungszeitpunkt wird auf den 8. Oktober 2026 um 21 Uhr zurückgesetzt.")
+        st.caption("Alte persönliche Zugangscodes und QR-Codes der gelöschten Personen funktionieren danach nicht mehr. Team-Zugänge und Secrets (Passwörter, Mailkonfiguration) bleiben erhalten. Bereits versendete E-Mails und heruntergeladene Druckdateien werden nicht zurückgerufen. Ein bereits laufender Mailversand kann noch abgeschlossen werden.")
         with st.form("reset-imports"):
             confirmation = st.text_input("Zum Löschen IMPORTE LÖSCHEN eingeben")
             if st.form_submit_button("Importe und Veranstaltungsdaten löschen"):
@@ -736,23 +698,17 @@ elif view == "Live-Netzwerk":
     st.markdown('<style>.block-container{max-width:none!important;padding:8px 16px 0!important}.masthead{display:none}h1{font-size:24px!important}[data-testid="stIFrame"]{height:calc(100dvh - 220px)!important;min-height:480px;width:100%!important}</style>', unsafe_allow_html=True)
     st.title("Unser gemeinsames Netzwerk")
     show_companies = st.toggle("Einzelne Unternehmen zeigen", value=False)
-    crowd_preview = st.toggle("Layout-Vorschau mit 100 fiktiven Personen", value=False)
     presentation = components.declare_component("afjd_screen", path=str(Path(__file__).with_name("screen_presentation")))
     @st.fragment(run_every=3)
     def live_presentation():
         q.maintenance()
         screen_state = q.snapshot()
         graph, totals = screen_state.public_network(), screen_state.public_counts()
-        if crowd_preview:
-            graph = {**graph, "people":100, "connections":[(i,(i+7)%100) for i in range(100)],
-                     "visits":[(i,i%len(graph["organisations"])) for i in range(100)]}
-            totals = {"passes":100,"people":100,"visits":100,"unlocked":40}
-            st.caption("Nur Layout-Vorschau. Die fiktiven Zahlen verändern keine Veranstaltungsdaten.")
         presentation(html=network_html(graph, totals, show_companies=show_companies),
                      draw=screen_state.public_raffle(), epoch=screen_state.reset_epoch, server_now=datetime.now(timezone.utc).timestamp(),
                      key="live-presentation", default=None)
     live_presentation()
-    st.caption("Anonyme Verbindungen aus dieser Demo. Aktualisiert sich automatisch über alle Tabs.")
+    st.caption("Anonyme Verbindungen dieser Veranstaltung. Aktualisiert sich automatisch.")
 
 elif view == "Personen & Aktivitäten":
     from quest_registration_ui import people_page
@@ -760,13 +716,6 @@ elif view == "Personen & Aktivitäten":
 
 st.divider()
 st.caption("SVIAL · Dein Netzwerk im Schweizer Agro-Food-System")
-if view != "Live-Netzwerk":
-    if DEMO_ENABLED:
-        with st.expander("Demo-Anleitung"):
-            st.write("Beim Kontowechsel bleibt der Fortschritt erhalten. LEA-7K4M-26 für Lea, STAFF-01 für das Standteam, ADMIN-01 für die Verwaltung, SCREEN-01 für die Leinwand. Alle Tabs teilen dieselbe Demo.")
-            st.write("Dein Gewinn: Vier Quests erfüllen → Team prüft deinen Pass → Ziehung freischalten → Karte wählen → QR scannen → Angaben prüfen und bestätigen.")
-            st.write("Scanne einen anderen Badge, um den Kontakt sofort zu speichern. Eine Bestätigung ist nicht nötig. Namen sind sichtbar; das Teilen der E-Mail ist freiwillig.")
-
 # This fragment checks shared state without continuously rerendering the page.
 if role and role != "screen":
     s.shared_revision = q.viewer_revision(person if role == "participant" else None)
