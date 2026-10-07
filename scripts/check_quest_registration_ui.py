@@ -32,6 +32,7 @@ with tempfile.TemporaryDirectory() as folder:
     for label,value in [('Tatsächlicher Vorname','Sara'),('Tatsächlicher Nachname','Rossi'),('Persönliche E-Mail','sara@example.test')]:
         next(t for t in app.text_input if t.label==label).input(value)
     next(x for x in app.selectbox if x.key=='badge-annotation-'+token).select('Mentoring')
+    assert not any(c.label=='Neuen kurzen Zugangscode erstellen' for c in app.checkbox)
     click('Badge aktualisieren')
     assert q.profile(token)['name']=='Sara Rossi'
     assert q.registrations[token]['annotation']=='Mentoring'

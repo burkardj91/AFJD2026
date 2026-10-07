@@ -169,11 +169,10 @@ def registration_page(q, staff_id, base_url):
                 annotation = institution_select("Annotation · Badge und Quest-Zuordnung", current_annotation, key="badge-annotation-"+person)
                 affiliation = annotation
                 st.caption("Die Annotation erscheint auf dem Badge. Hinterlegte Unternehmen werden automatisch ihrer Gruppe zugeordnet; Mentoring zählt für die Mentoring-Quest.")
-                renew_code=st.checkbox("Neuen kurzen Zugangscode erstellen", value=False, help="Format AFJD-LM-482. Der alte Zugangscode und gespeicherte Anmeldungen werden ungültig. QR-Code und Badge-ID bleiben gleich.")
                 if st.form_submit_button("Badge aktualisieren"):
                     try:
-                        q.correct_registration(staff_id, person, first, last, email, affiliation, renew_code=renew_code, annotation=annotation)
-                        st.success("Gespeichert. ID und QR-Code bleiben unverändert.")
+                        q.correct_registration(staff_id, person, first, last, email, affiliation, annotation=annotation)
+                        st.success("Gespeichert. Badge-ID, QR-Code und Zugangscode bleiben unverändert.")
                         st.code(q.registrations[person]["code"], language=None)
                     except ValueError as error: st.error(str(error))
 
