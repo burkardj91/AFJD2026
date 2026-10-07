@@ -25,7 +25,7 @@ class EventOperationsTests(unittest.TestCase):
         self.assertEqual(q.registrations[ids[1]]['name'],'Lea Meier 2')
         xml=E.fromstring(ZipFile(BytesIO(badge_docx(q.registrations,ids,'https://afjd2026.streamlit.app'))).read('word/document.xml'))
         cells=xml.findall('.//w:tr',NS)[0].findall('w:tc',NS)
-        self.assertNotIn('Lea',''.join(cells[1].xpath('.//w:t/text()',namespaces=NS)))
+        self.assertNotIn('Lea',''.join(cells[2].xpath('.//w:t/text()',namespaces=NS)))
         self.assertIn('Lea Meier 2',''.join(xml.xpath('.//w:t/text()',namespaces=NS)))
         old=(b['id'],b['code'])
         q.correct_registration('ADMIN-01',ids[1],'Sara','Rossi','sara@example.test','Coop')
