@@ -367,8 +367,6 @@ def card_reveal(participant, card):
         st.link_button("Innovationsgruppen ansehen & anmelden", SFR_URL)
     elif kind != "gift":
         st.caption("Scanne den QR-Code mit deinem Handy und bestätige deinen Gewinn mit deinem eigenen Zugang.")
-        with st.expander("Auf diesem Computer testen"):
-            st.code(claim_link(card), language=None)
     if st.button("Karte schliessen", type="primary", use_container_width=True):
         s.pop("reveal_card", None)
         st.rerun()
@@ -400,6 +398,11 @@ if role == "participant" and person and st.query_params.get("station"):
         record_scan(person, payload("station", st.query_params["station"]))
     except ValueError as error:
         st.error(str(error))
+    st.query_params.clear()
+
+if role == "participant" and person and st.query_params.get("invitation"):
+    if person in q.unlocked and person not in q.assignments.values():
+        s.preview_unlock = person
     st.query_params.clear()
 
 # A claim link never bypasses the logged-in participant's ownership check.
@@ -465,10 +468,11 @@ if view == "Mein Pass":
             reward_popup(person)
         elif person in q.unlocked and person not in s.get("unlock_seen", set()) and person not in q.assignments.values():
             reward_popup(person)
-        from quest_reward_status import reward_status
+        from quest_reward_status import reward_status, reward_avatar_html
         prize_state, prize_label, prize_card = reward_status(q, person)
+        avatar = reward_avatar_html(prize_state, prize_card, animal_image(STAGES[min(count,4)][2]), STAGES[min(count,4)][0])
         personal_qr = base64.b64encode(branded_qr(public_base_url()+"/?badge="+person)).decode("ascii")
-        st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading reward-{prize_state}"><img src="{animal_image(STAGES[min(count,4)][2])}" alt="{STAGES[min(count,4)][0]}"><div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong><div class="pass-prize-status">{escape(prize_label)}</div></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{escape(prize_label)}</span></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="pass"><img class="personal-badge-qr" src="data:image/png;base64,{personal_qr}" alt="Mein persönlicher QR-Code mit SVIAL-Logo"><div class="eyebrow">Dein persönlicher Netzwerkpass</div><div class="identity-heading reward-{prize_state}">{avatar}<div><div class="name">{escape(profile["name"])}</div><strong class="animal-rank">{STAGES[min(count,4)][0]}</strong><div class="pass-prize-status">{escape(prize_label)}</div></div></div><div class="meta">{profile["id"]} · Agro-Food Job Dating</div><div class="rule"></div><div class="bottom"><span>{STAGES[min(count,4)][0]}</span><span>{escape(prize_label)}</span></div></div>', unsafe_allow_html=True)
         from quest_appointments import render_appointments
         render_appointments(profile)
         tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], key="pass-tabs-"+person+"-"+str(s.get("pass_navigation",0)), default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else s.get("scan_destination", "Mein Pass"))
