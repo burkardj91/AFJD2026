@@ -474,20 +474,14 @@ if view == "Mein Pass":
         render_appointments(profile)
         tabs = st.tabs(["Mein Pass", "Scan", "Kontakte", "Profil"], default="Profil" if s.get("claim_v2") in q.assignments and q.assignments[s.claim_v2] == person and CARDS[s.claim_v2][2] == "membership" else s.get("scan_destination", "Mein Pass"))
         with tabs[0]:
-            if DEMO_ENABLED:
-                with st.expander("Demo · Freischaltung testen", expanded=False):
-                    st.caption("Erfülle vier Quests oder simuliere alle sechs Aufgaben. Dein bisheriger Fortschritt bleibt erhalten.")
-                    four, six = st.columns(2)
-                    if four.button("4 Quests erfüllen & freischalten", type="primary", use_container_width=True):
-                        q.simulate_completion(person)
-                        s.preview_unlock = person
-                        st.rerun()
-                    if six.button("Alle 6 Quests erfüllen", use_container_width=True):
-                        q.simulate_completion(person, all_six=True)
-                        s.preview_unlock = person
-                        st.rerun()
-                    if person in q.assignments.values():
-                        st.caption("Dir wurde bereits eine Karte zugeordnet. Diese Schaltflächen wiederholen die Feier, vergeben aber keinen weiteren Preis.")
+            with st.expander("Test · Alle Quests simulieren", expanded=False):
+                st.caption("Vorübergehend zum Testen: Speichert simulierte Kontakte und Quest-Fortschritte für dieses Konto und schaltet die Netzwerkkarte frei.")
+                if st.button("Alle 6 Quests erfüllen", use_container_width=True):
+                    q.simulate_completion(person, all_six=True)
+                    s.preview_unlock = person
+                    st.rerun()
+                if person in q.assignments.values():
+                    st.caption("Ein bestehender Gewinn bleibt erhalten. Für eine neue Ziehung muss das Standteam ihn zuerst zurücklegen.")
             st.subheader("Deine Entdeckungstour")
             st.markdown(journey_html(count), unsafe_allow_html=True)
             from quest_journey import quest_map_html
