@@ -169,33 +169,36 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
     with ZipFile(TEMPLATE) as source:
         parts = {name:source.read(name) for name in source.namelist()}
     root = E.fromstring(parts['word/document.xml'])
-    # Word requires a paragraph after the table; keep it within the 2 mm remainder.
+    # Keep the required trailing paragraph to one twip so the exact A4 grid fits.
     for paragraph in root.findall('w:body/w:p',NS):
         for child in list(paragraph):paragraph.remove(child)
         properties=E.SubElement(paragraph,'{'+W+'}pPr')
         spacing=E.SubElement(properties,'{'+W+'}spacing')
-        for key,value in {'before':'0','after':'0','line':'20','lineRule':'exact'}.items():spacing.set('{'+W+'}'+key,value)
+        for key,value in {'before':'0','after':'0','line':'1','lineRule':'exact'}.items():spacing.set('{'+W+'}'+key,value)
     relationships = E.fromstring(parts['word/_rels/document.xml.rels'])
     table = root.find('.//w:body/w:tbl',NS)
-    # A4: 20 mm side margins; 2 x 85 mm labels, 5 x 55 mm rows.
-    # 10 mm top margin leaves 12 mm below the 275 mm grid.
+    # A4: badges at x=15..100 mm and 110..195 mm; 10 mm centre gutter.
+    # Five 55 mm rows start at y=12 mm and end at 287 mm (10 mm bottom).
     margins = root.find('.//w:sectPr/w:pgMar',NS)
-    for side,value in {'top':567,'bottom':567,'left':1134,'right':1134}.items():
+    for side,value in {'top':680,'bottom':567,'left':850,'right':850}.items():
         margins.set('{'+W+'}'+side,str(value))
-    table.find('w:tblPr/w:tblW',NS).set('{'+W+'}w','9638')
+    table.find('w:tblPr/w:tblW',NS).set('{'+W+'}w','10205')
     position = table.find('w:tblPr/w:tblpPr',NS)
     table.find('w:tblPr',NS).remove(position)
     table.find('w:tblPr/w:tblLayout',NS).set('{'+W+'}type','fixed')
     grid = table.find('w:tblGrid',NS)
     for column in list(grid):grid.remove(column)
-    for _ in range(2):E.SubElement(grid,'{'+W+'}gridCol').set('{'+W+'}w','4819')
+    for width in (4819,567,4819):E.SubElement(grid,'{'+W+'}gridCol').set('{'+W+'}w',str(width))
     for row in table.findall('w:tr',NS):
-        row.remove(row.findall('w:tc',NS)[1])  # No gap between the two columns.
         row.find('w:trPr/w:trHeight',NS).set('{'+W+'}val','3118')
         row.find('w:trPr/w:trHeight',NS).set('{'+W+'}hRule','exact')
         _node(row.find('w:trPr',NS),'cantSplit')
-        for cell in row.findall('w:tc',NS):
-            cell.find('w:tcPr/w:tcW',NS).set('{'+W+'}w','4819')
+        for index,cell in enumerate(row.findall('w:tc',NS)):
+            cell.find('w:tcPr/w:tcW',NS).set('{'+W+'}w','567' if index==1 else '4819')
+            if index==1:
+                _cell_layout(cell)
+                for margin in cell.findall('w:tcPr/w:tcMar/*',NS): margin.set('{'+W+'}w','0')
+                _paragraph(cell,[''],1)
     prototypes = [deepcopy(row) for row in table.findall('w:tr',NS)]
     for row in table.findall('w:tr',NS): table.remove(row)
     for start in range(0,len(people),10):
@@ -203,7 +206,7 @@ def badge_docx(roster, people, base_url, mirror_backs=True, qr_encoder=qr_image)
         for back in (False, True):
             for row_index in range(5):
                 row = deepcopy(prototypes[row_index + (5 if back else 0)])
-                for col,cell in enumerate(row.findall('w:tc',NS)):
+                for col,cell in enumerate(row.findall('w:tc',NS)[::2]):
                     index = row_index*2 + ((1-col) if back and mirror_backs else col)
                     if index >= len(batch):
                         for child in list(cell):
