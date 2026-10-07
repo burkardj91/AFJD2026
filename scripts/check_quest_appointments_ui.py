@@ -43,3 +43,10 @@ with tempfile.TemporaryDirectory() as folder:
     assert '18:00 - 18:15' not in [t.value for t in app.text]
     assert SharedQuest().profile(p)['cv_check']=='20:00 - 20:15'
     print('PASS: XLSX headers, persistent import, participant login, both appointments and re-import with saved profile')
+
+    assert not os.environ.get('QUEST_TEST_DEMO_ACCESS')
+    next(b for b in app.button if b.label=='Alle 6 Quests erfüllen').click().run()
+    assert not app.exception,[e.message for e in app.exception]
+    assert len(q.completed(p))==6 and p in q.unlocked
+    assert any(b.label=='Alles klar' for b in app.button)
+    print('PASS: imported account can simulate all six quests with demo logins disabled')
