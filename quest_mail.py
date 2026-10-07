@@ -91,28 +91,30 @@ def send_once(draft, config, db_path, staff_id, *, force_test=False, delivery_sc
 def mail_admin(q, staff_id):
     import streamlit as st
     from quest_core import recap_draft
-    with st.expander("E-Mail-Versand · Test & Freigabe"):
+    with st.expander("E-Mail-Versand · Betriebsstatus"):
         try: config = dict(st.secrets.get("email", {}))
         except FileNotFoundError: config = {}
         mode = config.get("mode", "test")
-        test_recipient = config.get("test_recipient", "j.burkard@svial.ch")
-        st.caption("Testmodus: alle Nachrichten gehen ausschliesslich an die Testadresse. Im Live-Modus erhält jede Person ihre eigene Kontakt-Mail; test_recipient wird dafür ignoriert. Einzeltests erfolgen per Klick. Geplante Zusammenfassungen werden automatisch versendet, solange der Server läuft und auto_send nicht deaktiviert ist.")
-        st.write("Modus: **" + ("Live" if mode == "live" else "Test") + "** · Testadresse: " + str(test_recipient))
-        if not config.get("enabled"):
-            st.info("Versand ist deaktiviert. Hinterlege [email] in Streamlit Secrets und setze enabled = true.")
-        if st.button("SMTP-Testmail senden", disabled=not config.get("enabled", False)):
-            msg = EmailMessage()
-            msg["To"] = test_recipient
-            msg["Subject"] = "AFJD 2026 · Versandtest"
-            msg.set_content("Liebes SVIAL-Team,\n\ndiese Testmail bestätigt die SMTP-Anbindung der AFJD-App.\n\nBeste Grüsse\ndein SVIAL-Team")
-            try: st.success(send_once(msg.as_bytes(), config, q.path, staff_id, force_test=True, delivery_scope="smtp-test"))
-            except ValueError as error: st.error(str(error))
-        eligible = sorted(q.active & q.recap, key=lambda p:q.profile(p)["name"])
-        person = st.selectbox("Kontakt-Mail testen oder versenden", eligible, index=None,
+        if mode != "live":
+            st.warning('Live-Versand ist nicht freigegeben. In Streamlit Secrets unter [email] mode = "live" setzen. Bis dahin gilt weiterhin die konfigurierte Testumleitung.')
+        else:
+            st.success("Live-Modus: Nachrichten gehen an die gespeicherten Empfängeradressen.")
+        if config.get("enabled") is not True:
+            st.warning("Versand deaktiviert: [email] enabled = true ist erforderlich.")
+        if config.get("auto_send", True) is not True:
+            st.warning("Automatischer Versand deaktiviert: [email] auto_send = true ist erforderlich.")
+        missing = [key for key in ("sender", "username", "password", "smtp_server") if not config.get(key)]
+        if missing:
+            st.warning("Mailkonfiguration unvollständig. Fehlende Felder: " + ", ".join(missing))
+        if str(config.get("smtp_port", 587)) not in {"465", "587"}:
+            st.warning("smtp_port muss 465 (SSL) oder 587 (STARTTLS) sein.")
+        st.caption("Geplante Zusammenfassungen benötigen einen laufenden Maildienst. Termin und Versandstatus stehen unter Zeitplan & E-Mail-Warteschlange. Eine erfolgreiche Übergabe an den Mailserver bestätigt noch nicht die Zustellung.")
+        eligible = sorted(q.active & q.recap & set(q.registrations), key=lambda p:q.profile(p)["name"])
+        person = st.selectbox("Kontakt-Mail einzeln versenden", eligible, index=None,
                               format_func=lambda p:q.profile(p)["name"]+" · "+q.profile(p)["email"],
                               placeholder="Person mit Zustimmung zur Zusammenfassung auswählen")
         if person:
-            st.caption("Empfänger: " + (str(test_recipient) if mode != "live" else q.profile(person)["email"]))
-            if st.button("Kontakt-Mail senden" if mode == "live" else "Kontakt-Mail als Test senden", disabled=not config.get("enabled", False)):
+            st.caption("Empfänger: " + q.profile(person)["email"])
+            if st.button("Kontakt-Mail senden", disabled=mode != "live" or config.get("enabled") is not True):
                 try: st.success(send_once(recap_draft(q,person), config, q.path, staff_id, delivery_scope="recap:"+person))
                 except ValueError as error: st.error(str(error))
