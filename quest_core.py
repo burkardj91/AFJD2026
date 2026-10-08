@@ -304,7 +304,9 @@ class Quest:
             if self.registrations.get(person, {}).get("identity_pending"):
                 continue
             key="recap:"+person
-            self.outbox.setdefault(key,{"kind":"recap","person":person,"status":"Wartet auf geplanten Versand","draft":recap_draft(self,person).decode("utf-8")})
+            if key in self.outbox:
+                continue
+            self.outbox[key] = {"kind":"recap","person":person,"status":"Wartet auf geplanten Versand","draft":recap_draft(self,person).decode("utf-8")}
 
     def reset_demo(self, staff_id, confirmation, keep_profiles=True):
         if staff_id != "ADMIN-01":

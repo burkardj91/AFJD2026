@@ -57,3 +57,21 @@ class BrowserLoginTests(unittest.TestCase):
         code=self.q.registrations[person]['code']
         self.assertEqual(guarded_login(self.q,code,'live-person',allow_demo=False)[1],person)
         self.assertEqual(live.resolve(live.issue(code)),person)
+
+    def test_parallel_invalid_logins_enforce_shared_five_attempt_limit(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        from quest_login import guarded_login
+        barrier = Barrier(20)
+        def attempt(_):
+            barrier.wait()
+            try:
+                guarded_login(SharedQuest(self.q.path), "INVALID", "same-event-wifi", allow_demo=False)
+            except ValueError as error:
+                return str(error)
+            self.fail("Invalid credential accepted")
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            results = list(pool.map(attempt, range(20)))
+        self.assertEqual(sum("Zu viele" in result for result in results), 15)
+        with self.q.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM login_attempts").fetchone()[0], 5)

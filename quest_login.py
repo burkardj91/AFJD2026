@@ -65,18 +65,29 @@ def guarded_login(quest, code, source, allow_demo=True):
     prefix=re.match(r"AFJD-[A-Z]{2}-",code.strip().upper())
     bucket=hashlib.sha256((str(source or "unknown")+":"+(prefix.group() if prefix else "other")).encode()).hexdigest()
     now=time.time()
+    error = None
     with quest.connect() as db:
+        # Check and record failed attempts under the same cross-process lock.
+        # Otherwise concurrent requests can all observe fewer than five failures.
+        db.execute("BEGIN IMMEDIATE")
         db.execute("CREATE TABLE IF NOT EXISTS login_attempts (bucket TEXT, created REAL)")
-        db.execute("DELETE FROM login_attempts WHERE created < ?",(now-300,))
-        count=db.execute("SELECT COUNT(*) FROM login_attempts WHERE bucket=?",(bucket,)).fetchone()[0]
-    if count>=5:
-        raise ValueError("Zu viele ungültige Versuche. Bitte warte fünf Minuten oder frage am Welcome Desk nach.")
-    try:
-        if not allow_demo:
-            allowed = {"ADMIN-01", "STAFF-01", "STAFF-02", "SCREEN-01"} | {r["code"] for r in quest.registrations.values()}
-            if code.strip().upper() not in allowed:
-                raise ValueError("Gib deinen gültigen persönlichen Zugangscode vom Welcome Desk ein.")
-        return quest.demo_login(code)
-    except ValueError:
-        with quest.connect() as db: db.execute("INSERT INTO login_attempts VALUES (?,?)",(bucket,now))
-        raise
+        db.execute("DELETE FROM login_attempts WHERE created < ?", (now-300,))
+        count = db.execute("SELECT COUNT(*) FROM login_attempts WHERE bucket=?", (bucket,)).fetchone()[0]
+        if count >= 5:
+            error = "Zu viele ungültige Versuche. Bitte warte fünf Minuten oder frage am Welcome Desk nach."
+        else:
+            state = quest._load(db)
+            try:
+                if not allow_demo:
+                    allowed = {"ADMIN-01", "STAFF-01", "STAFF-02", "SCREEN-01"} | {r["code"] for r in state.registrations.values()}
+                    if code.strip().upper() not in allowed:
+                        raise ValueError("Gib deinen gültigen persönlichen Zugangscode vom Welcome Desk ein.")
+                # Validate on the detached state; activate through SharedQuest only
+                # after this transaction is closed, avoiding nested write locks.
+                state.demo_login(code)
+            except ValueError as failure:
+                error = str(failure)
+                db.execute("INSERT INTO login_attempts VALUES (?,?)", (bucket, now))
+    if error:
+        raise ValueError(error)
+    return quest.demo_login(code)

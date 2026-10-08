@@ -71,3 +71,16 @@ class EventOperationsTests(unittest.TestCase):
             other.queue_due_recaps();other.set_preferences(p,True,False)
             with patch('quest_mail_worker.send_once') as send:
                 dispatch_due(other,{'enabled':True});send.assert_not_called()
+
+    def test_existing_recaps_are_not_regenerated_on_every_mutation(self):
+        seed=Quest();seed.recap_deadline='2020-10-08T21:00:00+02:00'
+        p=seed.demo_login('LEA-7K4M-26')[1];seed.set_preferences(p,True,True)
+        seed.queue_due_recaps()
+        original=seed.outbox['recap:'+p]['draft']
+        with patch('quest_core.recap_draft',side_effect=AssertionError('Queued draft regenerated')):
+            seed.queue_due_recaps()
+        self.assertEqual(seed.outbox['recap:'+p]['draft'], original)
+        # Claiming still refreshes current consent/contact details at dispatch.
+        with patch('quest_core.recap_draft',return_value=b'fresh-at-dispatch') as render:
+            self.assertEqual(seed.claim_recap_delivery('recap:'+p),'fresh-at-dispatch')
+            render.assert_called_once()
