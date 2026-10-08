@@ -6,12 +6,18 @@ from concurrent.futures import ThreadPoolExecutor
 from tempfile import TemporaryDirectory
 from time import perf_counter
 import json
+import argparse
 from quest_store import SharedQuest
 from quest_core import Quest, payload
 
 
 def main():
-    count = 100
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--clients", type=int, default=100)
+    args = parser.parse_args()
+    count = args.clients
+    if not 2 <= count <= 138:
+        parser.error("clients must be between 2 and the 138 available prizes")
     state = Quest()
     people = state.import_registrations("ADMIN-01", [
         {"name":f"Load Person {i}", "email":f"load{i}@example.test", "source_id":f"load:{i}"}
@@ -45,7 +51,7 @@ def main():
         assert len(set(saved.assignments.values())) == count, "Duplicate winner assignment"
         assert len(saved.draw_log) == count, "Duplicate draw"
         print(json.dumps({"clients":count,"errors":0,"elapsed_seconds":round(elapsed,2),
-            "client_p95_seconds":round(durations[94],2),"client_max_seconds":round(durations[-1],2),
+            "client_p95_seconds":round(durations[min(count-1, int(count*.95))],2),"client_max_seconds":round(durations[-1],2),
             "scope":"local SQLite storage only; not Streamlit Cloud/browser capacity"},indent=2))
 
 
