@@ -87,7 +87,7 @@ with tempfile.TemporaryDirectory() as folder:
         click(staff,'Fertig · nächste Person')
     print('PASS: gift reveal without QR; SFR reveal with supplied QR and direct link')
 
-    click(staff,'Abmelden / Konto wechseln')
+    click(staff,'Abmelden')
     assert not any(b.key and b.key.startswith('draw-choice-') for b in staff.button)
     assert 'reveal_card' not in staff.session_state and 'staff_person_v2' not in staff.session_state
     next(t for t in staff.text_input if t.label=='Persönlicher Zugangscode').input('ADMIN-01')

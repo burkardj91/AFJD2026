@@ -43,14 +43,14 @@ with tempfile.TemporaryDirectory() as folder:
     next(t for t in app.text_input if t.label=='Dein vollständiger Name').input('Lea Test')
     click('Mein Profil speichern')
     assert state.profile(person)['name']=='Lea Test'
-    click('Abmelden / Konto wechseln')
+    click('Abmelden')
     app.query_params['claim']=card
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('DEMO-137')
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('ALEX-9P2R-26')
     click('Anmelden')
     assert app.error and 'zuzuordnen' in app.error[0].value
     assert 'claim_v2' not in app.session_state
-    click('Abmelden / Konto wechseln')
+    click('Abmelden')
     next(t for t in app.text_input if t.label=='Persönlicher Zugangscode').input('SCREEN-01')
     click('Anmelden')
     visible=' '.join(m.value for m in app.markdown)

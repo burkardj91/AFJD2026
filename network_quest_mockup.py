@@ -96,19 +96,6 @@ if not s.get("demo_role_v3") and not s.get("skip_browser_restore"):
         s.demo_role_v3, s.person_v2 = "participant", remembered
         s.browser_token = token
         st.rerun()
-# Display preferences stay with this browser session.
-with st.container(key="display-controls"):
-    with st.popover("Aa · Anzeige"):
-        st.radio("Hintergrund", ["Weiss", "Schwarz"], key="appearance_theme")
-        st.select_slider("Schriftgrösse", options=["Standard", "Gross", "Sehr gross"], key="appearance_size")
-scale = {"Standard":1, "Gross":1.15, "Sehr gross":1.3}[s.appearance_size]
-dark = s.appearance_theme == "Schwarz"
-st.markdown(f"<style>:root{{--surface:{'#141715' if dark else '#ffffff'};--canvas:{'#080a09' if dark else '#f4f5f6'};--ink:{'#f0f3f1' if dark else '#202b27'};--muted:{'#bcc8c0' if dark else '#58675e'};--line:{'#39443d' if dark else '#dce3de'};--soft:{'#1a3023' if dark else '#f0f8f3'};--accent:{'#72d998' if dark else '#006b2d'};--text-scale:{scale}}}</style>", unsafe_allow_html=True)
-person = s.get("person_v2")
-role = s.get("demo_role_v3")
-if not s.get("recipient_v2"):
-    s.recipient_v2 = "svial@svial.ch"
-
 def change_login():
     token = s.get("browser_token") or st.context.cookies.get(COOKIE_NAME)
     logins.revoke(token)
@@ -117,6 +104,22 @@ def change_login():
     if isinstance(token, str) and token:
         s.cookie_write = {"token":"", "id":os.urandom(8).hex()}
     st.rerun()
+
+# Display preferences stay with this browser session.
+with st.container(key="display-controls", horizontal=True, horizontal_alignment="right", vertical_alignment="center", gap="small"):
+    with st.popover("Aa · Anzeige"):
+        st.radio("Hintergrund", ["Weiss", "Schwarz"], key="appearance_theme")
+        st.select_slider("Schriftgrösse", options=["Standard", "Gross", "Sehr gross"], key="appearance_size")
+    if s.get("demo_role_v3"):
+        if st.button("Abmelden", icon=":material/logout:", key="change-demo-login", help="Von diesem Gerät abmelden"):
+            change_login()
+scale = {"Standard":1, "Gross":1.15, "Sehr gross":1.3}[s.appearance_size]
+dark = s.appearance_theme == "Schwarz"
+st.markdown(f"<style>:root{{--surface:{'#141715' if dark else '#ffffff'};--canvas:{'#080a09' if dark else '#f4f5f6'};--ink:{'#f0f3f1' if dark else '#202b27'};--muted:{'#bcc8c0' if dark else '#58675e'};--line:{'#39443d' if dark else '#dce3de'};--soft:{'#1a3023' if dark else '#f0f8f3'};--accent:{'#72d998' if dark else '#006b2d'};--text-scale:{scale}}}</style>", unsafe_allow_html=True)
+person = s.get("person_v2")
+role = s.get("demo_role_v3")
+if not s.get("recipient_v2"):
+    s.recipient_v2 = "svial@svial.ch"
 
 if not role:
     if st.query_params.get("badge"):
@@ -157,9 +160,6 @@ if role in {"staff", "admin"}:
 else:
     view = allowed_views[0]
 
-with st.expander("Konto", expanded=False):
-    if st.button("Abmelden / Konto wechseln", key="change-demo-login"):
-        change_login()
 
 
 def public_base_url():
