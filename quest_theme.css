@@ -3,7 +3,8 @@
 .block-container{max-width:880px;padding:22px 28px 90px;background:#fff;min-height:100vh}
 h1,h2,h3{font-family:inherit!important;letter-spacing:normal!important;color:var(--ink);font-weight:650!important}
 h1{font-size:28px!important;line-height:1.25!important}h2{font-size:22px!important}h3{font-size:18px!important}
-p{line-height:1.5}header[data-testid=stHeader]{background:transparent}[data-testid=stToolbar],#MainMenu,footer{display:none}
+p{line-height:1.5}/* The hidden Streamlit header must not cover the custom top-bar hit targets. */
+header[data-testid=stHeader]{display:none!important}[data-testid=stToolbar],#MainMenu,footer{display:none}
 [data-testid=stSidebar]{background:#f4f5f6}
 .masthead{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:16px;gap:16px}
 .brand-logo{width:65px;height:52px;object-fit:contain;display:block}.event-label{display:flex;flex-direction:column;text-align:right;gap:3px;font-size:14px}.event-label strong{font-weight:650}.event-label span{font-size:12px;color:var(--muted)}
