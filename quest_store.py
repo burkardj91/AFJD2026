@@ -43,6 +43,8 @@ class SharedQuest:
         # while keeping this storage module imported. Never retain its old class.
         self.model = import_module("quest_core").Quest
         self.path = str(path or os.environ.get("QUEST_DATABASE_URL") or os.environ.get("QUEST_DB_PATH") or Path(__file__).with_name(".localdata") / "quest_demo.sqlite3")
+        self._read_lock = threading.RLock()
+        self._viewer_cache = {}
         self._cached_revision = None
         self._cached_state = None
         with _initialization_lock:
@@ -64,22 +66,28 @@ class SharedQuest:
     def connect(self):
         return connect(self.path)
 
-    def snapshot(self):
-        """A detached, consistent view. Never expose the cached mutable model."""
-        with self.connect() as db:
+    def _read_state(self):
+        """Internal immutable-by-convention view; never return it to callers."""
+        with self._read_lock, self.connect() as db:
             revision = db.execute("SELECT revision FROM event WHERE id=1").fetchone()[0]
             if revision != self._cached_revision:
-                # Fetch revision with body to avoid tagging a newer body with an
-                # older revision when another client commits between reads.
                 body, revision = db.execute("SELECT body, revision FROM event WHERE id=1").fetchone()
                 self._cached_state = self._decode(body)
                 self._cached_revision = revision
-        return deepcopy(self._cached_state)
+                self._viewer_cache.clear()
+            return self._cached_state
+
+    def snapshot(self):
+        """A detached, consistent view. Never expose the cached mutable model."""
+        return deepcopy(self._read_state())
 
     def viewer_revision(self, person=None):
         if not person:
             return str(self.revision())
-        state = self.snapshot()
+        state = self._read_state()
+        cached = self._viewer_cache.get(person)
+        if cached and cached[0] is state:
+            return cached[1]
         contacts = state.people(person)
         cards = {c for c,p in state.assignments.items() if p == person}
         value = [state.reset_epoch, state.profile(person), state.completed(person),
@@ -88,12 +96,15 @@ class SharedQuest:
                  person in state.unlocked, state.draw_approvals.get(person),
                  state.visits.get(person), state.company_contacts.get(person),
                  {c:state.applications.get(c) for c in cards}, cards,
-                 state.registrations.get(person)]
-        return hashlib.sha256(json.dumps(encode(value),sort_keys=True).encode()).hexdigest()
+                 state.registrations.get(person), person in state.appointments_reviewed,
+                 {c:state.collected.get(c) for c in cards}, state.recap_deadline]
+        fingerprint = hashlib.sha256(json.dumps(encode(value),sort_keys=True).encode()).hexdigest()
+        self._viewer_cache[person] = (state, fingerprint)
+        return fingerprint
 
     def maintenance(self):
         """Cheap no-op before deadlines; mutating methods recheck under lock."""
-        state = self.snapshot()
+        state = self._read_state()
         now = datetime.now(timezone.utc)
         if state.raffle.get("status") == "scheduled" and now >= datetime.fromisoformat(state.raffle["deadline"]):
             self.resolve_raffle()
@@ -137,12 +148,12 @@ class SharedQuest:
 
     def __getattr__(self, name):
         if name in {f.name for f in fields(self.model)}:
-            return getattr(self.snapshot(), name)
+            return deepcopy(getattr(self._read_state(), name))
         if not hasattr(self.model, name):
             raise AttributeError(name)
         def call(*args, **kwargs):
             if name not in self.MUTATIONS:
-                return getattr(self.snapshot(),name)(*args,**kwargs)
+                return deepcopy(getattr(self._read_state(),name)(*args,**kwargs))
             with self.connect() as db:
                 if name in self.MUTATIONS:
                     db.execute("BEGIN IMMEDIATE")

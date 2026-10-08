@@ -717,7 +717,7 @@ elif view == "Personen & Aktivitäten":
 st.divider()
 st.caption("SVIAL · Dein Netzwerk im Schweizer Agro-Food-System")
 # This fragment checks shared state without continuously rerendering the page.
-if role and role != "screen":
+if role and role != "screen" and view != "Registration":
     s.shared_revision = q.viewer_revision(person if role == "participant" else None)
 
     @st.fragment(run_every=10)
