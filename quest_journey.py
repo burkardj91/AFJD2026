@@ -5,9 +5,9 @@ from html import escape
 STAGES = [
     ("Curious chick", "Jede Verbindung beginnt mit einem Hallo.", "chick"),
     ("Busy bee", "Deine erste Quest ist geschafft.", "bee"),
-    ("Exploring rabbit", "Neue Perspektiven eröffnen sich.", "rabbit"),
+    ("Exploring rabbit", "Deine Netzwerkkarte ist freigeschaltet.", "rabbit"),
     ("Connected fox", "Noch eine Quest bis zum Gipfel.", "fox"),
-    ("Alpine goat", "Gipfel erreicht. Deine Netzwerkkarte wartet auf dich.", "goat"),
+    ("Alpine goat", "Gipfel erreicht. Dein Netzwerk wächst weiter.", "goat"),
 ]
 
 def quest_map_html(challenges, descriptions, completed):
@@ -20,7 +20,7 @@ def quest_map_html(challenges, descriptions, completed):
     for i, quest in enumerate(challenges):
         done = quest in completed
         cards.append('<li class="quest-stop '+('is-complete' if done else '')+'"><span class="quest-stop-icon" aria-hidden="true">'+('✓' if done else icons[i % len(icons)])+'</span><div><span class="quest-stop-state">'+('Geschafft' if done else 'Noch entdecken')+'</span><h3>'+escape(titles.get(quest, quest))+'</h3><p>'+escape(descriptions[quest])+'</p></div></li>')
-    return '<section class="quest-map" aria-label="Deine Quests"><p class="quest-map-hint">Dein Weg, deine Reihenfolge. Vier verschiedene Quests öffnen deine Belohnung.</p><ol class="quest-trail">'+''.join(cards)+'</ol></section>'
+    return '<section class="quest-map" aria-label="Deine Quests"><p class="quest-map-hint">Dein Weg, deine Reihenfolge. Zwei verschiedene Quests öffnen deine Belohnung.</p><ol class="quest-trail">'+''.join(cards)+'</ol></section>'
 
 def animal_image(kind):
     shapes = {
@@ -38,7 +38,7 @@ def journey_html(count):
     index = min(max(count, 0), 4)
     title, description, animal = STAGES[index]
     steps = ''.join('<div class="journey-step '+('reached' if i <= index else '')+'" '+('aria-current="step"' if i == index else '')+'><img src="'+animal_image(a)+'" alt="'+escape(t)+'"><span>'+escape(t)+'</span></div>' for i,(t,_,a) in enumerate(STAGES))
-    return '<section class="journey"><div class="journey-intro"><img src="'+animal_image(animal)+'" alt="'+title+' – Illustration"><div><span class="card-kicker">DEINE AGRO-FOOD-REISE</span><h2>'+title+'</h2><p>'+description+'</p></div></div><div class="journey-trail" aria-label="Fünf Stufen; jede erfüllte Quest führt eine Stufe weiter">'+steps+'</div><p class="journey-help">'+('Besuche den SVIAL-Stand für deine Kartenziehung. Entdecke danach gerne die übrigen Quests.' if index == 4 else 'Jede neue Quest führt zum nächsten Tier. Mit vier verschiedenen Quests erreichst du Alpine goat und schaltest deine Karte frei.')+'</p></section>'
+    return '<section class="journey"><div class="journey-intro"><img src="'+animal_image(animal)+'" alt="'+title+' – Illustration"><div><span class="card-kicker">DEINE AGRO-FOOD-REISE</span><h2>'+title+'</h2><p>'+description+'</p></div></div><div class="journey-trail" aria-label="Fünf Stufen; jede erfüllte Quest führt eine Stufe weiter">'+steps+'</div><p class="journey-help">'+('Besuche den SVIAL-Stand für deine Kartenziehung. Entdecke danach gerne die übrigen Quests.' if count >= 2 else 'Jede neue Quest führt zum nächsten Tier. Schon mit zwei verschiedenen Quests schaltest du deine Karte frei.')+'</p></section>'
 
 def celebration_html(title, subtitle, animal=False):
     pieces = ''.join('<i style="--x:'+str((i*29)%100)+'%;--delay:'+str((i%7)*.09)+'s;--turn:'+str(i*37)+'deg;background:'+('#009641' if i%2 else '#ef8281')+'"></i>' for i in range(30))

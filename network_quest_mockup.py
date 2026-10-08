@@ -145,7 +145,7 @@ if not role:
                 st.error(str(error))
     st.caption("Du bleibst auf diesem Gerät automatisch vier Stunden angemeldet. Bewahre deinen privaten Zugangscode sicher auf.")
     with st.expander("So funktioniert die Netzwerk-Quest"):
-        st.markdown("1. **Anmelden:** Gib deinen privaten Code vom Welcome Desk ein.\n2. **Vernetzen:** Scanne Badges und Stände, sammle Kontakte und erfülle Quests.\n3. **Gewinnen:** Nach vier erfüllten Quests wartet deine Netzwerkkarte am SVIAL-Stand auf dich.")
+        st.markdown("1. **Anmelden:** Gib deinen privaten Code vom Welcome Desk ein.\n2. **Vernetzen:** Scanne Badges und Stände, sammle Kontakte und erfülle Quests.\n3. **Gewinnen:** Nach zwei erfüllten Quests wartet deine Netzwerkkarte am SVIAL-Stand auf dich.")
         st.caption("Dein Name und deine Institution sind für deine Kontakte sichtbar. Über die Freigabe deiner E-Mail-Adresse entscheidest du beim ersten Einstieg.")
     st.stop()
 
@@ -283,7 +283,7 @@ def record_scan(participant, value):
         label=q.profile(token)["name"]+(" · "+ORGANISATIONS[company][1] if company else "")
         result=(result[0],"Gescannt: "+label+". "+result[1])
     if kind != "reward":
-        s.scan_notice={"message":result[1],"quests":sorted(newly),"remaining":max(0,4-len(q.completed(participant)))}
+        s.scan_notice={"message":result[1],"quests":sorted(newly),"remaining":max(0,2-len(q.completed(participant)))}
         s.scan_destination = "Kontakte"
         s.scan_generation = s.get("scan_generation", 0) + 1
     return result
@@ -316,8 +316,8 @@ def appointment_welcome(participant):
 @st.dialog("Bereit für deine Netzwerkkarte", dismissible=False)
 def reward_popup(participant):
     profile = q.profile(participant)
-    st.markdown(celebration_html("Du hast den Gipfel erreicht!", "Deine Netzwerkkarte ist freigeschaltet. Feiere mit uns am SVIAL-Stand.", animal=True), unsafe_allow_html=True)
-    st.markdown('<div class="invitation"><img src="'+logo_uri()+'" alt="SVIAL ASIAT"><div class="card-kicker">NETZWERK-QUEST · 2026</div><h2>Deine nächste Verbindung<br>beginnt bei SVIAL.</h2><p>'+escape(profile["name"])+', du hast die Herausforderung geschafft.</p><div class="invitation-footer"><span>4 Quests geschafft</span><b>✓ Bestätigt</b></div></div>', unsafe_allow_html=True)
+    st.markdown(celebration_html("Deine Netzwerkkarte ist freigeschaltet!", "Zwei Quests geschafft. Feiere mit uns am SVIAL-Stand."), unsafe_allow_html=True)
+    st.markdown('<div class="invitation"><img src="'+logo_uri()+'" alt="SVIAL ASIAT"><div class="card-kicker">NETZWERK-QUEST · 2026</div><h2>Deine nächste Verbindung<br>beginnt bei SVIAL.</h2><p>'+escape(profile["name"])+', du hast die Herausforderung geschafft.</p><div class="invitation-footer"><span>2 Quests geschafft</span><b>✓ Bestätigt</b></div></div>', unsafe_allow_html=True)
     st.write("Besuche den SVIAL-Stand und zeige deinen Pass. Das Team prüft deinen Namen und schaltet die Kartenziehung frei.")
     if st.button("Alles klar", type="primary", use_container_width=True):
         s.pop("preview_unlock", None)
@@ -443,7 +443,7 @@ def draw_staff_prize(participant):
 if view == "Mein Pass":
     if not person:
         st.title("Deine nächste Verbindung beginnt hier.")
-        st.write("Aktiviere deinen Pass. Erfülle vier Quests. Hole deine Netzwerkkarte bei SVIAL ab.")
+        st.write("Aktiviere deinen Pass. Erfülle zwei Quests. Hole deine Netzwerkkarte bei SVIAL ab.")
         with st.form("activation"):
             code = st.text_input("Dein persönlicher Zugangscode", placeholder="Dein Code vom Welcome Desk")
             st.caption("Verwende deinen persönlichen Zugangscode.")
@@ -496,7 +496,7 @@ if view == "Mein Pass":
                     s.setdefault("unlock_seen", set()).discard(person)
                     st.rerun()
             else:
-                st.markdown(f'<div class="reward-preview"><span class="reward-overline">Die SVIAL-Netzwerkkarte</span><h2>Lerne Menschen kennen.<br>Entdecke neue Möglichkeiten.</h2><p>Erfülle vier verschiedene Quests und sichere dir einen Preis am SVIAL-Stand.</p><div class="reward-steps"><div class="reward-step"><b>01 · Entdecken</b>{STAGES[min(count,4)][0]} · du bist unterwegs</div><div class="reward-step"><b>02 · SVIAL besuchen</b>Zeige deinen persönlichen Badge</div><div class="reward-step"><b>03 · Karte ziehen</b>Entdecke deinen Gewinn und löse ihn ein</div></div></div>',unsafe_allow_html=True)
+                st.markdown(f'<div class="reward-preview"><span class="reward-overline">Die SVIAL-Netzwerkkarte</span><h2>Lerne Menschen kennen.<br>Entdecke neue Möglichkeiten.</h2><p>Erfülle zwei verschiedene Quests und sichere dir einen Preis am SVIAL-Stand.</p><div class="reward-steps"><div class="reward-step"><b>01 · Entdecken</b>{STAGES[min(count,4)][0]} · du bist unterwegs</div><div class="reward-step"><b>02 · SVIAL besuchen</b>Zeige deinen persönlichen Badge</div><div class="reward-step"><b>03 · Karte ziehen</b>Entdecke deinen Gewinn und löse ihn ein</div></div></div>',unsafe_allow_html=True)
 
         with tabs[1]:
             st.subheader("Badge oder Stand scannen")
@@ -599,7 +599,7 @@ elif view == "SVIAL-Team":
                 s.reveal_card = (p, existing)
                 st.rerun()
         elif p not in q.unlocked:
-            st.info(q.profile(p)["name"]+f" · {len(q.completed(p))} von 4 Quests geschafft. Die Ziehung ist noch nicht verfügbar.")
+            st.info(q.profile(p)["name"]+f" · {len(q.completed(p))} von 2 Quests geschafft. Die Ziehung ist noch nicht verfügbar.")
         elif p in q.draw_approvals:
             st.subheader("Wähle deine Netzwerkkarte")
             st.caption(q.profile(p)["name"]+" · Dein Pass wurde geprüft.")
@@ -717,7 +717,7 @@ elif view == "Personen & Aktivitäten":
 st.divider()
 st.caption("SVIAL · Dein Netzwerk im Schweizer Agro-Food-System")
 # This fragment checks shared state without continuously rerendering the page.
-if role and role != "screen":
+if role and role != "screen" and view != "Registration":
     s.shared_revision = q.viewer_revision(person if role == "participant" else None)
 
     @st.fragment(run_every=10)

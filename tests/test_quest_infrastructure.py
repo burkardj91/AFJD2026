@@ -49,3 +49,24 @@ class InfrastructureTests(unittest.TestCase):
         connection.execute.assert_called_with("SELECT pg_advisory_xact_lock(20261008)")
         db.execute("CREATE TABLE token (expires REAL)")
         connection.execute.assert_called_with("CREATE TABLE token (expires DOUBLE PRECISION)", ())
+
+    def test_projected_reads_cannot_mutate_cached_nested_data(self):
+        with tempfile.TemporaryDirectory() as folder:
+            q=SharedQuest(Path(folder)/"db")
+            p=q.import_registrations("ADMIN-01",[{"name":"Read Test","email":"read@example.test","source_id":"read"}])[0]
+            original=q.registrations[p]["name"]
+            q.registrations[p]["name"]="changed outside database"
+            q.roster()[p]["name"]="changed roster"
+            q.profile(p)["name"]="changed profile"
+            self.assertEqual(q.registrations[p]["name"], original)
+            self.assertEqual(SharedQuest(q.path).profile(p)["name"], original)
+
+    def test_viewer_fingerprint_is_reused_until_revision_changes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            q=SharedQuest(Path(folder)/"db");other=SharedQuest(q.path)
+            p=q.activate("DEMO-264")
+            expected=q.viewer_revision(p)
+            with patch("quest_store.hashlib.sha256",side_effect=AssertionError("Rehashed unchanged state")):
+                self.assertEqual(q.viewer_revision(p),expected)
+            other.update_profile(p,{"name":"Changed Person","email":"changed@example.test"})
+            self.assertNotEqual(q.viewer_revision(p),expected)

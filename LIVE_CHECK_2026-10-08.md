@@ -38,3 +38,17 @@ Reproduzieren (jeweils mit temporären Daten, ohne SMTP):
 .venv\Scripts\python.exe scripts/check_quest_concurrency.py --clients 120
 .venv\Scripts\python.exe scripts/check_quest_event_races.py
 ```
+
+
+## Nachtrag: Lastreduzierung während des Anlasses
+
+Eine ausgegraute/hängende Live-Sitzung liess sich ohne Serverlogs oder betroffene Sitzung nicht eindeutig reproduzieren. Unabhängig davon wurden wiederkehrende Kosten reduziert:
+
+- Badge-Dateien werden über Streamlits verzögerte Download-Erzeugung erst auf Klick erstellt. Alle vier Dateiformate wurden geprüft; Seitenaufbau und Änderungen erzeugen keine Druckdateien mehr.
+- Registration reagiert nicht mehr auf jeden fremden Scan mit einem automatischen kompletten Seitenaufbau. Eigene Interaktionen laden aktuelle Daten weiterhin. Teilnehmer-, Team- und Leinwand-Aktualisierung bleiben aktiv.
+- Datenbank-Lesezugriffe kopieren nur das benötigte Feld/Ergebnis, nicht jedes Mal den gesamten Veranstaltungszustand. Zurückgegebene Daten bleiben unabhängige Kopien. Zwischenzeitliche Änderungen anderer Clients werden weiterhin anhand der Datenbankrevision erkannt.
+- Unveränderte Teilnehmeransichten verwenden ihren bereits berechneten Vergleichswert wieder; Änderung von Profil, Kontakten, Gewinnstatus und Terminbestätigung wird weiterhin erkannt.
+
+Lokaler Vorher/Nachher-Vergleich mit 100 Personen und gefüllter Mailwarteschlange: 100 Leseabläufe von 2,202 auf 1,507 Sekunden; 100 unveränderte Aktualisierungsprüfungen von 0,584 auf 0,280 Sekunden. Dies ist kein Cloud-Benchmark.
+
+86 Tests bestanden, zusätzlich geprüfte Admin-/Gewinnoberflächen und gültige verzögerte Downloads. Erneuter Konflikttest: 100 Anfragen auf denselben Gewinn ergeben eine Zuweisung, 100 wiederholte Scans eine Verbindung, acht Maildienste 100 eindeutige simulierte Versandaufrufe. Keine echten E-Mails, kein Zugriff auf Veranstaltungsdaten. Keine Datenmigration, keine Änderung bestehender IDs oder Zugangscodes. Ein Live-Rollout bleibt ein eigener Schritt und kann laufende Sitzungen zum Neuladen bringen.

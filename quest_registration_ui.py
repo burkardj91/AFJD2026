@@ -138,11 +138,12 @@ def registration_page(q, staff_id, base_url):
             from quest_badges import badge_docx
             mirror = st.checkbox("Rückseiten für Duplexdruck an der langen Kante spiegeln", value=True)
             st.caption("Word-Vorlage: A4, 10 Badges pro Blatt (8,5 × 5,5 cm). Linke Spalte: 1,5–10 cm; rechte Spalte: 11–19,5 cm. Oben 1,2 cm, unten 1 cm. Text und sichtbarer QR-Code beginnen je Badge 1 cm unter der Badge-Oberkante; auf der Rückseite gilt dieselbe Referenz. Ungerade Seiten sind Vorderseiten; gerade Seiten enthalten private IDs und Passwörter. Bei 100 % drucken. Zuerst ein Blatt testen.")
-            st.download_button("Badge-Vorlage · PRIVATES Word herunterladen", badge_docx(roster, selected, base_url, mirror), "AFJD-template-badges-PRIVATE.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-            badges, slips = print_documents(roster, selected, base_url)
-            st.download_button("Gesamten Stapel · PRIVATES ZIP herunterladen", batch_archive(roster, selected, base_url, mirror), "AFJD-registration-batch-PRIVATE.zip", "application/zip")
-            st.download_button("Öffentliche Badges herunterladen", badges, "AFJD-badges.html", "text/html")
-            st.download_button("Separate PRIVATE Zugangszettel herunterladen", slips, "AFJD-private-slips.html", "text/html")
+            # Private exports are generated only on click, not on every rerun.
+            selected = tuple(selected)
+            st.download_button("Badge-Vorlage · PRIVATES Word herunterladen", lambda r=roster, ids=selected, url=base_url, m=mirror: badge_docx(r, ids, url, m), "AFJD-template-badges-PRIVATE.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", on_click="ignore")
+            st.download_button("Gesamten Stapel · PRIVATES ZIP herunterladen", lambda r=roster, ids=selected, url=base_url, m=mirror: batch_archive(r, ids, url, m), "AFJD-registration-batch-PRIVATE.zip", "application/zip", on_click="ignore")
+            st.download_button("Öffentliche Badges herunterladen", lambda r=roster, ids=selected, url=base_url: print_documents(r, ids, url)[0], "AFJD-badges.html", "text/html", on_click="ignore")
+            st.download_button("Separate PRIVATE Zugangszettel herunterladen", lambda r=roster, ids=selected, url=base_url: print_documents(r, ids, url)[1], "AFJD-private-slips.html", "text/html", on_click="ignore")
             st.caption("HTML-Dateien im Browser öffnen und bei 100 % drucken. Private Zugangszettel nie als öffentliche Badges verteilen.")
         else:
             st.info("Importiere eine Excel-Datei oder erfasse eine Nachmeldung. Wähle anschliessend die Personen für den Druck.")

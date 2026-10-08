@@ -6,6 +6,8 @@ import secrets
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timezone
 
+QUESTS_TO_UNLOCK = 2
+
 CLUSTERS = {'Agriculture': 'Agriculture & Primary Production', 'Food Production': 'Food Production & Processing', 'FoodTech & Innovation': 'Ingredients, FoodTech & Innovation', 'Retail': 'Retail & Market', 'Services & Ecosystem': 'Services, Education & Ecosystem'}
 CLUSTER_LABELS = {"Agriculture":"Landwirtschaft & Primärproduktion", "Food Production":"Lebensmittelproduktion", "FoodTech & Innovation":"Lebensmitteltechnologie & Innovation", "Retail":"Detailhandel", "Services & Ecosystem":"Dienstleistungen & Bildung"}
 CLUSTERS["Future Food Apéro"] = "Future Food Apéro"
@@ -216,7 +218,7 @@ class Quest:
         if key in self.outbox:
             self.outbox[key].update(status=status, attempted=True)
 
-    catalog_version: int = field(default_factory=lambda:4)
+    catalog_version: int = field(default_factory=lambda:5)
     active: set = field(default_factory=set)
     visits: dict = field(default_factory=dict)
     connections: set = field(default_factory=set)
@@ -496,7 +498,7 @@ class Quest:
     def refresh(self, person):
         if self.registrations.get(person,{}).get("identity_pending"):
             return
-        if len(self.completed(person)) >= 4:
+        if len(self.completed(person)) >= QUESTS_TO_UNLOCK:
             self.unlocked.add(person)
 
     def scan(self, person, value):
@@ -562,7 +564,7 @@ class Quest:
         if card not in CARDS:
             raise ValueError("Unbekannte Gewinnkarte.")
         if person not in self.unlocked:
-            raise ValueError("Zuerst müssen vier Quests erfüllt sein.")
+            raise ValueError("Zuerst müssen zwei Quests erfüllt sein.")
         if card in self.assignments or person in self.assignments.values():
             raise ValueError("Eine Karte wurde bereits zugeordnet. Eine doppelte Vergabe ist gesperrt.")
         self.assignments[card] = person
@@ -628,8 +630,8 @@ class Quest:
         if staff_id not in {"STAFF-01", "STAFF-02"}:
             raise ValueError("Ein Administrator-Zugang ist erforderlich.")
         self.require_active(person)
-        if len(self.completed(person)) < 4:
-            raise ValueError("Zuerst müssen vier Quests erfüllt sein.")
+        if len(self.completed(person)) < QUESTS_TO_UNLOCK:
+            raise ValueError("Zuerst müssen zwei Quests erfüllt sein.")
         self.draw_approvals.setdefault(person, {"staff":staff_id, "at":datetime.now(timezone.utc).isoformat()})
 
     def draw(self, person, staff_id):

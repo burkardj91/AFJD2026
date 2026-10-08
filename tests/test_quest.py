@@ -64,6 +64,7 @@ class QuestTests(unittest.TestCase):
 
     def test_confirmation_deduplication_and_bonus(self):
         self.unlock(self.lea)
+        before_entries = self.q.entries(self.lea)
         self.alex = self.q.activate("DEMO-189")
         self.q.scan(self.lea, payload("person", self.alex))
         self.assertIn(self.alex, self.q.people(self.lea))
@@ -71,11 +72,11 @@ class QuestTests(unittest.TestCase):
         self.assertEqual(len(self.q.pending), 0)
         self.q.confirm(self.alex, self.lea)
         self.assertIn(self.alex, self.q.people(self.lea))
-        self.assertEqual(self.q.entries(self.lea), 2)
+        self.assertEqual(self.q.entries(self.lea), before_entries + 1)
         self.q.scan(self.lea, payload("person", self.alex))
-        self.assertEqual(self.q.entries(self.lea), 2)
+        self.assertEqual(self.q.entries(self.lea), before_entries + 1)
         self.q.confirm(self.alex, self.lea)
-        self.assertEqual(self.q.entries(self.lea), 2)
+        self.assertEqual(self.q.entries(self.lea), before_entries + 1)
         self.assertEqual(self.q.sharing, set())
 
     def test_one_primary_challenge_and_duplicates(self):
