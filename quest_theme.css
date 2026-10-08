@@ -64,7 +64,7 @@ button[kind=secondary],button[kind=tertiary]{background:var(--surface)!important
 @media(max-width:600px){.deck-card{min-height:175px;padding:16px 6px}.deck-card span{font-size:19px}.deck-card img{width:45px}.invitation h2{font-size:30px!important}[role=tab]{font-size:calc(.72rem * var(--text-scale))!important}}
 @media(prefers-reduced-motion:reduce){.turning-card,.deck-card{animation:none}}
 
-.st-key-display-controls{align-items:flex-end!important}.st-key-display-controls [data-testid=stPopover]{width:fit-content;margin-left:auto}.st-key-display-controls button{min-height:34px;font-size:12px}
+.st-key-display-controls [data-testid=stPopover]{width:fit-content}.st-key-display-controls button{min-height:44px;font-size:14px;white-space:nowrap}
 [role=listbox],[role=option]{background:var(--surface)!important;color:var(--ink)!important}
 /* Let translated text and large-font preferences determine the card height. */
 .turning-card{min-height:0}.card-front{position:relative;min-height:490px;height:auto}.card-front .card-owner{flex-shrink:0}.card-front img.claim-qr{flex-shrink:0}.card-front>img{flex-shrink:0}
