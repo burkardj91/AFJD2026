@@ -144,6 +144,12 @@ class SharedQuest:
                 state.refresh(person)
             state.draw_approvals = {p:v for p,v in state.draw_approvals.items() if p in state.unlocked}
             state.catalog_version = 4
+        if state.catalog_version < 5:
+            # Lower threshold only adds eligibility. Preserve every existing
+            # registration, credential, activity, approval and prize assignment.
+            for person in state.active:
+                state.refresh(person)
+            state.catalog_version = 5
         return state
 
     def __getattr__(self, name):
